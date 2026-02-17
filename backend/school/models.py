@@ -107,6 +107,18 @@ class ClassGroup(models.Model):
         return f'{self.school_class} — {self.name}'
 
 
+class Room(models.Model):
+    name = models.CharField('Название кабинета', max_length=50, unique=True)
+
+    class Meta:
+        verbose_name = 'Кабинет'
+        verbose_name_plural = 'Кабинеты'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class ClassSubject(models.Model):
     school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='class_subjects')
     name = models.CharField('Название предмета', max_length=200)
@@ -130,3 +142,34 @@ class ClassSubject(models.Model):
 
     def __str__(self):
         return f'{self.school_class} — {self.name}'
+
+
+class ScheduleLesson(models.Model):
+    WEEKDAY_CHOICES = [
+        (1, 'Понедельник'),
+        (2, 'Вторник'),
+        (3, 'Среда'),
+        (4, 'Четверг'),
+        (5, 'Пятница'),
+    ]
+
+    school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='schedule_lessons')
+    weekday = models.PositiveSmallIntegerField('День недели', choices=WEEKDAY_CHOICES)
+    lesson_number = models.PositiveSmallIntegerField('Номер урока')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='schedule_lessons')
+    teacher = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='schedule_lessons',
+    )
+    room = models.ForeignKey(
+        Room, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='schedule_lessons',
+    )
+
+    class Meta:
+        verbose_name = 'Урок в расписании'
+        verbose_name_plural = 'Уроки в расписании'
+        ordering = ['weekday', 'lesson_number']
+
+    def __str__(self):
+        return f'{self.school_class} — {self.get_weekday_display()} урок {self.lesson_number}'

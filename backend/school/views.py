@@ -5,15 +5,16 @@ from rest_framework.response import Response
 
 from accounts.permissions import IsAdmin, PasswordChanged
 from accounts.models import User
+from rest_framework.permissions import IsAuthenticated
 from .models import (
     GradeLevel, SchoolClass, Subject, GradeLevelSubject,
     StudentProfile, ParentProfile, TeacherProfile,
-    ClassGroup, ClassSubject,
+    ClassGroup, ClassSubject, Room, ScheduleLesson,
 )
 from .serializers import (
     GradeLevelSerializer, SchoolClassSerializer, SubjectSerializer,
     GradeLevelSubjectSerializer, StudentProfileSerializer, ParentProfileSerializer,
-    ClassGroupSerializer, ClassSubjectSerializer,
+    ClassGroupSerializer, ClassSubjectSerializer, RoomSerializer, ScheduleLessonSerializer,
 )
 from .services import import_classes
 
@@ -292,3 +293,115 @@ def teacher_list(request):
     teachers = User.objects.filter(is_teacher=True).order_by('last_name', 'first_name')
     data = [{'id': t.id, 'first_name': t.first_name, 'last_name': t.last_name} for t in teachers]
     return Response(data)
+
+
+# --- Rooms ---
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAdmin, PasswordChanged])
+def room_list_create(request):
+    if request.method == 'GET':
+        rooms = Room.objects.all()
+        return Response(RoomSerializer(rooms, many=True).data)
+
+    name = request.data.get('name', '').strip()
+    if not name:
+        return Response({'detail': 'Название кабинета обязательно'}, status=status.HTTP_400_BAD_REQUEST)
+
+    room, created = Room.objects.get_or_create(name=name)
+    return Response(RoomSerializer(room).data, status=status.HTTP_201_CREATED if created else 200)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAdmin, PasswordChanged])
+def room_delete(request, pk):
+    try:
+        Room.objects.get(pk=pk).delete()
+    except Room.DoesNotExist:
+        return Response({'detail': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# --- Schedule ---
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def schedule_list(request):
+    lessons = ScheduleLesson.objects.select_related('school_class__grade_level', 'subject', 'teacher', 'room')
+
+    school_class = request.query_params.get('school_class')
+    teacher = request.query_params.get('teacher')
+    room = request.query_params.get('room')
+    weekday = request.query_params.get('weekday')
+    lesson_number = request.query_params.get('lesson_number')
+
+    if school_class:
+        lessons = lessons.filter(school_class_id=school_class)
+    elif teacher:
+        lessons = lessons.filter(teacher_id=teacher)
+    elif room:
+        lessons = lessons.filter(room_id=room)
+    elif weekday and lesson_number:
+        lessons = lessons.filter(weekday=weekday, lesson_number=lesson_number)
+    else:
+        return Response([])
+
+    if weekday and school_class:
+        lessons = lessons.filter(weekday=weekday)
+    if lesson_number and school_class:
+        lessons = lessons.filter(lesson_number=lesson_number)
+
+    return Response(ScheduleLessonSerializer(lessons, many=True).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAdmin, PasswordChanged])
+def schedule_create(request):
+    data = request.data
+
+    subject_id = data.get('subject')
+    subject_name = data.get('subject_name')
+    if not subject_id and subject_name:
+        subject, _ = Subject.objects.get_or_create(name=subject_name.strip())
+        subject_id = subject.id
+
+    lesson = ScheduleLesson.objects.create(
+        school_class_id=data['school_class'],
+        weekday=data['weekday'],
+        lesson_number=data['lesson_number'],
+        subject_id=subject_id,
+        teacher_id=data.get('teacher') or None,
+        room_id=data.get('room') or None,
+    )
+    return Response(ScheduleLessonSerializer(lesson).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['PUT', 'DELETE'])
+@permission_classes([IsAdmin, PasswordChanged])
+def schedule_detail(request, pk):
+    try:
+        lesson = ScheduleLesson.objects.get(pk=pk)
+    except ScheduleLesson.DoesNotExist:
+        return Response({'detail': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        lesson.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    data = request.data
+    if 'subject' in data:
+        lesson.subject_id = data['subject']
+    elif 'subject_name' in data:
+        subject, _ = Subject.objects.get_or_create(name=data['subject_name'].strip())
+        lesson.subject_id = subject.id
+    if 'teacher' in data:
+        lesson.teacher_id = data['teacher'] or None
+    if 'room' in data:
+        lesson.room_id = data['room'] or None
+    if 'weekday' in data:
+        lesson.weekday = data['weekday']
+    if 'lesson_number' in data:
+        lesson.lesson_number = data['lesson_number']
+
+    lesson.save()
+    return Response(ScheduleLessonSerializer(lesson).data)

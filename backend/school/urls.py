@@ -24,4 +24,13 @@ urlpatterns = [
 
     # Teachers (lightweight)
     path('teachers/', views.teacher_list),
+
+    # Rooms
+    path('rooms/', views.room_list_create),
+    path('rooms/<int:pk>/', views.room_delete),
+
+    # Schedule
+    path('schedule/', views.schedule_list),
+    path('schedule/create/', views.schedule_create),
+    path('schedule/<int:pk>/', views.schedule_detail),
 ]

@@ -24,6 +24,9 @@ export default function Layout() {
                   <Link to="/ktp" className="text-gray-700 hover:text-blue-600">
                     КТП
                   </Link>
+                  <Link to="/schedule" className="text-gray-700 hover:text-blue-600">
+                    Расписание
+                  </Link>
                   {user.is_admin && (
                     <>
                       <Link to="/admin/people" className="text-gray-700 hover:text-blue-600">

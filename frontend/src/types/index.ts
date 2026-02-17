@@ -136,3 +136,22 @@ export interface TeacherOption {
   first_name: string;
   last_name: string;
 }
+
+export interface Room {
+  id: number;
+  name: string;
+}
+
+export interface ScheduleLesson {
+  id: number;
+  school_class: number;
+  class_name: string;
+  weekday: number;
+  lesson_number: number;
+  subject: number;
+  subject_name: string;
+  teacher: number | null;
+  teacher_name: string | null;
+  room: number | null;
+  room_name: string | null;
+}
