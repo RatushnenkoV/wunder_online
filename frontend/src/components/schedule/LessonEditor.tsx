@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ScheduleLesson, ClassSubject, TeacherOption, Room } from '../../types';
+import type { ScheduleLesson, ClassSubject, TeacherOption, Room, ClassGroup } from '../../types';
 
 const WEEKDAY_NAMES: Record<number, string> = {
   1: 'Понедельник', 2: 'Вторник', 3: 'Среда', 4: 'Четверг', 5: 'Пятница',
@@ -12,27 +12,27 @@ interface Props {
   classSubjects: ClassSubject[];
   teachers: TeacherOption[];
   rooms: Room[];
+  classGroups: ClassGroup[];
   slotLessons: ScheduleLesson[];
   currentClassId: number | null;
-  onSave: (data: { subject_name: string; teacher: number | null; room: number | null }) => void;
+  onSave: (data: { subject_name: string; teacher: number | null; room: number | null; group: number | null }) => void;
   onDelete?: () => void;
   onClose: () => void;
 }
 
 export default function LessonEditor({
-  weekday, lessonNumber, lesson, classSubjects, teachers, rooms,
+  weekday, lessonNumber, lesson, classSubjects, teachers, rooms, classGroups,
   slotLessons, currentClassId, onSave, onDelete, onClose,
 }: Props) {
   const [subjectName, setSubjectName] = useState(lesson?.subject_name ?? '');
   const [teacherId, setTeacherId] = useState<number | ''>(lesson?.teacher ?? '');
   const [roomId, setRoomId] = useState<number | ''>(lesson?.room ?? '');
+  const [groupId, setGroupId] = useState<number | ''>(lesson?.group ?? '');
   const [showAllTeachers, setShowAllTeachers] = useState(false);
   const [showAllRooms, setShowAllRooms] = useState(false);
 
   // Determine which teachers/rooms are busy in this slot (excluding current lesson)
-  const otherSlotLessons = slotLessons.filter(l =>
-    l.id !== lesson?.id && l.school_class !== currentClassId
-  );
+  const otherSlotLessons = slotLessons.filter(l => l.id !== lesson?.id);
 
   const busyTeacherIds = new Set(otherSlotLessons.filter(l => l.teacher).map(l => l.teacher!));
   const busyRoomIds = new Set(otherSlotLessons.filter(l => l.room).map(l => l.room!));
@@ -62,6 +62,7 @@ export default function LessonEditor({
       subject_name: subjectName,
       teacher: teacherId ? (teacherId as number) : null,
       room: roomId ? (roomId as number) : null,
+      group: groupId ? (groupId as number) : null,
     });
   };
 
@@ -94,6 +95,22 @@ export default function LessonEditor({
               </p>
             )}
           </div>
+
+          {classGroups.length >= 2 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Группа</label>
+              <select
+                value={groupId}
+                onChange={e => setGroupId(e.target.value ? Number(e.target.value) : '')}
+                className="w-full border rounded px-3 py-2 text-sm"
+              >
+                <option value="">Весь класс</option>
+                {classGroups.map(g => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <div className="flex items-center justify-between mb-1">

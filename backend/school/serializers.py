@@ -87,18 +87,12 @@ class ClassGroupSerializer(serializers.ModelSerializer):
 
 
 class ClassSubjectSerializer(serializers.ModelSerializer):
-    teacher_name = serializers.SerializerMethodField()
     group_name = serializers.SerializerMethodField()
 
     class Meta:
         model = ClassSubject
-        fields = ['id', 'school_class', 'name', 'teacher', 'teacher_name', 'group', 'group_name']
+        fields = ['id', 'school_class', 'name', 'group', 'group_name']
         read_only_fields = ['school_class']
-
-    def get_teacher_name(self, obj):
-        if obj.teacher:
-            return f'{obj.teacher.last_name} {obj.teacher.first_name}'
-        return None
 
     def get_group_name(self, obj):
         return obj.group.name if obj.group else None
@@ -115,13 +109,14 @@ class ScheduleLessonSerializer(serializers.ModelSerializer):
     subject_name = serializers.CharField(source='subject.name', read_only=True)
     teacher_name = serializers.SerializerMethodField()
     room_name = serializers.SerializerMethodField()
+    group_name = serializers.SerializerMethodField()
 
     class Meta:
         model = ScheduleLesson
         fields = [
             'id', 'school_class', 'class_name', 'weekday', 'lesson_number',
             'subject', 'subject_name', 'teacher', 'teacher_name',
-            'room', 'room_name',
+            'room', 'room_name', 'group', 'group_name',
         ]
 
     def get_class_name(self, obj):
@@ -134,3 +129,6 @@ class ScheduleLessonSerializer(serializers.ModelSerializer):
 
     def get_room_name(self, obj):
         return obj.room.name if obj.room else None
+
+    def get_group_name(self, obj):
+        return obj.group.name if obj.group else None

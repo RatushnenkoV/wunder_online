@@ -125,8 +125,6 @@ export interface ClassSubject {
   id: number;
   school_class: number;
   name: string;
-  teacher: number | null;
-  teacher_name: string | null;
   group: number | null;
   group_name: string | null;
 }
@@ -154,4 +152,6 @@ export interface ScheduleLesson {
   teacher_name: string | null;
   room: number | null;
   room_name: string | null;
+  group: number | null;
+  group_name: string | null;
 }

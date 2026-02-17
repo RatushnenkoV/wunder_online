@@ -6,6 +6,7 @@ import ChangePasswordPage from './pages/ChangePasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import PeoplePage from './pages/PeoplePage';
 import SchoolPage from './pages/SchoolPage';
+import SettingsPage from './pages/SettingsPage';
 import KTPListPage from './pages/KTPListPage';
 import KTPDetailPage from './pages/KTPDetailPage';
 import SchedulePage from './pages/SchedulePage';
@@ -57,6 +58,7 @@ function App() {
             <Route path="/schedule" element={<SchedulePage />} />
             <Route path="/admin/people" element={<ProtectedRoute adminOnly><PeoplePage /></ProtectedRoute>} />
             <Route path="/admin/school" element={<ProtectedRoute adminOnly><SchoolPage /></ProtectedRoute>} />
+            <Route path="/admin/settings" element={<ProtectedRoute adminOnly><SettingsPage /></ProtectedRoute>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" />} />

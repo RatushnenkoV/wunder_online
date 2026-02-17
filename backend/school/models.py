@@ -122,12 +122,6 @@ class Room(models.Model):
 class ClassSubject(models.Model):
     school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='class_subjects')
     name = models.CharField('Название предмета', max_length=200)
-    teacher = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='taught_subjects',
-    )
     group = models.ForeignKey(
         ClassGroup,
         on_delete=models.SET_NULL,
@@ -163,6 +157,10 @@ class ScheduleLesson(models.Model):
     )
     room = models.ForeignKey(
         Room, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='schedule_lessons',
+    )
+    group = models.ForeignKey(
+        ClassGroup, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='schedule_lessons',
     )
 

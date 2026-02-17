@@ -31,6 +31,7 @@ urlpatterns = [
 
     # Schedule
     path('schedule/', views.schedule_list),
+    path('schedule/all/', views.schedule_all),
     path('schedule/create/', views.schedule_create),
     path('schedule/<int:pk>/', views.schedule_detail),
 ]

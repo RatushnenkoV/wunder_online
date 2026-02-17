@@ -2,13 +2,13 @@ import { useState } from 'react';
 import type { SchoolClass } from '../types';
 import ClassesGrid from '../components/school/ClassesGrid';
 import ClassDetail from '../components/school/ClassDetail';
-import ExtraTab from '../components/school/ExtraTab';
+import StudentsTab from '../components/StudentsTab';
 
-type MainTab = 'classes' | 'extra';
+type MainTab = 'classes' | 'all';
 
 const TABS: { key: MainTab; label: string }[] = [
   { key: 'classes', label: 'Классы' },
-  { key: 'extra', label: 'Дополнительно' },
+  { key: 'all', label: 'Все' },
 ];
 
 export default function SchoolPage() {
@@ -22,8 +22,6 @@ export default function SchoolPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">Управление школой</h1>
-
       <div className="flex border-b mb-6">
         {TABS.map(t => (
           <button
@@ -46,7 +44,7 @@ export default function SchoolPage() {
           : <ClassesGrid onSelect={setSelectedClass} />
       )}
 
-      {mainTab === 'extra' && <ExtraTab />}
+      {mainTab === 'all' && <StudentsTab />}
     </div>
   );
 }

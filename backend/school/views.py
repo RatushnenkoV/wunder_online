@@ -235,7 +235,7 @@ def class_subject_list_create(request, class_id):
         return Response({'detail': 'Класс не найден'}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        subjects = ClassSubject.objects.filter(school_class=sc).select_related('teacher', 'group')
+        subjects = ClassSubject.objects.filter(school_class=sc).select_related('group')
         return Response(ClassSubjectSerializer(subjects, many=True).data)
 
     # Batch create
@@ -250,7 +250,6 @@ def class_subject_list_create(request, class_id):
         cs = ClassSubject.objects.create(
             school_class=sc,
             name=name,
-            teacher_id=entry.get('teacher') or None,
             group_id=entry.get('group') or None,
         )
         created.append(cs)
@@ -276,8 +275,6 @@ def class_subject_detail(request, pk):
     name = request.data.get('name', '').strip()
     if name:
         cs.name = name
-    if 'teacher' in request.data:
-        cs.teacher_id = request.data['teacher'] or None
     if 'group' in request.data:
         cs.group_id = request.data['group'] or None
 
@@ -327,7 +324,7 @@ def room_delete(request, pk):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, PasswordChanged])
 def schedule_list(request):
-    lessons = ScheduleLesson.objects.select_related('school_class__grade_level', 'subject', 'teacher', 'room')
+    lessons = ScheduleLesson.objects.select_related('school_class__grade_level', 'subject', 'teacher', 'room', 'group')
 
     school_class = request.query_params.get('school_class')
     teacher = request.query_params.get('teacher')
@@ -354,6 +351,14 @@ def schedule_list(request):
     return Response(ScheduleLessonSerializer(lessons, many=True).data)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def schedule_all(request):
+    """Return all lessons for the week (for conflict detection)."""
+    lessons = ScheduleLesson.objects.select_related('school_class__grade_level', 'subject', 'teacher', 'room', 'group')
+    return Response(ScheduleLessonSerializer(lessons, many=True).data)
+
+
 @api_view(['POST'])
 @permission_classes([IsAdmin, PasswordChanged])
 def schedule_create(request):
@@ -372,6 +377,7 @@ def schedule_create(request):
         subject_id=subject_id,
         teacher_id=data.get('teacher') or None,
         room_id=data.get('room') or None,
+        group_id=data.get('group') or None,
     )
     return Response(ScheduleLessonSerializer(lesson).data, status=status.HTTP_201_CREATED)
 
@@ -398,6 +404,8 @@ def schedule_detail(request, pk):
         lesson.teacher_id = data['teacher'] or None
     if 'room' in data:
         lesson.room_id = data['room'] or None
+    if 'group' in data:
+        lesson.group_id = data['group'] or None
     if 'weekday' in data:
         lesson.weekday = data['weekday']
     if 'lesson_number' in data:

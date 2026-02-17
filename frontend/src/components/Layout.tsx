@@ -29,11 +29,14 @@ export default function Layout() {
                   </Link>
                   {user.is_admin && (
                     <>
-                      <Link to="/admin/people" className="text-gray-700 hover:text-blue-600">
-                        Люди
-                      </Link>
                       <Link to="/admin/school" className="text-gray-700 hover:text-blue-600">
-                        Школа
+                        Ученики
+                      </Link>
+                      <Link to="/admin/people" className="text-gray-700 hover:text-blue-600">
+                        Сотрудники
+                      </Link>
+                      <Link to="/admin/settings" className="text-gray-700 hover:text-blue-600">
+                        Настройки
                       </Link>
                     </>
                   )}
