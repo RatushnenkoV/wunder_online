@@ -276,7 +276,8 @@ export default function ScheduleGrid({
               </td>
               {visibleDays.map(d => {
                 const cellLessons = getCellLessons(d.num, num);
-                const isSplit = cellLessons.some(l => l.group !== null);
+                // Split view only makes sense for class mode: a teacher/room only has one of the halves
+                const isSplit = viewMode === 'class' && cellLessons.some(l => l.group !== null);
                 const isDropTarget = isDragTarget(d.num, num);
                 const canDrop = isDropTarget && dragLesson && canDropInto(d.num, num, dragLesson);
 
@@ -309,12 +310,12 @@ export default function ScheduleGrid({
                             ? 'bg-blue-100 border-2 border-dashed border-blue-400'
                             : duplicating
                               ? 'bg-gray-100 hover:bg-blue-50 cursor-pointer border border-dashed border-gray-200'
-                              : editing && viewMode === 'class'
+                              : editing
                                 ? 'bg-gray-100 hover:bg-blue-50 cursor-pointer'
                                 : 'bg-gray-100'
                         }`}
                       >
-                        {editing && !duplicating && viewMode === 'class' && (
+                        {editing && !duplicating && (
                           <span className="text-gray-300 text-xs">+</span>
                         )}
                         {duplicating && (

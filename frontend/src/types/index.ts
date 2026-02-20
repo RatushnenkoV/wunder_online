@@ -140,6 +140,27 @@ export interface Room {
   name: string;
 }
 
+export interface Substitution {
+  id: number;
+  date: string; // YYYY-MM-DD
+  lesson_number: number;
+  school_class: number;
+  class_name: string;
+  subject: number;
+  subject_name: string;
+  teacher: number | null;
+  teacher_name: string | null;
+  room: number | null;
+  room_name: string | null;
+  original_lesson: number | null;
+  group: number | null;
+  group_name: string | null;
+  original_subject_name: string | null;
+  original_teacher_name: string | null;
+  original_room_name: string | null;
+  original_class_name: string | null;
+}
+
 export interface ScheduleLesson {
   id: number;
   school_class: number;

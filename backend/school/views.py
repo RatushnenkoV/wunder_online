@@ -9,12 +9,13 @@ from rest_framework.permissions import IsAuthenticated
 from .models import (
     GradeLevel, SchoolClass, Subject, GradeLevelSubject,
     StudentProfile, ParentProfile, TeacherProfile,
-    ClassGroup, ClassSubject, Room, ScheduleLesson,
+    ClassGroup, ClassSubject, Room, ScheduleLesson, Substitution,
 )
 from .serializers import (
     GradeLevelSerializer, SchoolClassSerializer, SubjectSerializer,
     GradeLevelSubjectSerializer, StudentProfileSerializer, ParentProfileSerializer,
-    ClassGroupSerializer, ClassSubjectSerializer, RoomSerializer, ScheduleLessonSerializer,
+    ClassGroupSerializer, ClassSubjectSerializer, RoomSerializer,
+    ScheduleLessonSerializer, SubstitutionSerializer,
 )
 from .services import import_classes
 
@@ -413,3 +414,189 @@ def schedule_detail(request, pk):
 
     lesson.save()
     return Response(ScheduleLessonSerializer(lesson).data)
+
+
+# --- Substitutions ---
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def substitution_list_create(request):
+    if request.method == 'GET':
+        subs = Substitution.objects.select_related(
+            'school_class__grade_level', 'subject', 'teacher', 'room',
+            'original_lesson__subject', 'original_lesson__teacher', 'original_lesson__room',
+            'original_lesson__school_class__grade_level',
+        )
+        date_from = request.query_params.get('date_from')
+        date_to = request.query_params.get('date_to')
+        school_class = request.query_params.get('school_class')
+        teacher = request.query_params.get('teacher')
+        room = request.query_params.get('room')
+
+        if date_from:
+            subs = subs.filter(date__gte=date_from)
+        if date_to:
+            subs = subs.filter(date__lte=date_to)
+        if school_class:
+            subs = subs.filter(school_class_id=school_class)
+        elif teacher:
+            # Substitutions where this teacher is the new teacher, or original lesson had this teacher
+            from django.db.models import Q
+            subs = subs.filter(
+                Q(teacher_id=teacher) | Q(original_lesson__teacher_id=teacher)
+            )
+        elif room:
+            from django.db.models import Q
+            subs = subs.filter(
+                Q(room_id=room) | Q(original_lesson__room_id=room)
+            )
+
+        return Response(SubstitutionSerializer(subs, many=True).data)
+
+    # POST
+    if not request.user.is_admin:
+        return Response({'detail': 'Недостаточно прав'}, status=status.HTTP_403_FORBIDDEN)
+
+    data = request.data
+    subject_id = data.get('subject')
+    subject_name = data.get('subject_name')
+    if not subject_id and subject_name:
+        subject, _ = Subject.objects.get_or_create(name=subject_name.strip())
+        subject_id = subject.id
+
+    if not subject_id:
+        return Response({'detail': 'Предмет обязателен'}, status=status.HTTP_400_BAD_REQUEST)
+
+    group_id = data.get('group') or None
+    sub, created = Substitution.objects.update_or_create(
+        date=data['date'],
+        lesson_number=data['lesson_number'],
+        school_class_id=data['school_class'],
+        group_id=group_id,
+        defaults=dict(
+            subject_id=subject_id,
+            teacher_id=data.get('teacher') or None,
+            room_id=data.get('room') or None,
+            original_lesson_id=data.get('original_lesson') or None,
+        ),
+    )
+    sub.refresh_from_db()
+    sub = Substitution.objects.select_related(
+        'school_class__grade_level', 'subject', 'teacher', 'room',
+        'original_lesson__subject', 'original_lesson__teacher', 'original_lesson__room',
+        'original_lesson__school_class__grade_level',
+    ).get(pk=sub.pk)
+    return Response(SubstitutionSerializer(sub).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+@api_view(['PUT', 'DELETE'])
+@permission_classes([IsAdmin, PasswordChanged])
+def substitution_detail(request, pk):
+    try:
+        sub = Substitution.objects.select_related(
+            'school_class__grade_level', 'subject', 'teacher', 'room',
+            'original_lesson__subject', 'original_lesson__teacher', 'original_lesson__room',
+        ).get(pk=pk)
+    except Substitution.DoesNotExist:
+        return Response({'detail': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        sub.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    data = request.data
+    if 'subject' in data:
+        sub.subject_id = data['subject']
+    elif 'subject_name' in data:
+        subject, _ = Subject.objects.get_or_create(name=data['subject_name'].strip())
+        sub.subject_id = subject.id
+    if 'teacher' in data:
+        sub.teacher_id = data['teacher'] or None
+    if 'room' in data:
+        sub.room_id = data['room'] or None
+    if 'school_class' in data:
+        sub.school_class_id = data['school_class']
+    if 'group' in data:
+        sub.group_id = data['group'] or None
+
+    sub.save()
+    sub.refresh_from_db()
+    return Response(SubstitutionSerializer(sub).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAdmin, PasswordChanged])
+def substitution_export(request):
+    """Export substitutions to Excel."""
+    from io import BytesIO
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from django.http import HttpResponse
+
+    date_from = request.query_params.get('date_from')
+    date_to = request.query_params.get('date_to')
+
+    subs = Substitution.objects.select_related(
+        'school_class__grade_level', 'subject', 'teacher', 'room',
+        'original_lesson__subject', 'original_lesson__teacher', 'original_lesson__room',
+    ).order_by('date', 'teacher__last_name', 'teacher__first_name', 'lesson_number')
+
+    if date_from:
+        subs = subs.filter(date__gte=date_from)
+    if date_to:
+        subs = subs.filter(date__lte=date_to)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Замены'
+
+    headers = [
+        'Дата', 'Урок', 'Класс',
+        'Было: предмет', 'Было: учитель', 'Было: кабинет',
+        'Стало: предмет', 'Стало: учитель', 'Стало: кабинет',
+    ]
+    ws.append(headers)
+
+    header_font = Font(bold=True)
+    header_fill = PatternFill(start_color='D0E8FF', end_color='D0E8FF', fill_type='solid')
+    for cell in ws[1]:
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+
+    for sub in subs:
+        orig_subject = sub.original_lesson.subject.name if sub.original_lesson else ''
+        orig_teacher = ''
+        if sub.original_lesson and sub.original_lesson.teacher:
+            t = sub.original_lesson.teacher
+            orig_teacher = f'{t.last_name} {t.first_name}'
+        orig_room = (sub.original_lesson.room.name if sub.original_lesson and sub.original_lesson.room else '')
+
+        new_teacher = f'{sub.teacher.last_name} {sub.teacher.first_name}' if sub.teacher else ''
+
+        ws.append([
+            sub.date.strftime('%d.%m.%Y'),
+            sub.lesson_number,
+            str(sub.school_class),
+            orig_subject,
+            orig_teacher,
+            orig_room,
+            sub.subject.name,
+            new_teacher,
+            sub.room.name if sub.room else '',
+        ])
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = max(12, min(max_len + 2, 40))
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    response = HttpResponse(
+        output.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = 'attachment; filename="zameny.xlsx"'
+    return response

@@ -34,4 +34,9 @@ urlpatterns = [
     path('schedule/all/', views.schedule_all),
     path('schedule/create/', views.schedule_create),
     path('schedule/<int:pk>/', views.schedule_detail),
+
+    # Substitutions
+    path('substitutions/', views.substitution_list_create),
+    path('substitutions/export/', views.substitution_export),
+    path('substitutions/<int:pk>/', views.substitution_detail),
 ]

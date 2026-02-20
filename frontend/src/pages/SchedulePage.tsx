@@ -4,6 +4,9 @@ import { useAuth } from '../contexts/AuthContext';
 import type { SchoolClass, TeacherOption, Room, ScheduleLesson, ClassSubject, ClassGroup } from '../types';
 import ScheduleGrid from '../components/schedule/ScheduleGrid';
 import LessonEditor from '../components/schedule/LessonEditor';
+import SubstitutionsTab from '../components/schedule/SubstitutionsTab';
+
+type MainTab = 'schedule' | 'substitutions';
 
 type ViewMode = 'class' | 'teacher' | 'room';
 type DisplayMode = 'week' | 'day';
@@ -36,6 +39,7 @@ function useIsMobile(breakpoint = 768) {
 export default function SchedulePage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const [mainTab, setMainTab] = useState<MainTab>('schedule');
   const [viewMode, setViewMode] = useState<ViewMode>(user?.is_teacher ? 'teacher' : 'class');
   const [selectedId, setSelectedId] = useState<number | null>(user?.is_teacher ? user.id : null);
   const [lessons, setLessons] = useState<ScheduleLesson[]>([]);
@@ -121,8 +125,6 @@ export default function SchedulePage() {
 
   const handleCellClick = async (weekday: number, lessonNumber: number, lesson?: ScheduleLesson) => {
     if (!editing) return;
-    // Can't create new lessons in teacher/room view (no class context)
-    if (!lesson && viewMode !== 'class') return;
 
     setEditLesson(lesson || null);
     setEditCell({ weekday, lessonNumber });
@@ -135,18 +137,18 @@ export default function SchedulePage() {
     setSlotLessons(res.data);
   };
 
-  const handleSave = async (data: { subject_name: string; teacher: number | null; room: number | null; group: number | null }) => {
+  const handleSave = async (data: { school_class: number; subject_name: string; teacher: number | null; room: number | null; group: number | null }) => {
     if (!editCell) return;
 
     if (editLesson) {
       await api.put(`/school/schedule/${editLesson.id}/`, data);
     } else {
-      if (!selectedId) return;
+      const { school_class, ...lessonFields } = data;
       await api.post('/school/schedule/create/', {
-        school_class: selectedId,
+        school_class,
         weekday: editCell.weekday,
         lesson_number: editCell.lessonNumber,
-        ...data,
+        ...lessonFields,
       });
     }
     setEditCell(null);
@@ -246,8 +248,34 @@ export default function SchedulePage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h1 className="text-2xl font-bold text-gray-900">Расписание</h1>
+      </div>
+
+      {/* Main tabs */}
+      <div className="flex gap-1 mb-6 border-b">
+        {([['schedule', 'Расписание'], ['substitutions', 'Замены']] as [MainTab, string][]).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setMainTab(key)}
+            className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              mainTab === key
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mainTab === 'substitutions' && (
+        <SubstitutionsTab classes={classes} teachers={teachers} rooms={rooms} />
+      )}
+
+      {mainTab === 'schedule' && <div>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div />
         <div className="flex items-center gap-2">
           {!isMobile && (
             <div className="flex rounded-lg overflow-hidden border">
@@ -385,13 +413,18 @@ export default function SchedulePage() {
           teachers={teachers}
           rooms={rooms}
           classGroups={classGroups}
+          classes={classes}
           slotLessons={slotLessons}
-          currentClassId={editLesson ? editLesson.school_class : selectedId}
+          currentClassId={editLesson ? editLesson.school_class : (viewMode === 'class' ? selectedId : null)}
+          initialTeacherId={!editLesson && viewMode === 'teacher' ? selectedId : null}
+          initialRoomId={!editLesson && viewMode === 'room' ? selectedId : null}
           onSave={handleSave}
+          onClassChange={loadClassData}
           onDelete={editLesson ? () => handleDelete() : undefined}
           onClose={() => { setEditCell(null); setEditLesson(null); setSlotLessons([]); }}
         />
       )}
+      </div>}
     </div>
   );
 }

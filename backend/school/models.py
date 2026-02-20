@@ -171,3 +171,50 @@ class ScheduleLesson(models.Model):
 
     def __str__(self):
         return f'{self.school_class} — {self.get_weekday_display()} урок {self.lesson_number}'
+
+
+class Substitution(models.Model):
+    date = models.DateField('Дата')
+    lesson_number = models.PositiveSmallIntegerField('Номер урока')
+    school_class = models.ForeignKey(
+        SchoolClass, on_delete=models.CASCADE, related_name='substitutions', verbose_name='Класс',
+    )
+    subject = models.ForeignKey(
+        Subject, on_delete=models.CASCADE, related_name='substitutions', verbose_name='Предмет',
+    )
+    teacher = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='substitutions', verbose_name='Учитель',
+    )
+    room = models.ForeignKey(
+        Room, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='substitutions', verbose_name='Кабинет',
+    )
+    original_lesson = models.ForeignKey(
+        ScheduleLesson, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='substitutions', verbose_name='Оригинальный урок',
+    )
+    group = models.ForeignKey(
+        ClassGroup, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='substitutions', verbose_name='Группа',
+    )
+
+    class Meta:
+        verbose_name = 'Замена'
+        verbose_name_plural = 'Замены'
+        ordering = ['date', 'lesson_number']
+        constraints = [
+            models.UniqueConstraint(
+                condition=models.Q(group__isnull=True),
+                fields=['date', 'lesson_number', 'school_class'],
+                name='unique_substitution_no_group',
+            ),
+            models.UniqueConstraint(
+                condition=models.Q(group__isnull=False),
+                fields=['date', 'lesson_number', 'school_class', 'group'],
+                name='unique_substitution_with_group',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.school_class} {self.date} урок {self.lesson_number}'

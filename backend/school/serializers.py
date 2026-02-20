@@ -3,7 +3,7 @@ from accounts.serializers import UserListSerializer
 from .models import (
     GradeLevel, SchoolClass, Subject, GradeLevelSubject,
     StudentProfile, ParentProfile, TeacherProfile,
-    ClassGroup, ClassSubject, Room, ScheduleLesson,
+    ClassGroup, ClassSubject, Room, ScheduleLesson, Substitution,
 )
 
 
@@ -129,6 +129,67 @@ class ScheduleLessonSerializer(serializers.ModelSerializer):
 
     def get_room_name(self, obj):
         return obj.room.name if obj.room else None
+
+    def get_group_name(self, obj):
+        return obj.group.name if obj.group else None
+
+
+class SubstitutionSerializer(serializers.ModelSerializer):
+    class_name = serializers.SerializerMethodField()
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+    teacher_name = serializers.SerializerMethodField()
+    room_name = serializers.SerializerMethodField()
+    original_subject_name = serializers.SerializerMethodField()
+    original_teacher_name = serializers.SerializerMethodField()
+    original_room_name = serializers.SerializerMethodField()
+    original_class_name = serializers.SerializerMethodField()
+    group_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Substitution
+        fields = [
+            'id', 'date', 'lesson_number',
+            'school_class', 'class_name',
+            'subject', 'subject_name',
+            'teacher', 'teacher_name',
+            'room', 'room_name',
+            'group', 'group_name',
+            'original_lesson',
+            'original_subject_name', 'original_teacher_name',
+            'original_room_name', 'original_class_name',
+        ]
+
+    def get_class_name(self, obj):
+        return str(obj.school_class)
+
+    def get_teacher_name(self, obj):
+        if obj.teacher:
+            return f'{obj.teacher.last_name} {obj.teacher.first_name}'
+        return None
+
+    def get_room_name(self, obj):
+        return obj.room.name if obj.room else None
+
+    def get_original_subject_name(self, obj):
+        if obj.original_lesson:
+            return obj.original_lesson.subject.name
+        return None
+
+    def get_original_teacher_name(self, obj):
+        if obj.original_lesson and obj.original_lesson.teacher:
+            t = obj.original_lesson.teacher
+            return f'{t.last_name} {t.first_name}'
+        return None
+
+    def get_original_room_name(self, obj):
+        if obj.original_lesson and obj.original_lesson.room:
+            return obj.original_lesson.room.name
+        return None
+
+    def get_original_class_name(self, obj):
+        if obj.original_lesson:
+            return str(obj.original_lesson.school_class)
+        return None
 
     def get_group_name(self, obj):
         return obj.group.name if obj.group else None

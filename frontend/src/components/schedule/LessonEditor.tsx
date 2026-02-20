@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ScheduleLesson, ClassSubject, TeacherOption, Room, ClassGroup } from '../../types';
+import type { ScheduleLesson, ClassSubject, TeacherOption, Room, ClassGroup, SchoolClass } from '../../types';
 
 const WEEKDAY_NAMES: Record<number, string> = {
   1: 'Понедельник', 2: 'Вторник', 3: 'Среда', 4: 'Четверг', 5: 'Пятница',
@@ -13,27 +13,53 @@ interface Props {
   teachers: TeacherOption[];
   rooms: Room[];
   classGroups: ClassGroup[];
+  classes: SchoolClass[];
   slotLessons: ScheduleLesson[];
   currentClassId: number | null;
-  onSave: (data: { subject_name: string; teacher: number | null; room: number | null; group: number | null }) => void;
+  // Pre-fill teacher/room when opening from teacher/room view context
+  initialTeacherId?: number | null;
+  initialRoomId?: number | null;
+  onSave: (data: {
+    school_class: number;
+    subject_name: string;
+    teacher: number | null;
+    room: number | null;
+    group: number | null;
+  }) => void;
+  onClassChange?: (classId: number) => void;
   onDelete?: () => void;
   onClose: () => void;
 }
 
 export default function LessonEditor({
-  weekday, lessonNumber, lesson, classSubjects, teachers, rooms, classGroups,
-  slotLessons, currentClassId, onSave, onDelete, onClose,
+  weekday, lessonNumber, lesson, classSubjects, teachers, rooms, classGroups, classes,
+  slotLessons, currentClassId, initialTeacherId, initialRoomId,
+  onSave, onClassChange, onDelete, onClose,
 }: Props) {
+  const [selectedClassId, setSelectedClassId] = useState<number | ''>(currentClassId ?? '');
   const [subjectName, setSubjectName] = useState(lesson?.subject_name ?? '');
-  const [teacherId, setTeacherId] = useState<number | ''>(lesson?.teacher ?? '');
-  const [roomId, setRoomId] = useState<number | ''>(lesson?.room ?? '');
+  const [teacherId, setTeacherId] = useState<number | ''>(
+    lesson?.teacher ?? initialTeacherId ?? '',
+  );
+  const [roomId, setRoomId] = useState<number | ''>(
+    lesson?.room ?? initialRoomId ?? '',
+  );
   const [groupId, setGroupId] = useState<number | ''>(lesson?.group ?? '');
   const [showAllTeachers, setShowAllTeachers] = useState(false);
   const [showAllRooms, setShowAllRooms] = useState(false);
 
+  // Need class selection only when creating a new lesson without context
+  const needsClassSelection = !lesson && !currentClassId;
+
+  const handleClassChange = (classId: number) => {
+    setSelectedClassId(classId);
+    setSubjectName('');
+    setGroupId('');
+    onClassChange?.(classId);
+  };
+
   // Determine which teachers/rooms are busy in this slot (excluding current lesson)
   const otherSlotLessons = slotLessons.filter(l => l.id !== lesson?.id);
-
   const busyTeacherIds = new Set(otherSlotLessons.filter(l => l.teacher).map(l => l.teacher!));
   const busyRoomIds = new Set(otherSlotLessons.filter(l => l.room).map(l => l.room!));
 
@@ -49,16 +75,17 @@ export default function LessonEditor({
 
   const freeTeachers = teachers.filter(t => !busyTeacherIds.has(t.id));
   const freeRooms = rooms.filter(r => !busyRoomIds.has(r.id));
-
   const displayedTeachers = showAllTeachers ? teachers : freeTeachers;
   const displayedRooms = showAllRooms ? rooms : freeRooms;
 
-  // Unique subject names from class subjects
   const subjectOptions = [...new Set(classSubjects.map(cs => cs.name))].sort();
 
+  const effectiveClassId = lesson?.school_class ?? currentClassId ?? (selectedClassId || undefined);
+
   const handleSubmit = () => {
-    if (!subjectName) return;
+    if (!subjectName || !effectiveClassId) return;
     onSave({
+      school_class: effectiveClassId,
       subject_name: subjectName,
       teacher: teacherId ? (teacherId as number) : null,
       room: roomId ? (roomId as number) : null,
@@ -77,19 +104,37 @@ export default function LessonEditor({
         </p>
 
         <div className="space-y-3">
+          {/* Class selector — only for new lessons in teacher/room view */}
+          {needsClassSelection && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Класс *</label>
+              <select
+                value={selectedClassId}
+                onChange={e => e.target.value && handleClassChange(Number(e.target.value))}
+                className="w-full border rounded px-3 py-2 text-sm"
+              >
+                <option value="">-- Выберите класс --</option>
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>{c.display_name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Предмет *</label>
             <select
               value={subjectName}
               onChange={e => setSubjectName(e.target.value)}
               className="w-full border rounded px-3 py-2 text-sm"
+              disabled={needsClassSelection && !selectedClassId}
             >
               <option value="">-- Выберите предмет --</option>
               {subjectOptions.map(name => (
                 <option key={name} value={name}>{name}</option>
               ))}
             </select>
-            {subjectOptions.length === 0 && (
+            {subjectOptions.length === 0 && !!effectiveClassId && (
               <p className="text-xs text-amber-600 mt-1">
                 Нет предметов у класса. Добавьте предметы во вкладке класса.
               </p>
@@ -185,7 +230,7 @@ export default function LessonEditor({
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!subjectName}
+              disabled={!subjectName || !effectiveClassId}
               className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
             >
               Сохранить
