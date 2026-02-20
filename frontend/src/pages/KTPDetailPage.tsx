@@ -7,7 +7,18 @@ import type { CTPDetail, Topic, TopicFile, SchoolClass } from '../types';
 import ContextMenu from '../components/ContextMenu';
 import type { MenuItem } from '../components/ContextMenu';
 
-const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+interface ScheduleInfo {
+  schedule: { weekday: number; weekday_name: string; lessons_count: number }[];
+  total_per_week: number;
+  required_count: number;
+  has_schedule: boolean;
+}
+
+function getDefaultStartDate(): string {
+  const now = new Date();
+  const year = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  return `${year}-09-01`;
+}
 
 export default function KTPDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,14 +30,20 @@ export default function KTPDetailPage() {
   const [newTitle, setNewTitle] = useState('');
   const [bulkTitles, setBulkTitles] = useState('');
   const [showBulk, setShowBulk] = useState(false);
-  const [showAutofill, setShowAutofill] = useState(false);
-  const [autofill, setAutofill] = useState({ start_date: '', weekdays: [] as number[], lessons_per_day: 1, start_from_topic_id: null as number | null });
   const [showCopy, setShowCopy] = useState(false);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [copyClassId, setCopyClassId] = useState(0);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [message, setMessage] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ topic: Topic; x: number; y: number } | null>(null);
+
+  // Schedule info
+  const [scheduleInfo, setScheduleInfo] = useState<ScheduleInfo | null>(null);
+
+  // Autofill confirmation dialog
+  const [showAutofillConfirm, setShowAutofillConfirm] = useState(false);
+  const [autofillStartDate, setAutofillStartDate] = useState(getDefaultStartDate());
+  const [autofillFromTopicId, setAutofillFromTopicId] = useState<number | null>(null);
 
   // Drag and drop
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -38,7 +55,16 @@ export default function KTPDetailPage() {
     setCtp(res.data);
   };
 
-  useEffect(() => { load(); }, [id]);
+  const loadScheduleInfo = async () => {
+    try {
+      const res = await api.get(`/ktp/${id}/schedule-info/`);
+      setScheduleInfo(res.data);
+    } catch {
+      setScheduleInfo(null);
+    }
+  };
+
+  useEffect(() => { load(); loadScheduleInfo(); }, [id]);
 
   const isOwner = ctp && user && ctp.teacher === user.id;
   const canEdit = isOwner;
@@ -60,24 +86,41 @@ export default function KTPDetailPage() {
     load();
   };
 
-  const handleBulkDelete = async () => {
-    if (selected.size === 0) return;
-    await api.post(`/ktp/${id}/topics/bulk-delete/`, { topic_ids: Array.from(selected) });
+  const handleBulkDelete = async (topicIds?: number[]) => {
+    const ids = topicIds || Array.from(selected);
+    if (ids.length === 0) return;
+    await api.post(`/ktp/${id}/topics/bulk-delete/`, { topic_ids: ids });
     setSelected(new Set());
     load();
   };
 
-  const handleDuplicate = async () => {
-    if (selected.size === 0) return;
-    await api.post(`/ktp/${id}/topics/duplicate/`, { topic_ids: Array.from(selected) });
+  const handleDuplicate = async (topicIds?: number[]) => {
+    const ids = topicIds || Array.from(selected);
+    if (ids.length === 0) return;
+    await api.post(`/ktp/${id}/topics/duplicate/`, { topic_ids: ids });
     setSelected(new Set());
     load();
   };
 
   const handleDeleteTopic = async (topic: Topic) => {
-    if (!confirm(`Удалить тему "${topic.title}"?`)) return;
-    await api.post(`/ktp/${id}/topics/bulk-delete/`, { topic_ids: [topic.id] });
-    load();
+    // If this topic is selected and there are multiple selections, delete all selected
+    if (selected.has(topic.id) && selected.size > 1) {
+      if (!confirm(`Удалить ${selected.size} тем?`)) return;
+      await handleBulkDelete();
+    } else {
+      if (!confirm(`Удалить тему "${topic.title}"?`)) return;
+      await api.post(`/ktp/${id}/topics/bulk-delete/`, { topic_ids: [topic.id] });
+      load();
+    }
+  };
+
+  const handleDuplicateTopic = async (topic: Topic) => {
+    // If this topic is selected and there are multiple selections, duplicate all selected
+    if (selected.has(topic.id) && selected.size > 1) {
+      await handleDuplicate();
+    } else {
+      await handleDuplicate([topic.id]);
+    }
   };
 
   const handleUpdateTopic = async () => {
@@ -92,15 +135,56 @@ export default function KTPDetailPage() {
     load();
   };
 
+  // Autofill with schedule data
+  const openAutofill = (fromTopicId: number | null = null) => {
+    if (!scheduleInfo?.has_schedule) {
+      alert('В расписании нет уроков для этого предмета и класса. Добавьте уроки в расписание.');
+      return;
+    }
+
+    setAutofillFromTopicId(fromTopicId);
+
+    // Smart start date for "from topic"
+    if (fromTopicId && ctp) {
+      const topics = ctp.topics;
+      const topicIdx = topics.findIndex(t => t.id === fromTopicId);
+      if (topicIdx > 0) {
+        // Find previous topic's date
+        const prevTopic = topics[topicIdx - 1];
+        if (prevTopic.date) {
+          // Next day after previous topic's date
+          const prevDate = new Date(prevTopic.date);
+          prevDate.setDate(prevDate.getDate() + 1);
+          setAutofillStartDate(prevDate.toISOString().slice(0, 10));
+        } else {
+          setAutofillStartDate(getDefaultStartDate());
+        }
+      } else {
+        setAutofillStartDate(getDefaultStartDate());
+      }
+    } else {
+      setAutofillStartDate(getDefaultStartDate());
+    }
+
+    setShowAutofillConfirm(true);
+  };
+
   const handleAutofill = async () => {
-    await api.post(`/ktp/${id}/topics/autofill-dates/`, autofill);
-    setShowAutofill(false);
+    await api.post(`/ktp/${id}/topics/autofill-dates/`, {
+      start_date: autofillStartDate,
+      start_from_topic_id: autofillFromTopicId,
+    });
+    setShowAutofillConfirm(false);
     load();
   };
 
-  const openAutofillFrom = (topic: Topic) => {
-    setAutofill(a => ({ ...a, start_from_topic_id: topic.id }));
-    setShowAutofill(true);
+  // Check if "distribute from here" should be disabled (previous topic has no date)
+  const canDistributeFromTopic = (topic: Topic): boolean => {
+    if (!ctp) return false;
+    const topicIdx = ctp.topics.findIndex(t => t.id === topic.id);
+    if (topicIdx === 0) return true; // First topic, always allowed
+    const prevTopic = ctp.topics[topicIdx - 1];
+    return prevTopic.date !== null;
   };
 
   const handleCopy = async () => {
@@ -143,13 +227,6 @@ export default function KTPDetailPage() {
     } else {
       setSelected(new Set(ctp.topics.map(t => t.id)));
     }
-  };
-
-  const toggleWeekday = (day: number) => {
-    setAutofill(a => ({
-      ...a,
-      weekdays: a.weekdays.includes(day) ? a.weekdays.filter(d => d !== day) : [...a.weekdays, day],
-    }));
   };
 
   const addResource = () => {
@@ -227,9 +304,19 @@ export default function KTPDetailPage() {
   const getMenuItems = (topic: Topic): MenuItem[] => {
     const items: MenuItem[] = [];
     if (canEdit) {
-      items.push({ label: 'Заполнить даты отсюда', onClick: () => openAutofillFrom(topic) });
       items.push({ label: 'Редактировать', onClick: () => setEditTopic({ ...topic }) });
-      items.push({ label: 'Удалить', onClick: () => handleDeleteTopic(topic), danger: true });
+      items.push({ label: 'Дублировать' + (selected.has(topic.id) && selected.size > 1 ? ` (${selected.size})` : ''), onClick: () => handleDuplicateTopic(topic) });
+
+      const canDistribute = canDistributeFromTopic(topic);
+      if (canDistribute) {
+        items.push({ label: 'Распределить даты отсюда', onClick: () => openAutofill(topic.id) });
+      }
+
+      items.push({
+        label: 'Удалить' + (selected.has(topic.id) && selected.size > 1 ? ` (${selected.size})` : ''),
+        onClick: () => handleDeleteTopic(topic),
+        danger: true,
+      });
     } else {
       items.push({ label: 'Просмотр', onClick: () => setEditTopic({ ...topic }) });
     }
@@ -295,11 +382,11 @@ export default function KTPDetailPage() {
             <input type="file" accept=".csv,.xlsx" className="hidden" onChange={e => { setImportFile(e.target.files?.[0] || null); }} />
           </label>
           {importFile && <button onClick={handleImportTopics} className="bg-green-700 text-white px-3 py-2 rounded text-sm">{importFile.name}</button>}
-          <button onClick={() => setShowAutofill(!showAutofill)} className="bg-purple-600 text-white px-3 py-2 rounded text-sm hover:bg-purple-700">Автозаполнение дат</button>
+          <button onClick={() => openAutofill()} className="bg-purple-600 text-white px-3 py-2 rounded text-sm hover:bg-purple-700">Распределить даты</button>
           {selected.size > 0 && (
             <>
-              <button onClick={handleDuplicate} className="bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm">Дублировать ({selected.size})</button>
-              <button onClick={handleBulkDelete} className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm">Удалить ({selected.size})</button>
+              <button onClick={() => handleDuplicate()} className="bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm">Дублировать ({selected.size})</button>
+              <button onClick={() => handleBulkDelete()} className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm">Удалить ({selected.size})</button>
             </>
           )}
         </div>
@@ -314,38 +401,35 @@ export default function KTPDetailPage() {
         </div>
       )}
 
-      {/* Autofill dates */}
-      {showAutofill && canEdit && (
-        <div className="bg-white p-4 rounded-lg shadow mb-4 space-y-3">
-          <h3 className="font-semibold text-sm">Автозаполнение дат</h3>
-          <div className="flex gap-4 flex-wrap">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Дата начала</label>
-              <input type="date" value={autofill.start_date} onChange={e => setAutofill(a => ({ ...a, start_date: e.target.value }))} className="border rounded px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Уроков в день</label>
-              <input type="number" min={1} max={5} value={autofill.lessons_per_day} onChange={e => setAutofill(a => ({ ...a, lessons_per_day: parseInt(e.target.value) || 1 }))} className="border rounded px-3 py-2 text-sm w-20" />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Начиная с темы</label>
-              <select value={autofill.start_from_topic_id ?? ''} onChange={e => setAutofill(a => ({ ...a, start_from_topic_id: e.target.value ? parseInt(e.target.value) : null }))} className="border rounded px-3 py-2 text-sm">
-                <option value="">С начала</option>
-                {ctp.topics.map(t => <option key={t.id} value={t.id}>#{t.order + 1} {t.title}</option>)}
-              </select>
-            </div>
+      {/* Topic count vs required */}
+      {scheduleInfo && (
+        <div className="flex items-center gap-4 mb-4 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500">Тем создано:</span>
+            <span className={`font-semibold ${
+              scheduleInfo.required_count > 0 && ctp.topics.length >= scheduleInfo.required_count
+                ? 'text-green-600'
+                : scheduleInfo.required_count > 0
+                  ? 'text-amber-600'
+                  : ''
+            }`}>
+              {ctp.topics.length}
+              {scheduleInfo.required_count > 0 && (
+                <span className="text-gray-400 font-normal"> / {scheduleInfo.required_count}</span>
+              )}
+            </span>
           </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Дни недели</label>
-            <div className="flex gap-2">
-              {WEEKDAYS.map((name, idx) => (
-                <button key={idx} onClick={() => toggleWeekday(idx)} className={`px-3 py-1 rounded text-sm ${autofill.weekdays.includes(idx) ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>
-                  {name}
-                </button>
-              ))}
+          {scheduleInfo.has_schedule && (
+            <div className="text-gray-400">
+              В неделю: {scheduleInfo.total_per_week} ур.
+              ({scheduleInfo.schedule.map(s => `${s.weekday_name} ${s.lessons_count > 1 ? `×${s.lessons_count}` : ''}`).join(', ').replace(/ ,/g, ',')})
             </div>
-          </div>
-          <button onClick={handleAutofill} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">Заполнить</button>
+          )}
+          {!scheduleInfo.has_schedule && (
+            <div className="text-amber-500">
+              Расписание не найдено для этого предмета
+            </div>
+          )}
         </div>
       )}
 
@@ -417,6 +501,59 @@ export default function KTPDetailPage() {
       {/* Context menu */}
       {ctxMenu && (
         <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={getMenuItems(ctxMenu.topic)} onClose={() => setCtxMenu(null)} />
+      )}
+
+      {/* Autofill confirmation dialog */}
+      {showAutofillConfirm && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" onClick={() => setShowAutofillConfirm(false)}>
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-2">Распределить даты</h3>
+
+            {scheduleInfo && (
+              <div className="text-sm text-gray-500 mb-4">
+                По расписанию: {scheduleInfo.schedule.map(s =>
+                  `${s.weekday_name}${s.lessons_count > 1 ? ` ×${s.lessons_count}` : ''}`
+                ).join(', ')}
+                {' '}({scheduleInfo.total_per_week} ур./нед.)
+              </div>
+            )}
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Дата начала</label>
+              <input
+                type="date"
+                value={autofillStartDate}
+                onChange={e => setAutofillStartDate(e.target.value)}
+                className="border rounded px-3 py-2 text-sm w-full"
+              />
+            </div>
+
+            {autofillFromTopicId && ctp && (
+              <div className="bg-blue-50 text-blue-700 text-sm p-3 rounded mb-4">
+                Начиная с темы: #{ctp.topics.findIndex(t => t.id === autofillFromTopicId) + 1} {ctp.topics.find(t => t.id === autofillFromTopicId)?.title}
+              </div>
+            )}
+
+            <p className="text-sm text-gray-600 mb-4">
+              Вы действительно хотите {autofillFromTopicId ? 'распределить' : 'изменить'} даты
+              {autofillFromTopicId ? ' начиная с указанной темы' : ''} с <strong>{autofillStartDate}</strong> до конца учебного года?
+              Выходные дни из настроек будут пропущены.
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowAutofillConfirm(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">
+                Отмена
+              </button>
+              <button
+                onClick={handleAutofill}
+                disabled={!autofillStartDate}
+                className="px-4 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 disabled:opacity-50"
+              >
+                Распределить
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Edit topic modal */}

@@ -13,7 +13,7 @@ from .serializers import (
     AutofillDatesSerializer, HolidaySerializer,
     TopicFileSerializer, TopicByDateSerializer,
 )
-from .services import autofill_dates, import_topics
+from .services import autofill_dates, import_topics, get_schedule_info, get_required_lessons_count
 
 
 def _get_user_classes(user):
@@ -254,7 +254,7 @@ def topic_bulk_delete(request, ctp_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, PasswordChanged])
 def topic_duplicate(request, ctp_id):
-    """Duplicate topics. Expects: {"topic_ids": [1, 2, 3]}"""
+    """Duplicate topics, inserting copies right after originals. Expects: {"topic_ids": [1, 2, 3]}"""
     try:
         ctp = CTP.objects.get(pk=ctp_id)
     except CTP.DoesNotExist:
@@ -264,20 +264,32 @@ def topic_duplicate(request, ctp_id):
         return Response({'detail': 'Нет доступа'}, status=status.HTTP_403_FORBIDDEN)
 
     topic_ids = request.data.get('topic_ids', [])
-    topics = Topic.objects.filter(pk__in=topic_ids, ctp=ctp).order_by('order')
+    topic_ids_set = set(topic_ids)
 
-    last_order = ctp.topics.count()
+    # Get all topics in order
+    all_topics = list(ctp.topics.order_by('order'))
+
+    # Build new ordered list with copies inserted after originals
+    new_order = []
     created = []
-    for t in topics:
-        new_topic = Topic.objects.create(
-            ctp=ctp,
-            order=last_order,
-            title=t.title,
-            homework=t.homework,
-            resources=t.resources,
-        )
-        created.append(new_topic)
-        last_order += 1
+    for t in all_topics:
+        new_order.append(t)
+        if t.id in topic_ids_set:
+            new_topic = Topic.objects.create(
+                ctp=ctp,
+                order=0,  # Will be set below
+                title=t.title,
+                homework=t.homework,
+                resources=t.resources,
+            )
+            created.append(new_topic)
+            new_order.append(new_topic)
+
+    # Re-number all topics
+    for i, t in enumerate(new_order):
+        if t.order != i:
+            t.order = i
+            t.save(update_fields=['order'])
 
     return Response(TopicSerializer(created, many=True).data, status=status.HTTP_201_CREATED)
 
@@ -314,7 +326,7 @@ def topic_import(request, ctp_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, PasswordChanged])
 def topic_autofill_dates(request, ctp_id):
-    """Auto-fill dates for topics."""
+    """Auto-fill dates for topics using schedule data."""
     try:
         ctp = CTP.objects.get(pk=ctp_id)
     except CTP.DoesNotExist:
@@ -330,13 +342,50 @@ def topic_autofill_dates(request, ctp_id):
     autofill_dates(
         ctp,
         d['start_date'],
-        d['weekdays'],
-        d.get('lessons_per_day', 1),
-        d.get('start_from_topic_id'),
+        start_from_topic_id=d.get('start_from_topic_id'),
+        use_schedule=True,
     )
 
     topics = ctp.topics.order_by('order')
     return Response(TopicSerializer(topics, many=True).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def ctp_schedule_info(request, ctp_id):
+    """Get schedule info for a CTP: weekdays and lessons count."""
+    try:
+        ctp = CTP.objects.select_related('school_class', 'subject').get(pk=ctp_id)
+    except CTP.DoesNotExist:
+        return Response({'detail': 'КТП не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+    schedule_info = get_schedule_info(ctp)
+
+    # Convert to 1-based weekday names for display
+    weekday_names = {0: 'Пн', 1: 'Вт', 2: 'Ср', 3: 'Чт', 4: 'Пт', 5: 'Сб', 6: 'Вс'}
+    schedule_display = [
+        {'weekday': wd, 'weekday_name': weekday_names.get(wd, '?'), 'lessons_count': count}
+        for wd, count in sorted(schedule_info.items())
+    ]
+
+    total_per_week = sum(schedule_info.values())
+
+    # Calculate required lessons for the school year (Sept 1 - May 31)
+    from datetime import date
+    today = date.today()
+    if today.month >= 9:
+        school_year_start = date(today.year, 9, 1)
+    else:
+        school_year_start = date(today.year - 1, 9, 1)
+
+    required_count = get_required_lessons_count(ctp, school_year_start)
+
+    return Response({
+        'schedule': schedule_display,
+        'total_per_week': total_per_week,
+        'required_count': required_count,
+        'has_schedule': len(schedule_info) > 0,
+    })
 
 
 # --- Topic Files ---

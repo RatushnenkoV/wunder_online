@@ -89,8 +89,6 @@ class CTPCreateSerializer(serializers.Serializer):
 
 class AutofillDatesSerializer(serializers.Serializer):
     start_date = serializers.DateField()
-    weekdays = serializers.ListField(child=serializers.IntegerField(min_value=0, max_value=6))
-    lessons_per_day = serializers.IntegerField(min_value=1, default=1)
     start_from_topic_id = serializers.IntegerField(required=False, allow_null=True)
 
 

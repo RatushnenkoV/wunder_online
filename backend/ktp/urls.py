@@ -14,6 +14,7 @@ urlpatterns = [
     path('<int:ctp_id>/topics/duplicate/', views.topic_duplicate),
     path('<int:ctp_id>/topics/import/', views.topic_import),
     path('<int:ctp_id>/topics/autofill-dates/', views.topic_autofill_dates),
+    path('<int:ctp_id>/schedule-info/', views.ctp_schedule_info),
     path('topics/<int:pk>/', views.topic_detail),
     # Topic files
     path('topics/<int:pk>/files/', views.topic_file_upload),
