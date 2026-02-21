@@ -29,14 +29,14 @@ WunderOnline/
 │   │   ├── main.tsx                 # Точка входа
 │   │   ├── api/client.ts            # Axios с JWT-интерцептором
 │   │   ├── contexts/AuthContext.tsx # Контекст авторизации
-│   │   ├── types/                   # TypeScript-интерфейсы
+│   │   ├── types/index.ts           # TypeScript-интерфейсы всех сущностей
 │   │   ├── pages/
 │   │   │   ├── LoginPage.tsx
 │   │   │   ├── ChangePasswordPage.tsx
 │   │   │   ├── DashboardPage.tsx
 │   │   │   ├── KTPListPage.tsx
 │   │   │   ├── KTPDetailPage.tsx    # Главный редактор КТП
-│   │   │   ├── SchedulePage.tsx     # Расписание
+│   │   │   ├── SchedulePage.tsx     # Расписание + вкладка замен
 │   │   │   ├── PeoplePage.tsx       # Управление персоналом/учениками
 │   │   │   ├── SchoolPage.tsx       # Структура школы
 │   │   │   └── SettingsPage.tsx     # Настройки (праздники)
@@ -44,17 +44,24 @@ WunderOnline/
 │   │       ├── Layout.tsx           # Навбар + обёртка
 │   │       ├── StaffTab.tsx         # CRUD сотрудников
 │   │       ├── StudentsTab.tsx      # CRUD учеников (список + папки)
-│   │       ├── ClassesGrid.tsx      # Список классов
-│   │       ├── ClassDetail.tsx      # Детали класса
-│   │       ├── ScheduleGrid.tsx          # Сетка расписания
-│   │       ├── LessonEditor.tsx          # Редактор урока
-│   │       ├── SubstitutionsTab.tsx      # Вкладка замен (навигация по неделям)
-│   │       ├── SubstitutionsGrid.tsx     # Сетка замен с датами в заголовке
-│   │       └── SubstitutionEditor.tsx    # Редактор замены (модал)
+│   │       ├── schedule/
+│   │       │   ├── ScheduleGrid.tsx          # Сетка расписания
+│   │       │   ├── LessonEditor.tsx          # Редактор урока (модал)
+│   │       │   ├── ScheduleImportModal.tsx   # Мастер импорта Excel
+│   │       │   ├── SubstitutionsTab.tsx      # Вкладка замен
+│   │       │   ├── SubstitutionsGrid.tsx     # Сетка замен с датами
+│   │       │   └── SubstitutionEditor.tsx    # Редактор замены (модал)
+│   │       └── school/
+│   │           ├── ClassesGrid.tsx   # Список классов
+│   │           ├── ClassDetail.tsx   # Детали класса (вкладки)
+│   │           ├── ClassGroups.tsx   # Управление группами класса
+│   │           ├── ClassSubjects.tsx # Предметы класса (без групп)
+│   │           └── ClassStudents.tsx # Ученики класса
 └── backend/
     ├── config/                      # Django settings, urls, wsgi
     ├── accounts/                    # Пользователи, роли, профили
     ├── school/                      # Классы, предметы, кабинеты, расписание
+    │   └── schedule_import.py       # Парсер Excel для импорта расписания
     └── ktp/                         # КТП, темы, файлы, праздники
 ```
 
@@ -144,30 +151,34 @@ GradeLevel       # параллель: "1 класс", "2 класс"
 SchoolClass      # класс: "1-А", "1-Б" -> GradeLevel
 Subject          # предмет глобально: "Математика"
 GradeLevelSubject  # предмет в параллели
-ClassGroup       # группа в классе (для дифференциации)
-ClassSubject     # предмет в конкретном классе
+ClassGroup       # группа в классе: "Группа 1", "Группа 2"
+  school_class -> SchoolClass
+  name: str
+  students -> [User] (M2M, опционально)
+ClassSubject     # предмет класса (без привязки к группе)
+  school_class -> SchoolClass
+  name: str
+  # unique_together: [school_class, name]
 Room             # кабинет
 ScheduleLesson   # урок в расписании
   school_class -> SchoolClass
   subject -> Subject
-  teacher -> User
-  room -> Room
-  class_group -> ClassGroup (опционально)
-  weekday: int (0-6)
-  period: int (номер урока)
-```
-
-### school/ (дополнительно)
-```python
+  teacher -> User (null)
+  room -> Room (null)
+  group -> ClassGroup (null)  # если урок для конкретной группы
+  weekday: int (1-5)
+  lesson_number: int
 Substitution  # замена на конкретную дату
   date: date
   lesson_number: int
-  school_class -> SchoolClass      # класс замены
-  subject -> Subject               # предмет замены
-  teacher -> User (null)           # учитель замены
-  room -> Room (null)              # кабинет замены
-  original_lesson -> ScheduleLesson (null)  # оригинальный урок по расписанию
-  # unique_together: [date, lesson_number, school_class]
+  school_class -> SchoolClass
+  subject -> Subject
+  teacher -> User (null)
+  room -> Room (null)
+  group -> ClassGroup (null)
+  original_lesson -> ScheduleLesson (null)
+  # unique: [date, lesson_number, school_class] (если group=null)
+  # unique: [date, lesson_number, school_class, group] (если group задан)
 ```
 
 ### ktp/
@@ -220,15 +231,22 @@ Holiday          # праздник (для автозаполнения дат)
 - Просмотр по классу / учителю / кабинету
 - Режимы: неделя / день
 - Создание/редактирование/удаление уроков
-- Перемещение уроков
+- Перемещение уроков (drag & drop)
 - Дублирование уроков
 - Разделение урока на группы / слияние групп
 - Сводка часов по предметам
+- **Групповые уроки**: в расписании класса ячейка делится на два блока (split view) когда в слоте 2 урока. В расписании учителя/кабинета показывается лейбл «Подгр.»
 - **Импорт из Excel** (кнопка "Импорт из Excel", только для admin): `ScheduleImportModal.tsx`
   - Шаг 1: загрузка двух файлов (по классам + по учителям)
-  - Шаг 2: review missing entities (классы/учителя/кабинеты) — галочка создать или связать с существующим
-  - Шаг 3: результат
-  - Парсер: `backend/school/schedule_import.py` — parse_classes_file, parse_teachers_file, match_teachers (по кабинету), analyze, execute_import
+  - Шаги 2-4 (опциональные): review missing entities — классы, учителя, кабинеты — создать или связать с существующим
+  - Шаг 5: подтверждение (опция "удалить существующее расписание")
+  - Шаг 6: результат (создано/пропущено/ошибки)
+  - Парсер: `backend/school/schedule_import.py`:
+    - `parse_classes_file` — читает Excel по классам (2-col или 3-col на класс)
+    - `parse_teachers_file` — читает Excel по учителям
+    - `match_teachers` — привязывает учителей к урокам по (weekday, period, room); для групповых уроков заполняет teacher_name и teacher2_name
+    - `analyze` — сравнивает с БД, возвращает missing_classes/teachers/rooms
+    - `execute_import` — создаёт уроки; для групповых создаёт ClassGroup ("Группа 1"/"Группа 2") и ClassSubject; учителя/кабинеты ищутся сначала в маппингах, затем fallback в БД по фамилии/названию
 
 ### Управление людьми (PeoplePage → StaffTab / StudentsTab)
 - Список и папочный вид учеников (параллель → класс → ученики)
