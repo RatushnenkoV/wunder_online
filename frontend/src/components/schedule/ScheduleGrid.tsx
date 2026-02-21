@@ -80,12 +80,23 @@ export default function ScheduleGrid({
   const isCellEmpty = (weekday: number, lessonNumber: number) =>
     getCellLessons(weekday, lessonNumber).length === 0;
 
+  // Returns true if this lesson is a group lesson (shared slot with another group)
+  const isGroupLesson = (lesson: ScheduleLesson): boolean => {
+    if (lesson.group !== null) return true;
+    return allLessons.some(other =>
+      other.id !== lesson.id &&
+      other.school_class === lesson.school_class &&
+      other.weekday === lesson.weekday &&
+      other.lesson_number === lesson.lesson_number
+    );
+  };
+
   // Can a lesson be dropped into this cell?
   const canDropInto = (weekday: number, lessonNumber: number, lesson: ScheduleLesson): boolean => {
     const cell = getCellLessons(weekday, lessonNumber);
     if (cell.length === 0) return true;
-    // Allow dropping a group lesson into a cell that has exactly 1 group lesson (different group)
-    if (lesson.group && cell.length === 1 && cell[0].group !== null && cell[0].group !== lesson.group) return true;
+    // Allow dropping into a cell that already has exactly 1 lesson (pairing for group split)
+    if (cell.length === 1 && cell[0].id !== lesson.id) return true;
     return false;
   };
 
@@ -204,8 +215,10 @@ export default function ScheduleGrid({
           isDragging ? 'opacity-30' : ''
         } ${duplicating ? 'cursor-pointer' : ''}`}
       >
-        {lesson.group_name && (
-          <div className="text-[10px] font-medium text-blue-500 truncate mb-0.5">{lesson.group_name}</div>
+        {(lesson.group_name || (viewMode !== 'class' && isGroupLesson(lesson))) && (
+          <div className="text-[10px] font-medium text-blue-500 truncate mb-0.5">
+            {lesson.group_name ?? 'Подгр.'}
+          </div>
         )}
         <div className={`font-medium truncate ${conflict ? 'text-red-700' : 'text-gray-900'}`}>{lesson.subject_name}</div>
         {viewMode !== 'class' && (
@@ -276,8 +289,8 @@ export default function ScheduleGrid({
               </td>
               {visibleDays.map(d => {
                 const cellLessons = getCellLessons(d.num, num);
-                // Split view only makes sense for class mode: a teacher/room only has one of the halves
-                const isSplit = viewMode === 'class' && cellLessons.some(l => l.group !== null);
+                // Split view: class mode with 2+ lessons in a cell (group split)
+                const isSplit = viewMode === 'class' && cellLessons.length >= 2;
                 const isDropTarget = isDragTarget(d.num, num);
                 const canDrop = isDropTarget && dragLesson && canDropInto(d.num, num, dragLesson);
 

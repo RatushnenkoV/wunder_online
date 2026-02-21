@@ -18,6 +18,7 @@ from .serializers import (
     ScheduleLessonSerializer, SubstitutionSerializer,
 )
 from .services import import_classes
+from . import schedule_import as sched_import
 
 
 # --- Grade Levels ---
@@ -236,7 +237,7 @@ def class_subject_list_create(request, class_id):
         return Response({'detail': 'Класс не найден'}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        subjects = ClassSubject.objects.filter(school_class=sc).select_related('group')
+        subjects = ClassSubject.objects.filter(school_class=sc)
         return Response(ClassSubjectSerializer(subjects, many=True).data)
 
     # Batch create
@@ -248,11 +249,7 @@ def class_subject_list_create(request, class_id):
         if not name:
             errors.append(f'Запись {i+1}: название обязательно')
             continue
-        cs = ClassSubject.objects.create(
-            school_class=sc,
-            name=name,
-            group_id=entry.get('group') or None,
-        )
+        cs, _ = ClassSubject.objects.get_or_create(school_class=sc, name=name)
         created.append(cs)
 
     return Response({
@@ -276,8 +273,6 @@ def class_subject_detail(request, pk):
     name = request.data.get('name', '').strip()
     if name:
         cs.name = name
-    if 'group' in request.data:
-        cs.group_id = request.data['group'] or None
 
     cs.save()
     return Response(ClassSubjectSerializer(cs).data)
@@ -522,6 +517,64 @@ def substitution_detail(request, pk):
     sub.save()
     sub.refresh_from_db()
     return Response(SubstitutionSerializer(sub).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAdmin, PasswordChanged])
+@parser_classes([MultiPartParser])
+def schedule_import_preview(request):
+    """Parse uploaded Excel files and return analysis of missing entities + parsed lessons."""
+    classes_file = request.FILES.get('classes_file')
+    teachers_file = request.FILES.get('teachers_file')
+
+    if not classes_file:
+        return Response({'detail': 'Файл расписания по классам обязателен'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        class_lessons = sched_import.parse_classes_file(classes_file.read())
+    except Exception as e:
+        return Response({'detail': f'Ошибка парсинга файла классов: {e}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    all_teacher_names = set()
+    if teachers_file:
+        try:
+            teacher_lessons = sched_import.parse_teachers_file(teachers_file.read())
+            all_teacher_names = {tl['teacher_name'] for tl in teacher_lessons}
+            sched_import.match_teachers(class_lessons, teacher_lessons)
+        except Exception as e:
+            return Response({'detail': f'Ошибка парсинга файла учителей: {e}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    analysis = sched_import.analyze(class_lessons, all_teacher_names)
+
+    return Response({
+        'parsed_lessons': class_lessons,
+        **analysis,
+        'stats': {
+            'total_lessons': len(class_lessons),
+            'with_teacher': sum(1 for l in class_lessons if l.get('teacher_name')),
+        },
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAdmin, PasswordChanged])
+def schedule_import_confirm(request):
+    """Execute the schedule import with resolved entity mappings."""
+    data = request.data
+    parsed_lessons = data.get('parsed_lessons', [])
+    class_mappings = data.get('class_mappings', {})
+    teacher_mappings = data.get('teacher_mappings', {})
+    room_mappings = data.get('room_mappings', {})
+    replace_existing = bool(data.get('replace_existing', False))
+
+    try:
+        result = sched_import.execute_import(
+            parsed_lessons, class_mappings, teacher_mappings, room_mappings, replace_existing
+        )
+    except Exception as e:
+        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(result)
 
 
 @api_view(['GET'])

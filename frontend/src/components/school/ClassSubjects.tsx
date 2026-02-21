@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/client';
-import type { ClassSubject, ClassGroup } from '../../types';
+import type { ClassSubject } from '../../types';
 import ContextMenu from '../ContextMenu';
 import type { MenuItem } from '../ContextMenu';
 
@@ -8,65 +8,42 @@ interface Props {
   classId: number;
 }
 
-interface SubjectRow {
-  name: string;
-  group: string;
-}
-
-const emptyRow = (): SubjectRow => ({ name: '', group: '' });
-
 export default function ClassSubjects({ classId }: Props) {
   const [subjects, setSubjects] = useState<ClassSubject[]>([]);
-  const [groups, setGroups] = useState<ClassGroup[]>([]);
   const [ctxMenu, setCtxMenu] = useState<{ subject: ClassSubject; x: number; y: number } | null>(null);
 
   // Batch create
   const [showCreate, setShowCreate] = useState(false);
-  const [rows, setRows] = useState<SubjectRow[]>([emptyRow()]);
+  const [rows, setRows] = useState<string[]>(['']);
 
   // Edit
   const [editSubject, setEditSubject] = useState<ClassSubject | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', group: '' });
+  const [editName, setEditName] = useState('');
 
   const load = async () => {
-    const [sRes, gRes] = await Promise.all([
-      api.get(`/school/classes/${classId}/subjects/`),
-      api.get(`/school/classes/${classId}/groups/`),
-    ]);
-    setSubjects(sRes.data);
-    setGroups(gRes.data);
+    const res = await api.get(`/school/classes/${classId}/subjects/`);
+    setSubjects(res.data);
   };
 
   useEffect(() => { load(); }, [classId]);
 
   // --- Batch create ---
   const openCreate = () => {
-    setRows([emptyRow()]);
+    setRows(['']);
     setShowCreate(true);
   };
 
-  const updateRow = (idx: number, field: keyof SubjectRow, value: string) => {
-    setRows(r => r.map((row, i) => i === idx ? { ...row, [field]: value } : row));
-  };
-
-  const handleRowKeyDown = (e: React.KeyboardEvent, rowIdx: number, fieldIdx: number) => {
+  const handleRowKeyDown = (e: React.KeyboardEvent, idx: number) => {
     if (e.key !== 'Enter') return;
     e.preventDefault();
-    if (fieldIdx < 1) {
-      document.getElementById(`subj-${rowIdx}-${fieldIdx + 1}`)?.focus();
-    } else {
-      setRows(r => [...r, emptyRow()]);
-      setTimeout(() => document.getElementById(`subj-${rowIdx + 1}-0`)?.focus(), 0);
-    }
+    setRows(r => [...r, '']);
+    setTimeout(() => document.getElementById(`subj-${idx + 1}`)?.focus(), 0);
   };
 
   const handleCreate = async () => {
-    const valid = rows.filter(r => r.name.trim());
+    const valid = rows.map(r => r.trim()).filter(Boolean);
     if (valid.length === 0) return;
-    const payload = valid.map(r => ({
-      name: r.name.trim(),
-      group: r.group ? parseInt(r.group) : null,
-    }));
+    const payload = valid.map(name => ({ name }));
     await api.post(`/school/classes/${classId}/subjects/`, payload);
     setShowCreate(false);
     load();
@@ -75,18 +52,12 @@ export default function ClassSubjects({ classId }: Props) {
   // --- Edit ---
   const openEdit = (subject: ClassSubject) => {
     setEditSubject(subject);
-    setEditForm({
-      name: subject.name,
-      group: subject.group ? String(subject.group) : '',
-    });
+    setEditName(subject.name);
   };
 
   const handleEdit = async () => {
-    if (!editSubject || !editForm.name.trim()) return;
-    await api.put(`/school/class-subjects/${editSubject.id}/`, {
-      name: editForm.name.trim(),
-      group: editForm.group ? parseInt(editForm.group) : null,
-    });
+    if (!editSubject || !editName.trim()) return;
+    await api.put(`/school/class-subjects/${editSubject.id}/`, { name: editName.trim() });
     setEditSubject(null);
     load();
   };
@@ -115,7 +86,6 @@ export default function ClassSubjects({ classId }: Props) {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-2 text-left font-medium text-gray-600">Название</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-600">Группа</th>
               <th className="w-10"></th>
             </tr>
           </thead>
@@ -127,7 +97,6 @@ export default function ClassSubjects({ classId }: Props) {
                 onContextMenu={e => { e.preventDefault(); setCtxMenu({ subject: s, x: e.clientX, y: e.clientY }); }}
               >
                 <td className="px-4 py-2">{s.name}</td>
-                <td className="px-4 py-2 text-gray-500">{s.group_name || 'Весь класс'}</td>
                 <td className="px-2 py-2 text-center">
                   <button
                     onClick={e => { e.stopPropagation(); setCtxMenu({ subject: s, x: e.clientX, y: e.clientY }); }}
@@ -148,56 +117,27 @@ export default function ClassSubjects({ classId }: Props) {
       {/* Batch Create Modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowCreate(false)}>
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Добавление предметов</h3>
-            <div className="overflow-auto flex-1">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-gray-500 border-b">
-                    <th className="pb-2 font-medium">Название *</th>
-                    <th className="pb-2 font-medium pl-2">Группа</th>
-                    <th className="pb-2 w-8"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row, idx) => (
-                    <tr key={idx}>
-                      <td className="py-1 pr-1">
-                        <input
-                          id={`subj-${idx}-0`}
-                          value={row.name}
-                          onChange={e => updateRow(idx, 'name', e.target.value)}
-                          onKeyDown={e => handleRowKeyDown(e, idx, 0)}
-                          className="w-full border rounded px-2 py-1.5 text-sm"
-                          placeholder="Математика"
-                        />
-                      </td>
-                      <td className="py-1 px-1">
-                        <select
-                          id={`subj-${idx}-1`}
-                          value={row.group}
-                          onChange={e => updateRow(idx, 'group', e.target.value)}
-                          onKeyDown={e => handleRowKeyDown(e, idx, 1)}
-                          className="w-full border rounded px-2 py-1.5 text-sm"
-                        >
-                          <option value="">Весь класс</option>
-                          {groups.map(g => (
-                            <option key={g.id} value={g.id}>{g.name}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="py-1 pl-1">
-                        {rows.length > 1 && (
-                          <button onClick={() => setRows(r => r.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="overflow-auto flex-1 space-y-1">
+              {rows.map((row, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <input
+                    id={`subj-${idx}`}
+                    value={row}
+                    onChange={e => setRows(r => r.map((v, i) => i === idx ? e.target.value : v))}
+                    onKeyDown={e => handleRowKeyDown(e, idx)}
+                    className="flex-1 border rounded px-2 py-1.5 text-sm"
+                    placeholder="Математика"
+                  />
+                  {rows.length > 1 && (
+                    <button onClick={() => setRows(r => r.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 text-lg leading-none px-1">&times;</button>
+                  )}
+                </div>
+              ))}
             </div>
             <div className="flex justify-between items-center mt-4 pt-4 border-t">
-              <button onClick={() => setRows(r => [...r, emptyRow()])} className="text-blue-600 hover:text-blue-800 text-sm">+ Ещё строка</button>
+              <button onClick={() => setRows(r => [...r, ''])} className="text-blue-600 hover:text-blue-800 text-sm">+ Ещё строка</button>
               <div className="flex gap-2">
                 <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Отмена</button>
                 <button onClick={handleCreate} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Создать</button>
@@ -212,24 +152,18 @@ export default function ClassSubjects({ classId }: Props) {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setEditSubject(null)}>
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Редактирование предмета</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Название *</label>
-                <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Группа</label>
-                <select value={editForm.group} onChange={e => setEditForm(f => ({ ...f, group: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm">
-                  <option value="">Весь класс</option>
-                  {groups.map(g => (
-                    <option key={g.id} value={g.id}>{g.name}</option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Название *</label>
+              <input
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                className="w-full border rounded px-3 py-2 text-sm"
+                autoFocus
+              />
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <button onClick={() => setEditSubject(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Отмена</button>
-              <button onClick={handleEdit} disabled={!editForm.name.trim()} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+              <button onClick={handleEdit} disabled={!editName.trim()} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
                 Сохранить
               </button>
             </div>

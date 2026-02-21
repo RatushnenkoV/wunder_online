@@ -125,8 +125,6 @@ export interface ClassSubject {
   id: number;
   school_class: number;
   name: string;
-  group: number | null;
-  group_name: string | null;
 }
 
 export interface TeacherOption {

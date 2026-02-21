@@ -33,6 +33,8 @@ urlpatterns = [
     path('schedule/', views.schedule_list),
     path('schedule/all/', views.schedule_all),
     path('schedule/create/', views.schedule_create),
+    path('schedule/import/preview/', views.schedule_import_preview),
+    path('schedule/import/confirm/', views.schedule_import_confirm),
     path('schedule/<int:pk>/', views.schedule_detail),
 
     # Substitutions

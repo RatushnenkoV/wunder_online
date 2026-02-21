@@ -5,6 +5,7 @@ import type { SchoolClass, TeacherOption, Room, ScheduleLesson, ClassSubject, Cl
 import ScheduleGrid from '../components/schedule/ScheduleGrid';
 import LessonEditor from '../components/schedule/LessonEditor';
 import SubstitutionsTab from '../components/schedule/SubstitutionsTab';
+import ScheduleImportModal from '../components/schedule/ScheduleImportModal';
 
 type MainTab = 'schedule' | 'substitutions';
 
@@ -57,6 +58,7 @@ export default function SchedulePage() {
   const [editCell, setEditCell] = useState<{ weekday: number; lessonNumber: number } | null>(null);
   const [editLesson, setEditLesson] = useState<ScheduleLesson | null>(null);
   const [slotLessons, setSlotLessons] = useState<ScheduleLesson[]>([]);
+  const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
     if (isMobile && displayMode === 'week') setDisplayMode('day');
@@ -289,6 +291,14 @@ export default function SchedulePage() {
               >День</button>
             </div>
           )}
+          {user?.is_admin && (
+            <button
+              onClick={() => setShowImport(true)}
+              className="px-4 py-2 rounded text-sm bg-indigo-600 text-white hover:bg-indigo-700"
+            >
+              Импорт из Excel
+            </button>
+          )}
           {user?.is_admin && selectedId && (
             <button
               onClick={() => setEditing(!editing)}
@@ -425,6 +435,13 @@ export default function SchedulePage() {
         />
       )}
       </div>}
+
+      {showImport && (
+        <ScheduleImportModal
+          onClose={() => setShowImport(false)}
+          onImported={() => { loadLessons(); loadAllLessons(); }}
+        />
+      )}
     </div>
   );
 }

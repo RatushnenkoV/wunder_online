@@ -92,6 +92,8 @@ WunderOnline/
 
 ### Школа (`/api/school/`)
 - Grade levels, school classes, subjects, rooms, class groups, schedule lessons
+- `POST /api/school/schedule/import/preview/` — парсинг Excel (multipart: classes_file, teachers_file), возвращает parsed_lessons + missing entities
+- `POST /api/school/schedule/import/confirm/` — выполнить импорт с mappings (class/teacher/room) + replace_existing
 
 ### Замены (`/api/school/substitutions/`)
 - `GET /api/school/substitutions/?date_from=...&date_to=...` — все замены за период
@@ -222,6 +224,11 @@ Holiday          # праздник (для автозаполнения дат)
 - Дублирование уроков
 - Разделение урока на группы / слияние групп
 - Сводка часов по предметам
+- **Импорт из Excel** (кнопка "Импорт из Excel", только для admin): `ScheduleImportModal.tsx`
+  - Шаг 1: загрузка двух файлов (по классам + по учителям)
+  - Шаг 2: review missing entities (классы/учителя/кабинеты) — галочка создать или связать с существующим
+  - Шаг 3: результат
+  - Парсер: `backend/school/schedule_import.py` — parse_classes_file, parse_teachers_file, match_teachers (по кабинету), analyze, execute_import
 
 ### Управление людьми (PeoplePage → StaffTab / StudentsTab)
 - Список и папочный вид учеников (параллель → класс → ученики)

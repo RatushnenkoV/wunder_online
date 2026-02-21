@@ -87,15 +87,10 @@ class ClassGroupSerializer(serializers.ModelSerializer):
 
 
 class ClassSubjectSerializer(serializers.ModelSerializer):
-    group_name = serializers.SerializerMethodField()
-
     class Meta:
         model = ClassSubject
-        fields = ['id', 'school_class', 'name', 'group', 'group_name']
+        fields = ['id', 'school_class', 'name']
         read_only_fields = ['school_class']
-
-    def get_group_name(self, obj):
-        return obj.group.name if obj.group else None
 
 
 class RoomSerializer(serializers.ModelSerializer):

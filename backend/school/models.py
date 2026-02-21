@@ -122,17 +122,12 @@ class Room(models.Model):
 class ClassSubject(models.Model):
     school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='class_subjects')
     name = models.CharField('Название предмета', max_length=200)
-    group = models.ForeignKey(
-        ClassGroup,
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='subjects',
-    )
 
     class Meta:
         verbose_name = 'Предмет класса'
         verbose_name_plural = 'Предметы класса'
         ordering = ['name']
+        unique_together = ['school_class', 'name']
 
     def __str__(self):
         return f'{self.school_class} — {self.name}'
