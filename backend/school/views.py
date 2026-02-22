@@ -10,12 +10,13 @@ from .models import (
     GradeLevel, SchoolClass, Subject, GradeLevelSubject,
     StudentProfile, ParentProfile, TeacherProfile,
     ClassGroup, ClassSubject, Room, ScheduleLesson, Substitution,
+    AhoRequest,
 )
 from .serializers import (
     GradeLevelSerializer, SchoolClassSerializer, SubjectSerializer,
     GradeLevelSubjectSerializer, StudentProfileSerializer, ParentProfileSerializer,
     ClassGroupSerializer, ClassSubjectSerializer, RoomSerializer,
-    ScheduleLessonSerializer, SubstitutionSerializer,
+    ScheduleLessonSerializer, SubstitutionSerializer, AhoRequestSerializer,
 )
 from .services import import_classes
 from . import schedule_import as sched_import
@@ -653,3 +654,15 @@ def substitution_export(request):
     )
     response['Content-Disposition'] = 'attachment; filename="zameny.xlsx"'
     return response
+
+
+# --- АХО ---
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def aho_request_create(request):
+    serializer = AhoRequestSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(submitted_by=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

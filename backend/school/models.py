@@ -213,3 +213,40 @@ class Substitution(models.Model):
 
     def __str__(self):
         return f'{self.school_class} {self.date} урок {self.lesson_number}'
+
+
+class AhoRequest(models.Model):
+    WORK_TYPE_CHOICES = [
+        ('furniture', 'Ремонт мебели'),
+        ('rooms', 'Ремонт помещений'),
+        ('plumbing', 'Ремонт сантехники'),
+        ('other', 'Прочее'),
+    ]
+    STARS_CHOICES = [
+        ('5', 'Пять звёзд'),
+        ('4', 'Четыре звезды'),
+        ('3', 'Три звезды'),
+        ('2', 'Две звезды'),
+        ('1', 'Одна звезда'),
+    ]
+
+    name = models.CharField('Имя и фамилия', max_length=200)
+    description = models.TextField('Описание задачи')
+    location = models.CharField('Местоположение', max_length=200, blank=True)
+    phone = models.CharField('Номер телефона', max_length=50, blank=True)
+    work_type = models.CharField('Вид работ', max_length=20, choices=WORK_TYPE_CHOICES)
+    urgency = models.CharField('Срочно', max_length=1, choices=STARS_CHOICES, blank=True)
+    importance = models.CharField('Важно', max_length=1, choices=STARS_CHOICES, blank=True)
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='aho_requests',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Заявка АХО'
+        verbose_name_plural = 'Заявки АХО'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.name} — {self.get_work_type_display()} ({self.created_at.strftime("%d.%m.%Y")})'

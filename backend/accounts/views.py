@@ -60,10 +60,17 @@ def change_password_view(request):
     })
 
 
-@api_view(['GET'])
+@api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def me_view(request):
-    return Response(UserSerializer(request.user).data)
+    if request.method == 'GET':
+        return Response(UserSerializer(request.user).data)
+
+    user = request.user
+    if 'phone' in request.data:
+        user.phone = request.data['phone'].strip()
+        user.save(update_fields=['phone'])
+    return Response(UserSerializer(user).data)
 
 
 def _paginate(queryset, request):

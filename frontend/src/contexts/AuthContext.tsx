@@ -8,6 +8,7 @@ interface AuthContextType {
   login: (firstName: string, lastName: string, password: string) => Promise<void>;
   logout: () => void;
   changePassword: (newPassword: string) => Promise<void>;
+  updatePhone: (phone: string) => Promise<void>;
   loading: boolean;
 }
 
@@ -22,8 +23,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('access_token');
     if (stored && token) {
       setUser(JSON.parse(stored));
+      setLoading(false);
+      // Фоновое обновление — подхватываем изменения (телефон, роли), сделанные администратором
+      api.get('/auth/me/').then((res) => {
+        localStorage.setItem('user', JSON.stringify(res.data));
+        setUser(res.data);
+      }).catch(() => {});
+    } else {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const login = async (firstName: string, lastName: string, password: string) => {
@@ -54,8 +62,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(updatedUser);
   };
 
+  const updatePhone = async (phone: string) => {
+    const res = await api.patch('/auth/me/', { phone });
+    const updatedUser = { ...user!, phone: res.data.phone };
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, changePassword, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, changePassword, updatePhone, loading }}>
       {children}
     </AuthContext.Provider>
   );

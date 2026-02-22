@@ -34,8 +34,9 @@ WunderOnline/
 │   │   │   ├── LoginPage.tsx
 │   │   │   ├── ChangePasswordPage.tsx
 │   │   │   ├── DashboardPage.tsx
-│   │   │   ├── AccountPage.tsx      # Аккаунт пользователя (смена пароля)
+│   │   │   ├── AccountPage.tsx      # Аккаунт пользователя (смена пароля, телефон)
 │   │   │   ├── TasksPage.tsx        # Таск-менеджер (канбан)
+│   │   │   ├── RequestsPage.tsx     # Заявки: АХО-форма + ИТ (заглушка)
 │   │   │   ├── KTPListPage.tsx
 │   │   │   ├── KTPDetailPage.tsx    # Главный редактор КТП
 │   │   │   ├── SchedulePage.tsx     # Расписание + вкладка замен
@@ -84,6 +85,7 @@ WunderOnline/
 | `/admin/settings` | SettingsPage | Только admin |
 | `/account` | AccountPage | Авторизованные |
 | `/tasks` | TasksPage | Авторизованные |
+| `/requests` | RequestsPage | Авторизованные |
 
 ---
 
@@ -103,6 +105,8 @@ WunderOnline/
 
 ### Школа (`/api/school/`)
 - Grade levels, school classes, subjects, rooms, class groups, schedule lessons
+- `PATCH /api/auth/me/` — обновить профиль (phone)
+- `POST /api/school/aho/` — создать заявку АХО (IsAuthenticated)
 - `POST /api/school/schedule/import/preview/` — парсинг Excel (multipart: classes_file, teachers_file), возвращает parsed_lessons + missing entities
 - `POST /api/school/schedule/import/confirm/` — выполнить импорт с mappings (class/teacher/room) + replace_existing
 
@@ -185,6 +189,17 @@ ScheduleLesson   # урок в расписании
   group -> ClassGroup (null)  # если урок для конкретной группы
   weekday: int (1-5)
   lesson_number: int
+AhoRequest   # заявка в АХО
+  name: str
+  description: text
+  location: str (blank)
+  phone: str (blank)
+  work_type: furniture|rooms|plumbing|other
+  urgency: 1-5 (звёзды, blank)
+  importance: 1-5 (звёзды, blank)
+  submitted_by -> User (null)
+  created_at: datetime
+
 Substitution  # замена на конкретную дату
   date: date
   lesson_number: int
@@ -255,6 +270,7 @@ TaskFile         # файл, прикреплённый к задаче
 - **Роли**: `is_admin`, `is_teacher`, `is_parent`, `is_student` (несколько одновременно)
 - **Permissions DRF**: `IsAuthenticated`, `PasswordChanged`, `IsAdmin`, `IsAdminOrTeacher`
 - **Frontend**: `AuthContext` → `ProtectedRoute`, Axios-интерцептор добавляет Bearer-токен
+- **AuthContext**: `updatePhone(phone)` — PATCH `/auth/me/`, обновляет user в state и localStorage; при инициализации: сначала загружает user из localStorage (instant), потом фоновый запрос `/auth/me/` для подхвата актуальных данных
 
 ---
 
@@ -339,7 +355,14 @@ TaskFile         # файл, прикреплённый к задаче
 
 ### Аккаунт (AccountPage.tsx)
 - Карточка профиля: аватар (инициалы), имя, роли
+- Редактирование телефона: поле сохраняется через `PATCH /api/auth/me/`, кнопка активна только при изменении
 - Смена пароля: валидация (≥6 символов, совпадение), состояния загрузки/успеха/ошибки
+
+### Заявки (RequestsPage.tsx)
+- Две вкладки: "Заявки в АХО" и "Заявки в ИТ" (заглушка "в разработке")
+- **АХО-форма** (`AhoTab`): имя (предзаполняется из профиля), описание задачи, местоположение (кабинеты из БД + список именованных помещений), телефон (предзаполняется из профиля), вид работ (мебель/помещения/сантехника/прочее), срочность и важность (звёздочки 1-5), согласие с правилами
+- После отправки: экран успеха с кнопкой "Отправить ещё одну" (имя и телефон сохраняются, остальное сбрасывается)
+- Валидация: имя, описание, вид работ и согласие — обязательны
 
 ---
 

@@ -52,6 +52,14 @@ function IconTasks() {
   );
 }
 
+function IconWrench() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l5.654-4.654m5.46-1.22a8.561 8.561 0 001.783-8.297M11.42 15.17a8.561 8.561 0 008.297-1.783" />
+    </svg>
+  );
+}
+
 function IconSettings() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -165,6 +173,7 @@ export default function Layout() {
       end: false,
       badge: tasksCount && tasksCount.total > 0 ? tasksCount.total : null,
     },
+    { to: '/requests', label: 'Заявки', icon: <IconWrench />, end: false, badge: null },
     ...(user?.is_admin
       ? [
           { to: '/admin/school', label: 'Ученики', icon: <IconUsers />, end: false, badge: null },

@@ -41,4 +41,7 @@ urlpatterns = [
     path('substitutions/', views.substitution_list_create),
     path('substitutions/export/', views.substitution_export),
     path('substitutions/<int:pk>/', views.substitution_detail),
+
+    # АХО
+    path('aho/', views.aho_request_create),
 ]

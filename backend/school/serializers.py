@@ -4,6 +4,7 @@ from .models import (
     GradeLevel, SchoolClass, Subject, GradeLevelSubject,
     StudentProfile, ParentProfile, TeacherProfile,
     ClassGroup, ClassSubject, Room, ScheduleLesson, Substitution,
+    AhoRequest,
 )
 
 
@@ -188,3 +189,9 @@ class SubstitutionSerializer(serializers.ModelSerializer):
 
     def get_group_name(self, obj):
         return obj.group.name if obj.group else None
+
+
+class AhoRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AhoRequest
+        fields = ['id', 'name', 'description', 'location', 'phone', 'work_type', 'urgency', 'importance', 'created_at']
