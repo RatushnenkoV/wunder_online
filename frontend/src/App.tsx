@@ -13,6 +13,8 @@ import SchedulePage from './pages/SchedulePage';
 import AccountPage from './pages/AccountPage';
 import TasksPage from './pages/TasksPage';
 import RequestsPage from './pages/RequestsPage';
+import LessonsPage from './pages/LessonsPage';
+import LessonEditorPage from './pages/LessonEditorPage';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; adminOnly?: boolean }) {
@@ -65,6 +67,8 @@ function App() {
             <Route path="/account" element={<AccountPage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/requests" element={<RequestsPage />} />
+            <Route path="/lessons" element={<LessonsPage />} />
+            <Route path="/lessons/:id/edit" element={<LessonEditorPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" />} />

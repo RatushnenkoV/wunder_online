@@ -245,6 +245,77 @@ export interface TasksCount {
   total: number;
 }
 
+export interface LessonFolder {
+  id: number;
+  name: string;
+  owner: number;
+  owner_name: string;
+  parent: number | null;
+  children_count: number;
+  lessons_count: number;
+  created_at: string;
+}
+
+export interface Lesson {
+  id: number;
+  title: string;
+  description: string;
+  owner: number;
+  owner_name: string;
+  folder: number | null;
+  folder_name: string | null;
+  is_public: boolean;
+  cover_color: string;
+  is_owner: boolean;
+  slides_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type SlideType = 'content' | 'image' | 'poll' | 'quiz' | 'open_question' | 'video';
+
+export type ShapeType = 'rect' | 'circle' | 'triangle' | 'diamond' | 'star' | 'line';
+
+export interface SlideBlock {
+  id: string;           // 'b<timestamp>_<random>'
+  type: 'text' | 'image' | 'shape';
+  x: number;            // может быть за пределами 0..960
+  y: number;            // может быть за пределами 0..540
+  w: number;
+  h: number;
+  zIndex: number;
+  rotation?: number;    // градусы, 0 по умолчанию
+  html?: string;        // для text
+  src?: string;         // для image: URL
+  alt?: string;
+  shape?: ShapeType;    // для shape
+  fillColor?: string;   // hex или 'transparent'
+  strokeColor?: string; // hex или 'transparent'
+  strokeWidth?: number; // толщина границы в px
+}
+
+export interface SlideContent {
+  blocks: SlideBlock[];
+}
+
+export interface Slide {
+  id: number;
+  lesson: number;
+  order: number;
+  slide_type: SlideType;
+  title: string;
+  content: SlideContent;
+  image_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FolderContents {
+  folder: LessonFolder;
+  subfolders: LessonFolder[];
+  lessons: Lesson[];
+}
+
 export interface ScheduleLesson {
   id: number;
   school_class: number;
