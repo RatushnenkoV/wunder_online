@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -223,7 +224,11 @@ def task_status_change(request, task_id):
     # Фиксируем кто взял в работу
     if new_status == Task.STATUS_IN_PROGRESS and task.taken_by is None:
         task.taken_by = request.user
-    # При возврате из review → in_progress не сбрасываем taken_by
+    # Фиксируем дату выполнения
+    if new_status == Task.STATUS_DONE:
+        task.completed_at = timezone.now()
+    else:
+        task.completed_at = None
     task.save()
     return Response(_serialize_task(task, request))
 

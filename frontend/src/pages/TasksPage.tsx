@@ -16,8 +16,9 @@ const COLUMNS: {
   { status: 'new',         label: 'Поставленные', colorBg: 'bg-blue-50',   colorBorder: 'border-blue-200',   colorDrag: 'ring-2 ring-blue-400 bg-blue-100' },
   { status: 'in_progress', label: 'В работе',      colorBg: 'bg-amber-50',  colorBorder: 'border-amber-200',  colorDrag: 'ring-2 ring-amber-400 bg-amber-100' },
   { status: 'review',      label: 'На проверке',   colorBg: 'bg-purple-50', colorBorder: 'border-purple-200', colorDrag: 'ring-2 ring-purple-400 bg-purple-100' },
-  { status: 'done',        label: 'Выполнено',     colorBg: 'bg-green-50',  colorBorder: 'border-green-200',  colorDrag: '' },
 ];
+
+const DONE_COL = { status: 'done' as TaskStatus, label: 'Выполнено', colorBg: 'bg-green-50', colorBorder: 'border-green-200', colorDrag: '' };
 
 type StaffUser = { id: number; first_name: string; last_name: string };
 
@@ -409,13 +410,14 @@ function GroupsTab({ groups, staffList, isAdmin, onGroupsChange }: {
 
 // ─── Карточка задачи ──────────────────────────────────────────────────────────
 
-function TaskCard({ task, onStatusChange, onDelete, onReassign, onTaskUpdate, onDragStart }: {
+function TaskCard({ task, onStatusChange, onDelete, onReassign, onTaskUpdate, onDragStart, onHide }: {
   task: Task;
   onStatusChange: (task: Task, to: TaskStatus) => void;
   onDelete: (task: Task) => void;
   onReassign: (task: Task) => void;
   onTaskUpdate: (task: Task) => void;
   onDragStart: (taskId: number) => void;
+  onHide?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -467,11 +469,22 @@ function TaskCard({ task, onStatusChange, onDelete, onReassign, onTaskUpdate, on
       <button className="w-full text-left px-4 py-3" onClick={() => setExpanded(v => !v)}>
         <div className="flex items-start justify-between gap-2">
           <span className="text-sm font-medium text-gray-900 leading-snug">{task.title}</span>
-          {dueDateLabel && (
-            <span className={`text-xs whitespace-nowrap px-1.5 py-0.5 rounded-full flex-shrink-0 ${
-              isPast ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
-            }`}>{dueDateLabel}</span>
-          )}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {dueDateLabel && (
+              <span className={`text-xs whitespace-nowrap px-1.5 py-0.5 rounded-full ${
+                isPast ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
+              }`}>{dueDateLabel}</span>
+            )}
+            {onHide && (
+              <span
+                role="button"
+                onClick={e => { e.stopPropagation(); onHide(); }}
+                className="text-gray-300 hover:text-gray-500 transition-colors text-base leading-none px-1 -mr-1"
+                title="Скрыть задачу">
+                ×
+              </span>
+            )}
+          </div>
         </div>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {task.assigned_to_name && (
@@ -529,15 +542,17 @@ function TaskCard({ task, onStatusChange, onDelete, onReassign, onTaskUpdate, on
             </div>
           )}
 
-          {/* Прикрепить файл */}
-          <div>
-            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
-            <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFile}
-              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 transition-colors disabled:opacity-50">
-              <FileIcon />
-              {uploadingFile ? 'Загрузка...' : 'Прикрепить файл'}
-            </button>
-          </div>
+          {/* Прикрепить файл — недоступно для выполненных */}
+          {task.status !== 'done' && (
+            <div>
+              <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFile}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 transition-colors disabled:opacity-50">
+                <FileIcon />
+                {uploadingFile ? 'Загрузка...' : 'Прикрепить файл'}
+              </button>
+            </div>
+          )}
 
           {/* Кнопки переходов */}
           {transitions.length > 0 && (
@@ -557,9 +572,9 @@ function TaskCard({ task, onStatusChange, onDelete, onReassign, onTaskUpdate, on
             </div>
           )}
 
-          {/* Переназначить и удалить */}
+          {/* Переназначить и удалить — переназначение недоступно для выполненных */}
           <div className="flex items-center justify-between pt-1">
-            {task.can_reassign && (
+            {task.can_reassign && task.status !== 'done' && (
               <button onClick={() => onReassign(task)}
                 className="text-xs text-gray-500 hover:text-blue-600 transition-colors">
                 Переназначить
@@ -578,11 +593,254 @@ function TaskCard({ task, onStatusChange, onDelete, onReassign, onTaskUpdate, on
   );
 }
 
+// ─── Таблица выполненных ──────────────────────────────────────────────────────
+
+type SortField = 'title' | 'created_by_name' | 'created_at' | 'taken_by_name' | 'completed_at';
+type SortDir = 'asc' | 'desc';
+
+function fmt(iso: string | null) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('ru', {
+    day: 'numeric', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function DoneTable({ tasks, onDelete, onTaskUpdate }: {
+  tasks: Task[];
+  onDelete: (task: Task) => void;
+  onTaskUpdate: (task: Task) => void;
+}) {
+  const [sortField, setSortField] = useState<SortField>('completed_at');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [filterCreator, setFilterCreator] = useState('');
+  const [filterExecutor, setFilterExecutor] = useState('');
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [uploadingId, setUploadingId] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadTargetRef = useRef<number | null>(null);
+
+  const creators = Array.from(new Set(tasks.map(t => t.created_by_name))).sort();
+  const executors = Array.from(new Set(tasks.map(t => t.taken_by_name ?? '—'))).sort();
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
+
+  const filtered = tasks.filter(t => {
+    if (filterCreator && t.created_by_name !== filterCreator) return false;
+    if (filterExecutor && (t.taken_by_name ?? '—') !== filterExecutor) return false;
+    return true;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    let va: string = '', vb: string = '';
+    if (sortField === 'title') { va = a.title; vb = b.title; }
+    else if (sortField === 'created_by_name') { va = a.created_by_name; vb = b.created_by_name; }
+    else if (sortField === 'taken_by_name') { va = a.taken_by_name ?? ''; vb = b.taken_by_name ?? ''; }
+    else if (sortField === 'created_at') { va = a.created_at; vb = b.created_at; }
+    else if (sortField === 'completed_at') { va = a.completed_at ?? ''; vb = b.completed_at ?? ''; }
+    const cmp = va.localeCompare(vb, 'ru');
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const taskId = uploadTargetRef.current;
+    if (!file || !taskId) return;
+    setUploadingId(taskId);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post(`/tasks/tasks/${taskId}/files/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const task = tasks.find(t => t.id === taskId);
+      if (task) onTaskUpdate({ ...task, files: [...task.files, res.data] });
+    } catch {
+      alert('Ошибка при загрузке файла');
+    } finally {
+      setUploadingId(null);
+      uploadTargetRef.current = null;
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteFile = async (task: Task, fileId: number) => {
+    await api.delete(`/tasks/tasks/${task.id}/files/${fileId}/`);
+    onTaskUpdate({ ...task, files: task.files.filter(f => f.id !== fileId) });
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <span className="text-gray-300 ml-1">↕</span>;
+    return <span className="text-blue-500 ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>;
+  };
+
+  const thCls = 'px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap cursor-pointer select-none hover:text-gray-700 transition-colors';
+
+  if (tasks.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+        <p className="text-lg">Выполненных задач нет</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Фильтры */}
+      <div className="flex flex-wrap gap-3 mb-4">
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-500 whitespace-nowrap">Постановщик:</label>
+          <select value={filterCreator} onChange={e => setFilterCreator(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Все</option>
+            {creators.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-500 whitespace-nowrap">Исполнитель:</label>
+          <select value={filterExecutor} onChange={e => setFilterExecutor(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Все</option>
+            {executors.map(e => <option key={e} value={e}>{e}</option>)}
+          </select>
+        </div>
+        {(filterCreator || filterExecutor) && (
+          <button onClick={() => { setFilterCreator(''); setFilterExecutor(''); }}
+            className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+            × сбросить
+          </button>
+        )}
+        <span className="ml-auto text-sm text-gray-400 self-center">{sorted.length} задач</span>
+      </div>
+
+      {/* Таблица */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className={thCls} onClick={() => handleSort('title')}>
+                  Задача <SortIcon field="title" />
+                </th>
+                <th className={thCls} onClick={() => handleSort('created_by_name')}>
+                  Постановщик <SortIcon field="created_by_name" />
+                </th>
+                <th className={thCls} onClick={() => handleSort('created_at')}>
+                  Поставлена <SortIcon field="created_at" />
+                </th>
+                <th className={thCls} onClick={() => handleSort('taken_by_name')}>
+                  Исполнитель <SortIcon field="taken_by_name" />
+                </th>
+                <th className={thCls} onClick={() => handleSort('completed_at')}>
+                  Выполнена <SortIcon field="completed_at" />
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map(task => (
+                <>
+                  <tr
+                    key={task.id}
+                    onClick={() => setExpandedId(expandedId === task.id ? null : task.id)}
+                    className={`border-b border-gray-100 cursor-pointer transition-colors ${
+                      expandedId === task.id ? 'bg-blue-50' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <svg className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform ${expandedId === task.id ? 'rotate-90' : ''}`}
+                          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                        <span className="font-medium text-gray-900">{task.title}</span>
+                        {task.files.length > 0 && (
+                          <span className="flex items-center gap-0.5 text-xs text-gray-400 flex-shrink-0">
+                            <FileIcon /> {task.files.length}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{task.created_by_name}</td>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{fmt(task.created_at)}</td>
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{task.taken_by_name ?? '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{fmt(task.completed_at)}</td>
+                  </tr>
+                  {expandedId === task.id && (
+                    <tr key={`${task.id}-detail`} className="bg-blue-50 border-b border-gray-100">
+                      <td colSpan={5} className="px-6 py-4">
+                        <div className="space-y-3 max-w-3xl">
+                          {task.description ? (
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                              {linkify(task.description)}
+                            </p>
+                          ) : (
+                            <p className="text-sm text-gray-400 italic">Описание не указано</p>
+                          )}
+                          {task.files.length > 0 && (
+                            <div className="space-y-1.5">
+                              {task.files.map(f => (
+                                <div key={f.id} className="flex items-center gap-2 text-sm">
+                                  <FileIcon />
+                                  <a href={f.url} target="_blank" rel="noopener noreferrer"
+                                    onClick={e => e.stopPropagation()}
+                                    className="text-blue-600 hover:underline truncate">
+                                    {f.original_name}
+                                  </a>
+                                  <button onClick={e => { e.stopPropagation(); handleDeleteFile(task, f.id); }}
+                                    className="text-gray-300 hover:text-red-500 flex-shrink-0 transition-colors" title="Удалить файл">
+                                    &times;
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between pt-1">
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                uploadTargetRef.current = task.id;
+                                fileInputRef.current?.click();
+                              }}
+                              disabled={uploadingId === task.id}
+                              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 transition-colors disabled:opacity-50">
+                              <FileIcon />
+                              {uploadingId === task.id ? 'Загрузка...' : 'Прикрепить файл'}
+                            </button>
+                            <button
+                              onClick={e => { e.stopPropagation(); onDelete(task); }}
+                              className="text-xs text-red-400 hover:text-red-600 transition-colors">
+                              Удалить задачу
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Главная страница ─────────────────────────────────────────────────────────
 
 export default function TasksPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'tasks' | 'groups'>('tasks');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'done' | 'groups'>('tasks');
+  const [hiddenDoneIds, setHiddenDoneIds] = useState<Set<number>>(() => {
+    try {
+      const stored = localStorage.getItem('hiddenDoneTasks');
+      return stored ? new Set<number>(JSON.parse(stored)) : new Set<number>();
+    } catch { return new Set<number>(); }
+  });
   const [tasks, setTasks] = useState<Task[]>([]);
   const [groups, setGroups] = useState<TaskGroup[]>([]);
   const [staffList, setStaffList] = useState<StaffUser[]>([]);
@@ -616,8 +874,33 @@ export default function TasksPage() {
     }
   }, [loadData, isStaff]);
 
-  const updateTask = (updated: Task) =>
+  const updateTask = (updated: Task) => {
     setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
+    // Если задача вышла из done — убрать из скрытых
+    if (updated.status !== 'done') {
+      setHiddenDoneIds(prev => {
+        if (!prev.has(updated.id)) return prev;
+        const next = new Set(prev);
+        next.delete(updated.id);
+        localStorage.setItem('hiddenDoneTasks', JSON.stringify([...next]));
+        return next;
+      });
+    }
+  };
+
+  const hideTask = (taskId: number) => {
+    setHiddenDoneIds(prev => {
+      const next = new Set(prev);
+      next.add(taskId);
+      localStorage.setItem('hiddenDoneTasks', JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  const showAllHidden = () => {
+    setHiddenDoneIds(new Set());
+    localStorage.removeItem('hiddenDoneTasks');
+  };
 
   const handleStatusChange = async (task: Task, to: TaskStatus) => {
     try {
@@ -686,14 +969,29 @@ export default function TasksPage() {
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold text-gray-900">Задачи</h1>
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-            {(['tasks', 'groups'] as const).map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === tab ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
-                }`}>
-                {tab === 'tasks' ? 'Задачи' : `Группы${groups.length > 0 ? ` (${groups.length})` : ''}`}
-              </button>
-            ))}
+            <button onClick={() => setActiveTab('tasks')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'tasks' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              }`}>
+              Задачи
+            </button>
+            <button onClick={() => setActiveTab('done')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'done' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              }`}>
+              Выполненные
+              {tasks.filter(t => t.status === 'done').length > 0 && (
+                <span className="ml-1 text-xs text-gray-400">
+                  {tasks.filter(t => t.status === 'done').length}
+                </span>
+              )}
+            </button>
+            <button onClick={() => setActiveTab('groups')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'groups' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              }`}>
+              {`Группы${groups.length > 0 ? ` (${groups.length})` : ''}`}
+            </button>
           </div>
         </div>
         {activeTab === 'tasks' && isStaff && (
@@ -746,9 +1044,6 @@ export default function TasksPage() {
                         {colTasks.length}
                       </span>
                     )}
-                    {col.status === 'done' && (
-                      <span className="ml-auto text-xs text-gray-400">через проверку</span>
-                    )}
                   </div>
                   <div className="space-y-2 min-h-[4rem]">
                     {colTasks.length === 0 && (
@@ -769,8 +1064,59 @@ export default function TasksPage() {
                 </div>
               );
             })}
+
+            {/* Колонка выполненных — всегда видна */}
+            {(() => {
+              const allDone = byStatus('done');
+              const visibleDone = allDone.filter(t => !hiddenDoneIds.has(t.id));
+              const hiddenCount = allDone.length - visibleDone.length;
+              return (
+                <div className={`rounded-xl border p-3 ${DONE_COL.colorBg} ${DONE_COL.colorBorder}`}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-sm font-semibold text-gray-700">{DONE_COL.label}</span>
+                    {allDone.length > 0 && (
+                      <span className="text-xs bg-white rounded-full px-2 py-0.5 text-gray-500 font-medium border border-gray-200">
+                        {visibleDone.length}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-2 min-h-[4rem]">
+                    {allDone.length === 0 && (
+                      <p className="text-xs text-center py-6 text-gray-400">Нет задач</p>
+                    )}
+                    {visibleDone.map(task => (
+                      <TaskCard key={task.id} task={task}
+                        onStatusChange={handleStatusChange}
+                        onDelete={handleDelete}
+                        onReassign={setReassignTask}
+                        onTaskUpdate={updateTask}
+                        onDragStart={id => { draggedTaskIdRef.current = id; }}
+                        onHide={() => hideTask(task.id)}
+                      />
+                    ))}
+                    {hiddenCount > 0 && (
+                      <div className="text-center pt-1">
+                        <button onClick={showAllHidden}
+                          className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                          ещё {hiddenCount} скрыто — показать
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </>
+      )}
+
+      {/* Вкладка выполненных */}
+      {activeTab === 'done' && (
+        <DoneTable
+          tasks={tasks.filter(t => t.status === 'done')}
+          onDelete={handleDelete}
+          onTaskUpdate={updateTask}
+        />
       )}
 
       {/* Модалы */}

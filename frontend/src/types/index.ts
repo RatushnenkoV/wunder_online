@@ -208,6 +208,7 @@ export interface Task {
   files: TaskFile[];
   created_at: string;
   updated_at: string;
+  completed_at: string | null;
 }
 
 export interface TasksCount {

@@ -76,9 +76,9 @@ class TaskSerializer(serializers.ModelSerializer):
             'status', 'due_date',
             'is_assignee', 'can_reassign',
             'files',
-            'created_at', 'updated_at',
+            'created_at', 'updated_at', 'completed_at',
         ]
-        read_only_fields = ['created_by', 'status', 'taken_by', 'created_at', 'updated_at']
+        read_only_fields = ['created_by', 'status', 'taken_by', 'created_at', 'updated_at', 'completed_at']
 
     def get_created_by_name(self, obj):
         return f'{obj.created_by.last_name} {obj.created_by.first_name}'
