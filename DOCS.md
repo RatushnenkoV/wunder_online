@@ -34,6 +34,8 @@ WunderOnline/
 │   │   │   ├── LoginPage.tsx
 │   │   │   ├── ChangePasswordPage.tsx
 │   │   │   ├── DashboardPage.tsx
+│   │   │   ├── AccountPage.tsx      # Аккаунт пользователя (смена пароля)
+│   │   │   ├── TasksPage.tsx        # Таск-менеджер (канбан)
 │   │   │   ├── KTPListPage.tsx
 │   │   │   ├── KTPDetailPage.tsx    # Главный редактор КТП
 │   │   │   ├── SchedulePage.tsx     # Расписание + вкладка замен
@@ -80,6 +82,8 @@ WunderOnline/
 | `/admin/people` | PeoplePage | Только admin |
 | `/admin/school` | SchoolPage | Только admin |
 | `/admin/settings` | SettingsPage | Только admin |
+| `/account` | AccountPage | Авторизованные |
+| `/tasks` | TasksPage | Авторизованные |
 
 ---
 
@@ -108,6 +112,19 @@ WunderOnline/
 - `POST /api/school/substitutions/` — создать/обновить замену (upsert по date+lesson_number+school_class)
 - `PUT/DELETE /api/school/substitutions/:id/` — обновить/удалить замену (IsAdmin)
 - `GET /api/school/substitutions/export/?date_from=...&date_to=...` — экспорт в Excel
+
+### Задачи (`/api/tasks/`)
+- `GET /api/tasks/staff/` — список сотрудников (admin+teacher) для выбора исполнителя
+- `GET /api/tasks/groups/` — все группы (для любого staff); POST — создать (admin)
+- `GET/PUT/DELETE /api/tasks/groups/:id/` — группа
+- `POST /api/tasks/groups/:id/members/` — `{action: add|remove}`. Admin: + `{user_id}`. Teacher: управляет только своим членством
+- `GET /api/tasks/tasks/count/` — счётчик `{new, review, total}` для бейджа в сайдбаре
+- `GET/POST /api/tasks/tasks/` — задачи видимые мне / создать (staff). GET фильтр: `?status=`
+- `GET/PUT /api/tasks/tasks/:id/` — задача. DELETE — только создатель
+- `POST /api/tasks/tasks/:id/status/` — изменить статус `{status}`. `new→in_progress`, `in_progress→review`: только исполнитель. `review→done/in_progress`: только постановщик или admin
+- `POST /api/tasks/tasks/:id/reassign/` — переназначить `{assigned_to|assigned_group}`. Сбрасывает статус в `new`, очищает `taken_by`. Доступно: постановщик, взявший в работу, admin
+- `POST /api/tasks/tasks/:id/files/` — загрузить файл (multipart: `file`)
+- `DELETE /api/tasks/tasks/:id/files/:file_id/` — удалить файл
 
 ### КТП (`/api/ktp/`)
 - `GET/POST /api/ktp/ctps/` — список КТП
@@ -202,6 +219,32 @@ Holiday          # праздник (для автозаполнения дат)
   date: date
 ```
 
+### tasks/
+```python
+TaskGroup        # группа сотрудников для задач
+  name: str
+  description: str
+  created_by -> User
+  members -> [User] (M2M)
+
+Task             # задача
+  title: str
+  description: str
+  created_by -> User           # постановщик
+  assigned_to -> User (null)   # исполнитель-человек
+  assigned_group -> TaskGroup (null)  # исполнитель-группа
+  taken_by -> User (null)      # кто фактически взял в работу
+  status: new | in_progress | review | done
+  due_date: date (null)
+  # Computed (сериализатор): is_assignee, can_reassign
+
+TaskFile         # файл, прикреплённый к задаче
+  task -> Task
+  file: FileField  # upload_to='task_files/%Y/%m/'
+  original_name: str
+  uploaded_by -> User
+```
+
 ---
 
 ## Авторизация и роли
@@ -269,6 +312,29 @@ Holiday          # праздник (для автозаполнения дат)
 ### Dashboard (DashboardPage.tsx)
 - Ученик: темы на выбранный день с ДЗ, ресурсами, файлами
 - Учитель/Админ: быстрые ссылки на КТП и разделы
+
+### Таск-менеджер (TasksPage.tsx)
+- Канбан из 4 колонок: Поставленные / В работе / На проверке / Выполнено
+- **Drag & Drop** между колонками (кроме "Выполнено" — только через кнопку "Принять")
+- **Группы** (вкладка "Группы"): admin создаёт/удаляет группы и назначает участников чекбоксами; teacher вступает/покидает сам
+- Задачу создаёт любой staff (admin/teacher): назначается человеку или группе, опционально срок
+- **Статусные переходы**: `new→in_progress` и `in_progress→review` — только исполнитель; `review→done/in_progress` — только постановщик или admin
+- **taken_by** — фиксируется кто взял задачу в работу, отображается на карточке
+- **Переназначение** — постановщик или взявший могут переназначить исполнителя; задача сбрасывается в `new`
+- **Файлы** — к задаче можно прикрепить любые файлы (хранятся в `media/task_files/`)
+- **Ссылки в описании** активны (linkify)
+- **Удаление** — только постановщик
+- **Счётчик** в сайдбаре — синий бейдж рядом с "Задачи": `new` задачи мне + `review` задачи от меня; обновляется при каждом переходе по маршрутам
+
+### Навигация (Layout.tsx)
+- Фиксированный левый сайдбар (256px) на экранах ≥ 1024px
+- На меньших экранах — скрыт, открывается кнопкой-гамбургером в топ-баре
+- На мобильных — свайп вправо от левого края (<48px) открывает, свайп влево закрывает
+- Аватар пользователя с инициалами в подвале → ссылка на `/account`
+
+### Аккаунт (AccountPage.tsx)
+- Карточка профиля: аватар (инициалы), имя, роли
+- Смена пароля: валидация (≥6 символов, совпадение), состояния загрузки/успеха/ошибки
 
 ---
 

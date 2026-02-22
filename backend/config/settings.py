@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     'accounts',
     'school',
     'ktp',
+    'tasks',
 ]
 
 MIDDLEWARE = [

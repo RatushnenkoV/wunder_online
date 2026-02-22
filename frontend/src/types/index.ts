@@ -159,6 +159,63 @@ export interface Substitution {
   original_class_name: string | null;
 }
 
+export type TaskStatus = 'new' | 'in_progress' | 'review' | 'done';
+
+export interface TaskMember {
+  id: number;
+  first_name: string;
+  last_name: string;
+  roles: string[];
+}
+
+export interface TaskGroup {
+  id: number;
+  name: string;
+  description: string;
+  created_by: number;
+  created_by_name: string;
+  members: number[];
+  members_detail: TaskMember[];
+  is_member: boolean;
+  created_at: string;
+}
+
+export interface TaskFile {
+  id: number;
+  original_name: string;
+  url: string;
+  uploaded_by: number;
+  uploaded_by_name: string;
+  uploaded_at: string;
+}
+
+export interface Task {
+  id: number;
+  title: string;
+  description: string;
+  created_by: number;
+  created_by_name: string;
+  assigned_to: number | null;
+  assigned_to_name: string | null;
+  assigned_group: number | null;
+  assigned_group_name: string | null;
+  taken_by: number | null;
+  taken_by_name: string | null;
+  status: TaskStatus;
+  due_date: string | null;
+  is_assignee: boolean;
+  can_reassign: boolean;
+  files: TaskFile[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TasksCount {
+  new: number;
+  review: number;
+  total: number;
+}
+
 export interface ScheduleLesson {
   id: number;
   school_class: number;

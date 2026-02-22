@@ -8,6 +8,7 @@ urlpatterns = [
     path('api/', include('accounts.urls')),
     path('api/school/', include('school.urls')),
     path('api/ktp/', include('ktp.urls')),
+    path('api/tasks/', include('tasks.urls')),
 ]
 
 if settings.DEBUG:
