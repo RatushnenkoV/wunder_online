@@ -41,12 +41,13 @@ WunderOnline/
 │   │   │   ├── KTPDetailPage.tsx    # Главный редактор КТП
 │   │   │   ├── SchedulePage.tsx     # Расписание + вкладка замен
 │   │   │   ├── PeoplePage.tsx       # Управление персоналом/учениками
-│   │   │   ├── SchoolPage.tsx       # Структура школы
+│   │   │   ├── SchoolPage.tsx       # Структура школы (вкладки: Классы, Ученики, Родители)
 │   │   │   └── SettingsPage.tsx     # Настройки (праздники)
 │   │   └── components/
 │   │       ├── Layout.tsx           # Навбар + обёртка
-│   │       ├── StaffTab.tsx         # CRUD сотрудников
-│   │       ├── StudentsTab.tsx      # CRUD учеников (список + папки)
+│   │       ├── StaffTab.tsx         # CRUD сотрудников (+ бейджи куратора, birth_date)
+│   │       ├── ParentsTab.tsx       # CRUD родителей + привязка детей
+│   │       ├── StudentsTab.tsx      # CRUD учеников (список + папки, birth_date, родители)
 │   │       ├── schedule/
 │   │       │   ├── ScheduleGrid.tsx          # Сетка расписания
 │   │       │   ├── LessonEditor.tsx          # Редактор урока (модал)
@@ -102,9 +103,16 @@ WunderOnline/
 - `GET/POST /api/admin/students/` — ученики
 - `GET/PUT/DELETE /api/admin/students/:id/` — конкретный ученик
 - `POST /api/admin/reset-password/:id/` — сброс пароля
+- `GET/POST /api/admin/parents/` — родители (пагинация, search)
+- `GET/PUT/DELETE /api/admin/parents/:id/` — конкретный родитель
+- `POST /api/admin/parents/:id/children/` — `{action: add|remove, student_profile_id}`
+- `POST /api/admin/parents/:id/reset-password/` — сброс пароля родителя
 
 ### Школа (`/api/school/`)
 - Grade levels, school classes, subjects, rooms, class groups, schedule lessons
+- `PATCH /api/school/classes/:id/` — обновить класс (curator_id)
+- `GET /api/school/students/:id/parents/` — список родителей ученика
+- `POST /api/school/students/:id/parents/` — `{action: add|remove, parent_id}` — привязать/отвязать родителя
 - `PATCH /api/auth/me/` — обновить профиль (phone)
 - `POST /api/school/aho/` — создать заявку АХО (IsAuthenticated)
 - `POST /api/school/schedule/import/preview/` — парсинг Excel (multipart: classes_file, teachers_file), возвращает parsed_lessons + missing entities
@@ -153,6 +161,7 @@ User
   is_student: bool
   must_change_password: bool  # принудительная смена при первом входе
   phone: str
+  birth_date: date (null)     # дата рождения (для сотрудников и учеников)
 
 StudentProfile
   user -> User
@@ -163,13 +172,15 @@ TeacherProfile
 
 ParentProfile
   user -> User
-  children -> [User]  # ученики
+  children -> [StudentProfile]  # ученики (M2M)
+  telegram: str (blank)         # Telegram-аккаунт
 ```
 
 ### school/
 ```python
 GradeLevel       # параллель: "1 класс", "2 класс"
 SchoolClass      # класс: "1-А", "1-Б" -> GradeLevel
+  curator -> User (null, SET_NULL)  # куратор класса
 Subject          # предмет глобально: "Математика"
 GradeLevelSubject  # предмет в параллели
 ClassGroup       # группа в классе: "Группа 1", "Группа 2"
@@ -352,6 +363,28 @@ TaskFile         # файл, прикреплённый к задаче
 - На меньших экранах — скрыт, открывается кнопкой-гамбургером в топ-баре
 - На мобильных — свайп вправо от левого края (<48px) открывает, свайп влево закрывает
 - Аватар пользователя с инициалами в подвале → ссылка на `/account`
+
+### Куратор класса (ClassDetail.tsx)
+- Над вкладками класса строка "Куратор: ФИО / не назначен"
+- Кнопка "Назначить/Изменить" открывает дропдаун с поиском по списку сотрудников
+- PATCH `/school/classes/{id}/` с `{curator_id}` — назначить; `null` — снять
+- В StaffTab у куратора в колонке "Роли" зелёный бейдж "Куратор 1-А"
+
+### Родители (SchoolPage → вкладка "Родители" → ParentsTab.tsx)
+- Таблица: Фамилия, Имя, Телефон, Telegram, Дети, Врем. пароль, меню
+- Поиск по имени, пагинация
+- Контекстное меню: Изменить, Сбросить пароль, Удалить
+- Создание родителя: поля (фамилия, имя, телефон, email, telegram, дата рождения) + поиск и выбор детей
+- Редактирование: те же поля + управление детьми (добавить поиском, убрать ×)
+- Родитель = User с `is_parent=True` + ParentProfile(children M2M StudentProfile, telegram)
+- Одноразовый пароль выдаётся при создании (как у всех)
+- Привязка детей также через карточку ученика (StudentsTab → Edit → секция "Родители")
+
+### Дашборд родителя (DashboardPage.tsx)
+- Вкладки по детям: "Фамилия Имя (1-А)", "Фамилия Имя (3-Б)"
+- Если ребёнок один — без вкладок
+- При переключении вкладки: GET `/ktp/topics-by-date/?date=...&student_id={sp.id}`
+- Если детей нет — сообщение "Нет привязанных учеников"
 
 ### Аккаунт (AccountPage.tsx)
 - Карточка профиля: аватар (инициалы), имя, роли

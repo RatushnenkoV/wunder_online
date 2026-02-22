@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/client';
-import type { TopicByDate } from '../types';
+import type { TopicByDate, ParentChild } from '../types';
 
 function formatDateRu(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -18,7 +18,7 @@ function toISODate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function StudentDashboard() {
+function StudentDashboard({ studentId }: { studentId?: number }) {
   const [date, setDate] = useState(() => toISODate(new Date()));
   const [topics, setTopics] = useState<TopicByDate[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -26,10 +26,13 @@ function StudentDashboard() {
 
   useEffect(() => {
     setLoading(true);
-    api.get(`/ktp/topics-by-date/?date=${date}`)
+    const url = studentId
+      ? `/ktp/topics-by-date/?date=${date}&student_id=${studentId}`
+      : `/ktp/topics-by-date/?date=${date}`;
+    api.get(url)
       .then(res => { setTopics(res.data); setExpandedId(null); })
       .finally(() => setLoading(false));
-  }, [date]);
+  }, [date, studentId]);
 
   const shiftDate = (days: number) => {
     const d = new Date(date + 'T00:00:00');
@@ -129,6 +132,42 @@ function StudentDashboard() {
   );
 }
 
+function ParentDashboard() {
+  const { user } = useAuth();
+  const children: ParentChild[] = user?.children ?? [];
+  const [activeChildId, setActiveChildId] = useState<number | null>(
+    children.length > 0 ? children[0].id : null
+  );
+
+  if (children.length === 0) {
+    return <p className="text-gray-400 py-8 text-center">Нет привязанных учеников</p>;
+  }
+
+  return (
+    <div>
+      {children.length > 1 && (
+        <div className="flex gap-1 border-b mb-6">
+          {children.map(c => (
+            <button
+              key={c.id}
+              onClick={() => setActiveChildId(c.id)}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition ${
+                activeChildId === c.id
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {c.last_name} {c.first_name}
+              <span className="ml-1.5 text-xs text-gray-400">({c.school_class_name})</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {activeChildId && <StudentDashboard studentId={activeChildId} />}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
 
@@ -141,6 +180,17 @@ export default function DashboardPage() {
           Добро пожаловать, {user.first_name}!
         </h1>
         <StudentDashboard />
+      </div>
+    );
+  }
+
+  if (user.is_parent) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold mb-6">
+          Добро пожаловать, {user.first_name}!
+        </h1>
+        <ParentDashboard />
       </div>
     );
   }

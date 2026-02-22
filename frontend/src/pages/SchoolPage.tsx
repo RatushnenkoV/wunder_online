@@ -3,12 +3,14 @@ import type { SchoolClass } from '../types';
 import ClassesGrid from '../components/school/ClassesGrid';
 import ClassDetail from '../components/school/ClassDetail';
 import StudentsTab from '../components/StudentsTab';
+import ParentsTab from '../components/ParentsTab';
 
-type MainTab = 'classes' | 'all';
+type MainTab = 'classes' | 'all' | 'parents';
 
 const TABS: { key: MainTab; label: string }[] = [
   { key: 'classes', label: 'Классы' },
-  { key: 'all', label: 'Все' },
+  { key: 'all', label: 'Ученики' },
+  { key: 'parents', label: 'Родители' },
 ];
 
 export default function SchoolPage() {
@@ -40,11 +42,17 @@ export default function SchoolPage() {
 
       {mainTab === 'classes' && (
         selectedClass
-          ? <ClassDetail schoolClass={selectedClass} onBack={() => setSelectedClass(null)} />
+          ? <ClassDetail
+              schoolClass={selectedClass}
+              onBack={() => setSelectedClass(null)}
+              onClassUpdated={setSelectedClass}
+            />
           : <ClassesGrid onSelect={setSelectedClass} />
       )}
 
       {mainTab === 'all' && <StudentsTab />}
+
+      {mainTab === 'parents' && <ParentsTab />}
     </div>
   );
 }

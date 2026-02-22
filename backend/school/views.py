@@ -70,13 +70,28 @@ def school_class_list_create(request):
     return Response(SchoolClassSerializer(sc).data, status=status.HTTP_201_CREATED)
 
 
-@api_view(['DELETE'])
+@api_view(['PATCH', 'DELETE'])
 @permission_classes([IsAdmin, PasswordChanged])
-def school_class_delete(request, pk):
+def school_class_detail(request, pk):
     try:
-        SchoolClass.objects.get(pk=pk).delete()
+        sc = SchoolClass.objects.select_related('grade_level', 'curator').get(pk=pk)
     except SchoolClass.DoesNotExist:
         return Response({'detail': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'PATCH':
+        if 'curator_id' in request.data:
+            curator_id = request.data['curator_id']
+            if curator_id:
+                try:
+                    sc.curator = User.objects.get(pk=curator_id)
+                except User.DoesNotExist:
+                    return Response({'detail': 'Куратор не найден'}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                sc.curator = None
+            sc.save(update_fields=['curator'])
+        return Response(SchoolClassSerializer(sc).data)
+
+    sc.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -149,11 +164,38 @@ def class_students(request, class_id):
 
 # --- Parents of student ---
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @permission_classes([IsAdmin, PasswordChanged])
 def student_parents(request, student_id):
-    parents = ParentProfile.objects.filter(children__id=student_id).select_related('user')
-    return Response(ParentProfileSerializer(parents, many=True).data)
+    try:
+        sp = StudentProfile.objects.get(pk=student_id)
+    except StudentProfile.DoesNotExist:
+        return Response({'detail': 'Ученик не найден'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        from accounts.serializers import ParentSerializer
+        parents = ParentProfile.objects.filter(children=sp).select_related('user')
+        return Response(ParentSerializer([p.user for p in parents], many=True).data)
+
+    # POST: add or remove parent
+    from accounts.serializers import ParentSerializer
+    action = request.data.get('action')
+    parent_id = request.data.get('parent_id')
+    if action not in ('add', 'remove') or not parent_id:
+        return Response({'detail': 'action и parent_id обязательны'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        parent_profile = ParentProfile.objects.get(user_id=parent_id)
+    except ParentProfile.DoesNotExist:
+        return Response({'detail': 'Родитель не найден'}, status=status.HTTP_404_NOT_FOUND)
+
+    if action == 'add':
+        parent_profile.children.add(sp)
+    else:
+        parent_profile.children.remove(sp)
+
+    parents = ParentProfile.objects.filter(children=sp).select_related('user')
+    return Response(ParentSerializer([p.user for p in parents], many=True).data)
 
 
 # --- Import classes ---

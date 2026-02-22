@@ -1,9 +1,18 @@
+export interface ParentChild {
+  id: number;              // user id студента
+  student_profile_id: number;
+  first_name: string;
+  last_name: string;
+  school_class_name: string;
+}
+
 export interface User {
   id: number;
   first_name: string;
   last_name: string;
   email: string;
   phone: string;
+  birth_date?: string | null;
   is_admin: boolean;
   is_teacher: boolean;
   is_parent: boolean;
@@ -11,6 +20,23 @@ export interface User {
   must_change_password: boolean;
   temp_password: string;
   roles: string[];
+  curated_classes?: string[];
+  children?: ParentChild[];  // только для родителей (из /auth/me/)
+}
+
+export interface Parent {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  telegram: string;
+  birth_date: string | null;
+  must_change_password: boolean;
+  temp_password: string;
+  roles: string[];
+  curated_classes: string[];
+  children: ParentChild[];
 }
 
 export interface GradeLevel {
@@ -26,6 +52,8 @@ export interface SchoolClass {
   letter: string;
   display_name: string;
   students_count: number;
+  curator_id?: number | null;
+  curator_name?: string | null;
 }
 
 export interface Subject {

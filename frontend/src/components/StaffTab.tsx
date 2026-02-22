@@ -28,7 +28,7 @@ export default function StaffTab() {
   const [rows, setRows] = useState<StaffRow[]>([emptyRow()]);
   const [message, setMessage] = useState('');
   const [editUser, setEditUser] = useState<User | null>(null);
-  const [editForm, setEditForm] = useState({ first_name: '', last_name: '', email: '', phone: '', roles: [] as string[] });
+  const [editForm, setEditForm] = useState({ first_name: '', last_name: '', email: '', phone: '', birth_date: '', roles: [] as string[] });
   const [ctxMenu, setCtxMenu] = useState<{ user: User; x: number; y: number } | null>(null);
 
   const load = useCallback(async (page = pagination.page) => {
@@ -100,6 +100,7 @@ export default function StaffTab() {
       last_name: user.last_name,
       email: user.email || '',
       phone: user.phone || '',
+      birth_date: user.birth_date || '',
       roles: user.roles.filter(r => r !== 'parent'),
     });
   };
@@ -107,7 +108,10 @@ export default function StaffTab() {
   const handleEdit = async () => {
     if (!editUser) return;
     try {
-      await api.put(`/admin/users/${editUser.id}/`, editForm);
+      await api.put(`/admin/users/${editUser.id}/`, {
+        ...editForm,
+        birth_date: editForm.birth_date || null,
+      });
       setEditUser(null);
       setMessage('Данные обновлены');
       load();
@@ -228,11 +232,18 @@ export default function StaffTab() {
                 <td className="px-4 py-2 text-gray-500">{u.email || '—'}</td>
                 <td className="px-4 py-2 text-gray-500">{u.phone || '—'}</td>
                 <td className="px-4 py-2">
-                  {u.roles.filter(r => r !== 'parent').map(r => (
-                    <span key={r} className="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded mr-1">
-                      {ROLE_OPTIONS.find(o => o.value === r)?.label || r}
-                    </span>
-                  ))}
+                  <div className="flex flex-wrap gap-1">
+                    {u.roles.filter(r => r !== 'parent').map(r => (
+                      <span key={r} className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded">
+                        {ROLE_OPTIONS.find(o => o.value === r)?.label || r}
+                      </span>
+                    ))}
+                    {(u.curated_classes ?? []).map(cls => (
+                      <span key={cls} className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">
+                        Куратор {cls}
+                      </span>
+                    ))}
+                  </div>
                 </td>
                 <td className="px-4 py-2">
                   {u.must_change_password && u.temp_password ? (
@@ -349,6 +360,10 @@ export default function StaffTab() {
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Телефон</label>
                 <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Дата рождения</label>
+                <input type="date" value={editForm.birth_date} onChange={e => setEditForm(f => ({ ...f, birth_date: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Роли</label>

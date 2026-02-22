@@ -29,6 +29,8 @@ class User(AbstractUser):
     is_parent = models.BooleanField('Родитель', default=False)
     is_student = models.BooleanField('Ученик', default=False)
 
+    birth_date = models.DateField('Дата рождения', null=True, blank=True)
+
     must_change_password = models.BooleanField(default=True)
     temp_password = models.CharField(max_length=50, blank=True, default='')
 

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from accounts.serializers import UserListSerializer
+from accounts.models import User as AccountUser
 from .models import (
     GradeLevel, SchoolClass, Subject, GradeLevelSubject,
     StudentProfile, ParentProfile, TeacherProfile,
@@ -30,16 +31,32 @@ class SchoolClassSerializer(serializers.ModelSerializer):
     grade_level_number = serializers.IntegerField(source='grade_level.number', read_only=True)
     display_name = serializers.SerializerMethodField()
     students_count = serializers.SerializerMethodField()
+    curator_id = serializers.PrimaryKeyRelatedField(
+        source='curator',
+        queryset=AccountUser.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+    curator_name = serializers.SerializerMethodField()
 
     class Meta:
         model = SchoolClass
-        fields = ['id', 'grade_level', 'grade_level_number', 'letter', 'display_name', 'students_count']
+        fields = [
+            'id', 'grade_level', 'grade_level_number', 'letter',
+            'display_name', 'students_count',
+            'curator_id', 'curator_name',
+        ]
 
     def get_display_name(self, obj):
         return str(obj)
 
     def get_students_count(self, obj):
         return obj.students.count()
+
+    def get_curator_name(self, obj):
+        if obj.curator:
+            return f'{obj.curator.last_name} {obj.curator.first_name}'
+        return None
 
 
 class StudentProfileSerializer(serializers.ModelSerializer):

@@ -7,12 +7,13 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from school.models import StudentProfile, SchoolClass
+from school.models import StudentProfile, SchoolClass, ParentProfile
 from .models import User
 from .permissions import IsAdmin, PasswordChanged
 from .serializers import (
     LoginSerializer, ChangePasswordSerializer,
     UserCreateSerializer, UserListSerializer, UserSerializer,
+    ParentSerializer, ParentChildSerializer,
 )
 from .services import create_user_with_temp_password, reset_user_password, import_users
 
@@ -64,7 +65,16 @@ def change_password_view(request):
 @permission_classes([IsAuthenticated])
 def me_view(request):
     if request.method == 'GET':
-        return Response(UserSerializer(request.user).data)
+        data = UserSerializer(request.user).data
+        if request.user.is_parent:
+            try:
+                children_qs = request.user.parent_profile.children.select_related(
+                    'user', 'school_class', 'school_class__grade_level'
+                )
+                data['children'] = ParentChildSerializer(children_qs, many=True).data
+            except Exception:
+                data['children'] = []
+        return Response(data)
 
     user = request.user
     if 'phone' in request.data:
@@ -316,6 +326,9 @@ def user_detail_view(request, pk):
         user.email = data.get('email', user.email)
         user.phone = data.get('phone', user.phone)
 
+        if 'birth_date' in data:
+            user.birth_date = data['birth_date'] or None
+
         roles = data.get('roles')
         if roles is not None:
             user.is_admin = 'admin' in roles
@@ -377,3 +390,126 @@ def import_users_view(request):
         'created': UserListSerializer(created, many=True).data,
         'errors': errors,
     })
+
+
+# --- Parents CRUD ---
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAdmin, PasswordChanged])
+def parent_list_create(request):
+    if request.method == 'GET':
+        users = User.objects.filter(is_parent=True)
+        users = _apply_user_filters(users, request)
+        items, pagination = _paginate(users, request)
+        return Response({
+            'results': ParentSerializer(items, many=True).data,
+            'pagination': pagination,
+        })
+
+    # Create parent
+    data = request.data
+    first_name = data.get('first_name', '').strip()
+    last_name = data.get('last_name', '').strip()
+    if not first_name or not last_name:
+        return Response({'detail': 'Имя и фамилия обязательны'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = create_user_with_temp_password(
+        first_name, last_name, ['parent'],
+        data.get('email', ''), data.get('phone', ''),
+    )
+    if 'birth_date' in data and data['birth_date']:
+        user.birth_date = data['birth_date']
+        user.save(update_fields=['birth_date'])
+
+    # Create ParentProfile
+    profile = ParentProfile.objects.create(user=user)
+    if data.get('telegram'):
+        profile.telegram = data['telegram']
+        profile.save(update_fields=['telegram'])
+
+    # Link children
+    children_ids = data.get('children', [])
+    if children_ids:
+        from school.models import StudentProfile
+        for sp_id in children_ids:
+            try:
+                sp = StudentProfile.objects.get(pk=sp_id)
+                profile.children.add(sp)
+            except StudentProfile.DoesNotExist:
+                pass
+
+    return Response(ParentSerializer(user).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAdmin, PasswordChanged])
+def parent_detail_view(request, pk):
+    try:
+        user = User.objects.get(pk=pk, is_parent=True)
+    except User.DoesNotExist:
+        return Response({'detail': 'Родитель не найден'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        return Response(ParentSerializer(user).data)
+
+    if request.method == 'PUT':
+        data = request.data
+        user.first_name = data.get('first_name', user.first_name)
+        user.last_name = data.get('last_name', user.last_name)
+        user.email = data.get('email', user.email)
+        user.phone = data.get('phone', user.phone)
+        if 'birth_date' in data:
+            user.birth_date = data['birth_date'] or None
+        user.save()
+
+        # Update telegram
+        profile, _ = ParentProfile.objects.get_or_create(user=user)
+        if 'telegram' in data:
+            profile.telegram = data.get('telegram', '')
+            profile.save(update_fields=['telegram'])
+
+        # Replace children if provided
+        if 'children' in data:
+            from school.models import StudentProfile
+            profile.children.clear()
+            for sp_id in data['children']:
+                try:
+                    sp = StudentProfile.objects.get(pk=sp_id)
+                    profile.children.add(sp)
+                except StudentProfile.DoesNotExist:
+                    pass
+
+        return Response(ParentSerializer(user).data)
+
+    if request.method == 'DELETE':
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+@permission_classes([IsAdmin, PasswordChanged])
+def parent_children_view(request, pk):
+    """Add or remove a child (StudentProfile) for a parent."""
+    try:
+        user = User.objects.get(pk=pk, is_parent=True)
+    except User.DoesNotExist:
+        return Response({'detail': 'Родитель не найден'}, status=status.HTTP_404_NOT_FOUND)
+
+    action = request.data.get('action')
+    sp_id = request.data.get('student_profile_id')
+    if action not in ('add', 'remove') or not sp_id:
+        return Response({'detail': 'action и student_profile_id обязательны'}, status=status.HTTP_400_BAD_REQUEST)
+
+    from school.models import StudentProfile
+    try:
+        sp = StudentProfile.objects.get(pk=sp_id)
+    except StudentProfile.DoesNotExist:
+        return Response({'detail': 'Ученик не найден'}, status=status.HTTP_404_NOT_FOUND)
+
+    profile, _ = ParentProfile.objects.get_or_create(user=user)
+    if action == 'add':
+        profile.children.add(sp)
+    else:
+        profile.children.remove(sp)
+
+    return Response(ParentSerializer(user).data)

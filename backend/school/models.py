@@ -17,6 +17,11 @@ class GradeLevel(models.Model):
 class SchoolClass(models.Model):
     grade_level = models.ForeignKey(GradeLevel, on_delete=models.CASCADE, related_name='classes')
     letter = models.CharField('Буква класса', max_length=5)
+    curator = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='curated_classes',
+        verbose_name='Куратор',
+    )
 
     class Meta:
         verbose_name = 'Класс'
@@ -68,6 +73,7 @@ class StudentProfile(models.Model):
 class ParentProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='parent_profile')
     children = models.ManyToManyField(StudentProfile, related_name='parents', blank=True)
+    telegram = models.CharField('Telegram', max_length=100, blank=True, default='')
 
     class Meta:
         verbose_name = 'Профиль родителя'

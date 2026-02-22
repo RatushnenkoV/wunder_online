@@ -11,4 +11,8 @@ urlpatterns = [
     path('admin/users/import/', views.import_users_view),
     path('admin/staff/', views.staff_list_create),
     path('admin/students/', views.student_list_create),
+    path('admin/parents/', views.parent_list_create),
+    path('admin/parents/<int:pk>/', views.parent_detail_view),
+    path('admin/parents/<int:pk>/children/', views.parent_children_view),
+    path('admin/parents/<int:pk>/reset-password/', views.reset_password_view),
 ]

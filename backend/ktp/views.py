@@ -444,9 +444,20 @@ def topics_by_date(request):
 
     topics = Topic.objects.filter(date=date).select_related('ctp__subject', 'ctp__school_class').prefetch_related('files')
 
-    class_ids = _get_user_classes(request.user)
-    if class_ids is not None:
-        topics = topics.filter(ctp__school_class_id__in=class_ids, ctp__is_public=True)
+    # Parent requesting topics for a specific child
+    student_id = request.query_params.get('student_id')
+    if request.user.is_parent and student_id:
+        try:
+            sp = StudentProfile.objects.get(pk=student_id)
+            if not request.user.parent_profile.children.filter(pk=sp.pk).exists():
+                return Response({'detail': 'Нет доступа'}, status=403)
+            topics = topics.filter(ctp__school_class_id=sp.school_class_id, ctp__is_public=True)
+        except StudentProfile.DoesNotExist:
+            return Response([], status=200)
+    else:
+        class_ids = _get_user_classes(request.user)
+        if class_ids is not None:
+            topics = topics.filter(ctp__school_class_id__in=class_ids, ctp__is_public=True)
 
     topics = topics.order_by('ctp__subject__name', 'order')
     return Response(TopicByDateSerializer(topics, many=True).data)

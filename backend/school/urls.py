@@ -5,7 +5,7 @@ urlpatterns = [
     path('grade-levels/', views.grade_level_list_create),
     path('grade-levels/<int:pk>/', views.grade_level_delete),
     path('classes/', views.school_class_list_create),
-    path('classes/<int:pk>/', views.school_class_delete),
+    path('classes/<int:pk>/', views.school_class_detail),
     path('classes/<int:class_id>/students/', views.class_students),
     path('classes/import/', views.import_classes_view),
     path('subjects/', views.subject_list_create),
