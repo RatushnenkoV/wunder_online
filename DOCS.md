@@ -46,8 +46,8 @@ WunderOnline/
 │   │   └── components/
 │   │       ├── Layout.tsx           # Навбар + обёртка
 │   │       ├── StaffTab.tsx         # CRUD сотрудников (+ бейджи куратора, birth_date)
-│   │       ├── ParentsTab.tsx       # CRUD родителей + привязка детей
-│   │       ├── StudentsTab.tsx      # CRUD учеников (список + папки, birth_date, родители)
+│   │       ├── ParentsTab.tsx       # CRUD родителей + привязка детей + кросс-навигация к ученику
+│   │       ├── StudentsTab.tsx      # CRUD учеников (список, birth_date, родители, кросс-навигация)
 │   │       ├── schedule/
 │   │       │   ├── ScheduleGrid.tsx          # Сетка расписания
 │   │       │   ├── LessonEditor.tsx          # Редактор урока (модал)
@@ -60,7 +60,7 @@ WunderOnline/
 │   │           ├── ClassDetail.tsx   # Детали класса (вкладки)
 │   │           ├── ClassGroups.tsx   # Управление группами класса
 │   │           ├── ClassSubjects.tsx # Предметы класса (без групп)
-│   │           └── ClassStudents.tsx # Ученики класса
+│   │           └── ClassStudents.tsx # Ученики класса (birth_date, родители, кросс-навигация)
 └── backend/
     ├── config/                      # Django settings, urls, wsgi
     ├── accounts/                    # Пользователи, роли, профили
@@ -100,7 +100,7 @@ WunderOnline/
 ### Пользователи (`/api/admin/`)
 - `GET/POST /api/admin/staff/` — сотрудники
 - `GET/PUT/DELETE /api/admin/staff/:id/` — конкретный сотрудник
-- `GET/POST /api/admin/students/` — ученики
+- `GET/POST /api/admin/students/` — ученики (ответ включает `school_class_id`, `school_class_name`, `student_profile_id`)
 - `GET/PUT/DELETE /api/admin/students/:id/` — конкретный ученик
 - `POST /api/admin/reset-password/:id/` — сброс пароля
 - `GET/POST /api/admin/parents/` — родители (пагинация, search)

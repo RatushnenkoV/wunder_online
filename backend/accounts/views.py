@@ -223,9 +223,11 @@ def student_list_create(request):
                 sp = StudentProfile.objects.get(user_id=item['id'])
                 item['school_class_id'] = sp.school_class_id
                 item['school_class_name'] = str(sp.school_class)
+                item['student_profile_id'] = sp.id
             except StudentProfile.DoesNotExist:
                 item['school_class_id'] = None
                 item['school_class_name'] = ''
+                item['student_profile_id'] = None
 
         return Response({
             'results': data,

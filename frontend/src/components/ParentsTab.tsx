@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
-import type { Parent, ParentChild, StudentProfile } from '../types';
+import type { Parent, ParentChild, SchoolClass } from '../types';
 import ContextMenu from './ContextMenu';
 import type { MenuItem } from './ContextMenu';
 
@@ -11,6 +11,15 @@ interface ParentForm {
   phone: string;
   telegram: string;
   birth_date: string;
+}
+
+interface StudentResult {
+  id: number;
+  first_name: string;
+  last_name: string;
+  school_class_id: number | null;
+  school_class_name: string;
+  student_profile_id: number | null;
 }
 
 const emptyForm = (): ParentForm => ({
@@ -28,15 +37,21 @@ export default function ParentsTab() {
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState<ParentForm>(emptyForm());
   const [childSearch, setChildSearch] = useState('');
-  const [childSearchResults, setChildSearchResults] = useState<StudentProfile[]>([]);
-  const [selectedChildren, setSelectedChildren] = useState<StudentProfile[]>([]);
+  const [childSearchResults, setChildSearchResults] = useState<StudentResult[]>([]);
+  const [selectedChildren, setSelectedChildren] = useState<ParentChild[]>([]);
 
   // Edit modal
   const [editParent, setEditParent] = useState<Parent | null>(null);
   const [editForm, setEditForm] = useState<ParentForm>(emptyForm());
   const [editChildSearch, setEditChildSearch] = useState('');
-  const [editChildResults, setEditChildResults] = useState<StudentProfile[]>([]);
+  const [editChildResults, setEditChildResults] = useState<StudentResult[]>([]);
   const [editChildren, setEditChildren] = useState<ParentChild[]>([]);
+
+  // Cross-nav: student card from parent card
+  const [crossNavStudent, setCrossNavStudent] = useState<ParentChild | null>(null);
+  const [crossNavStudentParents, setCrossNavStudentParents] = useState<Parent[]>([]);
+  const [crossNavStudentForm, setCrossNavStudentForm] = useState({ first_name: '', last_name: '', email: '', phone: '', birth_date: '', school_class: '' as string | number });
+  const [crossNavClasses, setCrossNavClasses] = useState<SchoolClass[]>([]);
 
   const load = useCallback(async (page = pagination.page) => {
     const params: Record<string, string> = {
@@ -51,7 +66,11 @@ export default function ParentsTab() {
 
   useEffect(() => { load(1); }, [search, pagination.per_page]);
 
-  const searchChildren = async (q: string, setter: (r: StudentProfile[]) => void) => {
+  useEffect(() => {
+    api.get('/school/classes/').then(r => setCrossNavClasses(r.data));
+  }, []);
+
+  const searchStudents = async (q: string, setter: (r: StudentResult[]) => void) => {
     if (!q.trim()) { setter([]); return; }
     try {
       const res = await api.get('/admin/students/', { params: { search: q, per_page: '10' } });
@@ -68,11 +87,24 @@ export default function ParentsTab() {
     setShowCreate(true);
   };
 
+  const addSelectedChild = (s: StudentResult) => {
+    if (!s.student_profile_id) return;
+    if (selectedChildren.find(c => c.student_profile_id === s.student_profile_id)) return;
+    setSelectedChildren(prev => [...prev, {
+      id: s.id,
+      student_profile_id: s.student_profile_id!,
+      first_name: s.first_name,
+      last_name: s.last_name,
+      school_class_name: s.school_class_name || '',
+    }]);
+    setChildSearch('');
+    setChildSearchResults([]);
+  };
+
   const handleCreate = async () => {
     if (!createForm.first_name.trim() || !createForm.last_name.trim()) return;
     try {
-      // Need student profile ids
-      const spIds = await resolveStudentProfileIds(selectedChildren.map(s => s.id));
+      const spIds = selectedChildren.map(c => c.student_profile_id);
       await api.post('/admin/parents/', {
         ...createForm,
         birth_date: createForm.birth_date || null,
@@ -100,6 +132,21 @@ export default function ParentsTab() {
     setEditChildren(parent.children || []);
     setEditChildSearch('');
     setEditChildResults([]);
+    setCrossNavStudent(null);
+  };
+
+  const addEditChild = (s: StudentResult) => {
+    if (!s.student_profile_id) return;
+    if (editChildren.find(c => c.student_profile_id === s.student_profile_id)) return;
+    setEditChildren(prev => [...prev, {
+      id: s.id,
+      student_profile_id: s.student_profile_id!,
+      first_name: s.first_name,
+      last_name: s.last_name,
+      school_class_name: s.school_class_name || '',
+    }]);
+    setEditChildSearch('');
+    setEditChildResults([]);
   };
 
   const handleEdit = async () => {
@@ -119,27 +166,6 @@ export default function ParentsTab() {
     }
   };
 
-  const addChildToEdit = async (studentUser: StudentProfile) => {
-    // Find StudentProfile for this user
-    const classId = (studentUser as any).school_class_id;
-    if (!classId) return;
-    try {
-      const res = await api.get(`/school/classes/${classId}/students/`);
-      const sp = res.data.find((s: any) => s.user.id === studentUser.id);
-      if (sp && !editChildren.find(c => c.student_profile_id === sp.id)) {
-        setEditChildren(prev => [...prev, {
-          id: studentUser.id,
-          student_profile_id: sp.id,
-          first_name: studentUser.first_name || (studentUser as any).user?.first_name || '',
-          last_name: studentUser.last_name || (studentUser as any).user?.last_name || '',
-          school_class_name: (studentUser as any).school_class_name || '',
-        }]);
-      }
-    } catch { /* ignore */ }
-    setEditChildSearch('');
-    setEditChildResults([]);
-  };
-
   // --- Reset password ---
   const handleResetPassword = async (parent: Parent) => {
     if (!confirm(`Сбросить пароль для ${parent.last_name} ${parent.first_name}?`)) return;
@@ -152,6 +178,57 @@ export default function ParentsTab() {
     if (!confirm(`Удалить родителя ${parent.last_name} ${parent.first_name}?`)) return;
     await api.delete(`/admin/parents/${parent.id}/`);
     load();
+  };
+
+  // --- Cross-nav: student card ---
+  const openCrossNavStudent = async (child: ParentChild) => {
+    setCrossNavStudent(child);
+    setCrossNavStudentParents([]);
+    setCrossNavStudentForm({ first_name: child.first_name, last_name: child.last_name, email: '', phone: '', birth_date: '', school_class: '' });
+    // Load full student data
+    try {
+      const res = await api.get('/admin/students/', { params: { search: child.last_name, per_page: '50' } });
+      const found = res.data.results.find((s: any) => s.id === child.id);
+      if (found) {
+        setCrossNavStudentForm({
+          first_name: found.first_name,
+          last_name: found.last_name,
+          email: found.email || '',
+          phone: found.phone || '',
+          birth_date: found.birth_date || '',
+          school_class: found.school_class_id || '',
+        });
+      }
+    } catch { /* ignore */ }
+    // Load student's parents
+    try {
+      const parentsRes = await api.get(`/school/students/${child.student_profile_id}/parents/`);
+      setCrossNavStudentParents(parentsRes.data);
+    } catch { /* ignore */ }
+  };
+
+  const saveCrossNavStudent = async () => {
+    if (!crossNavStudent) return;
+    try {
+      await api.put(`/admin/users/${crossNavStudent.id}/`, {
+        first_name: crossNavStudentForm.first_name,
+        last_name: crossNavStudentForm.last_name,
+        email: crossNavStudentForm.email,
+        phone: crossNavStudentForm.phone,
+        birth_date: crossNavStudentForm.birth_date || null,
+        school_class: crossNavStudentForm.school_class || null,
+      });
+      setCrossNavStudent(null);
+      setMessage('Данные ученика обновлены');
+      // Reload parent (children list may have changed names)
+      if (editParent) {
+        const res = await api.get(`/admin/parents/${editParent.id}/`);
+        setEditParent(res.data);
+        setEditChildren(res.data.children || []);
+      }
+    } catch (err: any) {
+      setMessage(err.response?.data?.detail || 'Ошибка сохранения');
+    }
   };
 
   const getMenuItems = (parent: Parent): MenuItem[] => [
@@ -208,7 +285,12 @@ export default function ParentsTab() {
           </thead>
           <tbody className="divide-y">
             {parents.map(p => (
-              <tr key={p.id} className="hover:bg-gray-50" onContextMenu={e => { e.preventDefault(); setCtxMenu({ parent: p, x: e.clientX, y: e.clientY }); }}>
+              <tr
+                key={p.id}
+                className="hover:bg-gray-50 cursor-pointer"
+                onClick={() => openEdit(p)}
+                onContextMenu={e => { e.preventDefault(); setCtxMenu({ parent: p, x: e.clientX, y: e.clientY }); }}
+              >
                 <td className="px-4 py-2">{p.last_name}</td>
                 <td className="px-4 py-2">{p.first_name}</td>
                 <td className="px-4 py-2 text-gray-500">{p.phone || '—'}</td>
@@ -240,7 +322,6 @@ export default function ParentsTab() {
         {parents.length === 0 && <p className="text-center text-gray-400 py-8">Родители не найдены</p>}
       </div>
 
-      {/* Pagination */}
       {pagination.pages > 1 && (
         <div className="flex justify-center gap-2 mt-4">
           <button onClick={() => load(pagination.page - 1)} disabled={pagination.page <= 1} className="px-3 py-1 rounded border text-sm disabled:opacity-30">&lt;</button>
@@ -249,7 +330,6 @@ export default function ParentsTab() {
         </div>
       )}
 
-      {/* Context Menu */}
       {ctxMenu && (
         <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={getMenuItems(ctxMenu.parent)} onClose={() => setCtxMenu(null)} />
       )}
@@ -260,25 +340,24 @@ export default function ParentsTab() {
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Новый родитель</h3>
             <ParentFormFields form={createForm} onChange={setCreateForm} />
-            {/* Children picker */}
             <div className="mt-3">
               <label className="block text-sm text-gray-600 mb-1">Дети</label>
-              {selectedChildren.map(s => (
-                <div key={s.id} className="flex justify-between items-center bg-gray-50 rounded px-3 py-1.5 text-sm mb-1">
-                  <span>{(s as any).last_name} {(s as any).first_name} · {(s as any).school_class_name}</span>
-                  <button onClick={() => setSelectedChildren(p => p.filter(c => c.id !== s.id))} className="text-red-400 text-xs ml-2">×</button>
+              {selectedChildren.map(c => (
+                <div key={c.student_profile_id} className="flex justify-between items-center bg-gray-50 rounded px-3 py-1.5 text-sm mb-1">
+                  <span>{c.last_name} {c.first_name}{c.school_class_name ? ` · ${c.school_class_name}` : ''}</span>
+                  <button onClick={() => setSelectedChildren(p => p.filter(x => x.student_profile_id !== c.student_profile_id))} className="text-red-400 text-xs ml-2">×</button>
                 </div>
               ))}
               <input
                 placeholder="Поиск ученика..."
                 value={childSearch}
-                onChange={e => { setChildSearch(e.target.value); searchChildren(e.target.value, setChildSearchResults); }}
+                onChange={e => { setChildSearch(e.target.value); searchStudents(e.target.value, setChildSearchResults); }}
                 className="w-full border rounded px-2 py-1.5 text-sm mt-1"
               />
               {childSearchResults.map(s => (
                 <div key={s.id} className="flex justify-between items-center text-sm bg-white rounded px-2 py-1.5 border mt-1">
-                  <span>{(s as any).last_name} {(s as any).first_name} · {(s as any).school_class_name}</span>
-                  <button onClick={() => { if (!selectedChildren.find(c => c.id === s.id)) setSelectedChildren(p => [...p, s]); setChildSearch(''); setChildSearchResults([]); }} className="text-blue-600 text-xs ml-2">Добавить</button>
+                  <span>{s.last_name} {s.first_name}{s.school_class_name ? ` · ${s.school_class_name}` : ''}</span>
+                  <button onClick={() => addSelectedChild(s)} className="text-blue-600 text-xs ml-2">Добавить</button>
                 </div>
               ))}
             </div>
@@ -298,25 +377,29 @@ export default function ParentsTab() {
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Редактирование родителя</h3>
             <ParentFormFields form={editForm} onChange={setEditForm} />
-            {/* Children management */}
             <div className="mt-3">
-              <label className="block text-sm text-gray-600 mb-1">Дети</label>
+              <label className="block text-sm text-gray-600 mb-2">Дети</label>
               {editChildren.map(c => (
                 <div key={c.student_profile_id} className="flex justify-between items-center bg-gray-50 rounded px-3 py-1.5 text-sm mb-1">
-                  <span>{c.last_name} {c.first_name} · {c.school_class_name}</span>
+                  <button
+                    onClick={() => openCrossNavStudent(c)}
+                    className="text-blue-600 hover:underline text-left flex-1 text-sm"
+                  >
+                    {c.last_name} {c.first_name}{c.school_class_name ? ` · ${c.school_class_name}` : ''}
+                  </button>
                   <button onClick={() => setEditChildren(p => p.filter(x => x.student_profile_id !== c.student_profile_id))} className="text-red-400 text-xs ml-2">×</button>
                 </div>
               ))}
               <input
                 placeholder="Добавить ученика..."
                 value={editChildSearch}
-                onChange={e => { setEditChildSearch(e.target.value); searchChildren(e.target.value, setEditChildResults); }}
+                onChange={e => { setEditChildSearch(e.target.value); searchStudents(e.target.value, setEditChildResults); }}
                 className="w-full border rounded px-2 py-1.5 text-sm mt-1"
               />
               {editChildResults.map(s => (
                 <div key={s.id} className="flex justify-between items-center text-sm bg-white rounded px-2 py-1.5 border mt-1">
-                  <span>{(s as any).last_name} {(s as any).first_name} · {(s as any).school_class_name}</span>
-                  <button onClick={() => addChildToEdit(s)} className="text-blue-600 text-xs ml-2">Добавить</button>
+                  <span>{s.last_name} {s.first_name}{s.school_class_name ? ` · ${s.school_class_name}` : ''}</span>
+                  <button onClick={() => addEditChild(s)} className="text-blue-600 text-xs ml-2">Добавить</button>
                 </div>
               ))}
             </div>
@@ -329,28 +412,69 @@ export default function ParentsTab() {
           </div>
         </div>
       )}
+
+      {/* Student cross-nav modal (z-[60], поверх карточки родителя) */}
+      {crossNavStudent && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60]" onClick={() => setCrossNavStudent(null)}>
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <button onClick={() => setCrossNavStudent(null)} className="text-gray-400 hover:text-gray-600 text-sm">← Назад</button>
+              <h3 className="text-lg font-semibold">Карточка ученика</h3>
+            </div>
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-sm text-gray-600 mb-1">Фамилия *</label>
+                  <input value={crossNavStudentForm.last_name} onChange={e => setCrossNavStudentForm(f => ({ ...f, last_name: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm text-gray-600 mb-1">Имя *</label>
+                  <input value={crossNavStudentForm.first_name} onChange={e => setCrossNavStudentForm(f => ({ ...f, first_name: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Телефон</label>
+                <input value={crossNavStudentForm.phone} onChange={e => setCrossNavStudentForm(f => ({ ...f, phone: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Email</label>
+                <input value={crossNavStudentForm.email} onChange={e => setCrossNavStudentForm(f => ({ ...f, email: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Дата рождения</label>
+                <input type="date" value={crossNavStudentForm.birth_date} onChange={e => setCrossNavStudentForm(f => ({ ...f, birth_date: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Класс</label>
+                <select value={crossNavStudentForm.school_class} onChange={e => setCrossNavStudentForm(f => ({ ...f, school_class: e.target.value ? parseInt(e.target.value) : '' }))} className="w-full border rounded px-3 py-2 text-sm">
+                  <option value="">Без класса</option>
+                  {crossNavClasses.map(c => <option key={c.id} value={c.id}>{c.display_name}</option>)}
+                </select>
+              </div>
+              {crossNavStudentParents.length > 0 && (
+                <div className="border-t pt-3">
+                  <label className="block text-sm text-gray-600 mb-2">Родители</label>
+                  {crossNavStudentParents.map(p => (
+                    <div key={p.id} className="bg-gray-50 rounded px-3 py-1.5 text-sm mb-1 text-gray-700">
+                      {p.last_name} {p.first_name}{p.phone ? ` · ${p.phone}` : ''}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button onClick={() => setCrossNavStudent(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Отмена</button>
+              <button onClick={saveCrossNavStudent} disabled={!crossNavStudentForm.first_name.trim() || !crossNavStudentForm.last_name.trim()} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// Helper to resolve student profile IDs from user IDs
-async function resolveStudentProfileIds(userIds: number[]): Promise<number[]> {
-  const ids: number[] = [];
-  for (const uid of userIds) {
-    try {
-      const res = await api.get('/admin/students/', { params: { per_page: '200' } });
-      const found = res.data.results.find((s: any) => s.id === uid);
-      if (found?.school_class_id) {
-        const spRes = await api.get(`/school/classes/${found.school_class_id}/students/`);
-        const sp = spRes.data.find((s: any) => s.user.id === uid);
-        if (sp) ids.push(sp.id);
-      }
-    } catch { /* ignore */ }
-  }
-  return ids;
-}
-
-// Shared form fields component
 function ParentFormFields({ form, onChange }: { form: ParentForm; onChange: (f: ParentForm) => void }) {
   return (
     <div className="space-y-3">
