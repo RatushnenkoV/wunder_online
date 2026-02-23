@@ -492,8 +492,8 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
         prevScale: scaleRef.current,
       };
       // deltaY: отрицательное = приближение (pinch-out / Ctrl+↑)
-      const step = e.deltaY < 0 ? 0.1 : -0.1;
-      setZoomMul(z => Math.min(3, Math.max(0.25, Math.round((z + step) * 100) / 100)));
+      const step = e.deltaY < 0 ? 0.01 : -0.01;
+      setZoomMul(z => Math.min(3, Math.max(0.25, Math.round((z + step) * 1000) / 1000)));
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -605,13 +605,13 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
 
       if (!(e.ctrlKey || e.metaKey)) return;
 
-      if (e.key === 'c') {
+      if (e.code === 'KeyC') {
         // Копируем все выделенные блоки
         const selected = blocks.filter(b => selectedIds.includes(b.id));
         if (selected.length === 0) return;
         copiedBlockRef.current = selected.map(b => ({ ...b }));
         e.preventDefault();
-      } else if (e.key === 'v' && copiedBlockRef.current) {
+      } else if (e.code === 'KeyV' && copiedBlockRef.current) {
         const sources = copiedBlockRef.current;
         const maxZ = blocks.length > 0 ? Math.max(...blocks.map(b => b.zIndex)) : 0;
         const newBlocks: SlideBlock[] = sources.map((src, i) => ({
@@ -849,8 +849,11 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
                     if (!selectedIds.includes(block.id) || selectedIds.length < 2) return;
                     const orig = dragStartBlocksRef.current[block.id];
                     if (!orig) return;
-                    const dx = d.x - orig.x;
-                    const dy = d.y - orig.y;
+                    // react-rnd не знает о CSS-трансформе родителя, поэтому d.x/d.y
+                    // приходят в экранных пикселях — делим на scale, чтобы получить
+                    // логические координаты холста (0–960 × 0–540).
+                    const dx = (d.x - orig.x) / scale;
+                    const dy = (d.y - orig.y) / scale;
                     setBlocks(prev => prev.map(b => {
                       if (b.id === block.id) return b; // этот блок ведёт react-rnd
                       const bs = dragStartBlocksRef.current[b.id];
@@ -865,8 +868,8 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
                     if (selectedIds.includes(block.id) && selectedIds.length > 1) {
                       // Фиксируем финальные позиции всех выделенных блоков
                       const orig = dragStartBlocksRef.current[block.id];
-                      const dx = orig ? d.x - orig.x : 0;
-                      const dy = orig ? d.y - orig.y : 0;
+                      const dx = orig ? (d.x - orig.x) / scale : 0;
+                      const dy = orig ? (d.y - orig.y) / scale : 0;
                       setBlocks(prev => {
                         const next = prev.map(b => {
                           const bs = dragStartBlocksRef.current[b.id];
