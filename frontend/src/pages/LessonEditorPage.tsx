@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, memo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Rnd } from 'react-rnd';
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -467,8 +467,9 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
     return () => clearTimeout(tid);
   }, [baseScale]); // перезапускаем когда baseScale меняется, пока не сцентрировали
 
-  // Корректируем позицию прокрутки при зуме, чтобы точка под курсором не смещалась
-  useEffect(() => {
+  // Корректируем позицию прокрутки при зуме, чтобы точка под курсором не смещалась.
+  // useLayoutEffect — выполняется до отрисовки браузером, поэтому курсор не «прыгает».
+  useLayoutEffect(() => {
     const el  = containerRef.current;
     const piv = zoomPivotRef.current;
     if (!el || !piv) return;
@@ -492,8 +493,8 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
         prevScale: scaleRef.current,
       };
       // deltaY: отрицательное = приближение (pinch-out / Ctrl+↑)
-      const step = e.deltaY < 0 ? 0.01 : -0.01;
-      setZoomMul(z => Math.min(3, Math.max(0.25, Math.round((z + step) * 1000) / 1000)));
+      const step = e.deltaY < 0 ? 0.02 : -0.02;
+      setZoomMul(z => Math.min(3, Math.max(0.25, Math.round((z + step) * 100) / 100)));
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -811,6 +812,7 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
                   size={{ width: block.w, height: block.h }}
                   minWidth={MIN_W}
                   minHeight={MIN_H}
+                  scale={scale}
                   disableDragging={editingId === block.id}
                   enableResizing={false}
                   style={{ zIndex: block.zIndex }}
@@ -845,15 +847,14 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
                     dragStartBlocksRef.current[block.id] = { x: d.x, y: d.y };
                   }}
                   onDrag={(_, d) => {
-                    // В реальном времени двигаем все ОСТАЛЬНЫЕ выделенные блоки
+                    // В реальном времени двигаем все ОСТАЛЬНЫЕ выделенные блоки.
+                    // scale передан в <Rnd>, поэтому react-rnd сам компенсирует
+                    // CSS-трансформ родителя — d.x/d.y уже в логических координатах.
                     if (!selectedIds.includes(block.id) || selectedIds.length < 2) return;
                     const orig = dragStartBlocksRef.current[block.id];
                     if (!orig) return;
-                    // react-rnd не знает о CSS-трансформе родителя, поэтому d.x/d.y
-                    // приходят в экранных пикселях — делим на scale, чтобы получить
-                    // логические координаты холста (0–960 × 0–540).
-                    const dx = (d.x - orig.x) / scale;
-                    const dy = (d.y - orig.y) / scale;
+                    const dx = d.x - orig.x;
+                    const dy = d.y - orig.y;
                     setBlocks(prev => prev.map(b => {
                       if (b.id === block.id) return b; // этот блок ведёт react-rnd
                       const bs = dragStartBlocksRef.current[b.id];
@@ -868,8 +869,8 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
                     if (selectedIds.includes(block.id) && selectedIds.length > 1) {
                       // Фиксируем финальные позиции всех выделенных блоков
                       const orig = dragStartBlocksRef.current[block.id];
-                      const dx = orig ? (d.x - orig.x) / scale : 0;
-                      const dy = orig ? (d.y - orig.y) / scale : 0;
+                      const dx = orig ? d.x - orig.x : 0;
+                      const dy = orig ? d.y - orig.y : 0;
                       setBlocks(prev => {
                         const next = prev.map(b => {
                           const bs = dragStartBlocksRef.current[b.id];
