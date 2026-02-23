@@ -22,10 +22,19 @@ class TopicByDateSerializer(serializers.ModelSerializer):
     files = TopicFileSerializer(many=True, read_only=True)
     subject_name = serializers.CharField(source='ctp.subject.name', read_only=True)
     ctp_id = serializers.IntegerField(source='ctp.id', read_only=True)
+    class_id = serializers.IntegerField(source='ctp.school_class.id', read_only=True)
+    class_name = serializers.SerializerMethodField()
+    ctp_teacher_id = serializers.IntegerField(source='ctp.teacher.id', read_only=True)
 
     class Meta:
         model = Topic
-        fields = ['id', 'title', 'date', 'homework', 'resources', 'files', 'subject_name', 'ctp_id']
+        fields = [
+            'id', 'title', 'date', 'homework', 'resources', 'files',
+            'subject_name', 'ctp_id', 'class_id', 'class_name', 'ctp_teacher_id',
+        ]
+
+    def get_class_name(self, obj):
+        return str(obj.ctp.school_class)
 
 
 class TopicCreateSerializer(serializers.Serializer):

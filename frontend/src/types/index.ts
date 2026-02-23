@@ -123,6 +123,9 @@ export interface TopicByDate {
   files: TopicFile[];
   subject_name: string;
   ctp_id: number;
+  class_id: number;
+  class_name: string;
+  ctp_teacher_id: number;
 }
 
 export interface Resource {
@@ -187,6 +190,8 @@ export interface Substitution {
   original_class_name: string | null;
 }
 
+// ─── Tasks ───────────────────────────────────────────────────────────────────
+
 export type TaskStatus = 'new' | 'in_progress' | 'review' | 'done';
 
 export interface TaskMember {
@@ -244,6 +249,8 @@ export interface TasksCount {
   review: number;
   total: number;
 }
+
+// ─── Lessons ─────────────────────────────────────────────────────────────────
 
 export interface LessonFolder {
   id: number;
@@ -315,6 +322,68 @@ export interface FolderContents {
   subfolders: LessonFolder[];
   lessons: Lesson[];
 }
+
+// ─── Groups / Chat ───────────────────────────────────────────────────────────
+
+export interface GroupMember {
+  id: number;
+  first_name: string;
+  last_name: string;
+  is_admin: boolean;
+  is_teacher: boolean;
+}
+
+export interface GroupSummary {
+  id: number;
+  name: string;
+  description: string;
+  created_by: number;
+  members_count: number;
+  created_at: string;
+}
+
+export interface GroupDetail {
+  id: number;
+  name: string;
+  description: string;
+  created_by: number;
+  created_by_name: string;
+  members: GroupMember[];
+  created_at: string;
+}
+
+export interface MessageFile {
+  id: number;
+  original_filename: string;
+  file_url: string;
+  file_size: number;
+}
+
+export interface GroupTask {
+  id: number;
+  title: string;
+  description: string;
+  assignees: GroupMember[];
+  deadline: string | null;
+  is_completed: boolean;
+  created_by: number;
+  created_by_name: string;
+  created_at: string;
+  message: number;
+}
+
+export interface GroupMessage {
+  id: number;
+  sender: number;
+  sender_name: string;
+  content: string;
+  message_type: 'text' | 'file' | 'task';
+  created_at: string;
+  file?: MessageFile;
+  task?: GroupTask;
+}
+
+// ─── ScheduleLesson ───────────────────────────────────────────────────────────
 
 export interface ScheduleLesson {
   id: number;

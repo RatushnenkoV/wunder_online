@@ -19,12 +19,14 @@ INSTALLED_APPS = [
     # Third party
     'rest_framework',
     'corsheaders',
+    'channels',
     # Local
     'accounts',
     'school',
     'ktp',
     'tasks',
     'lessons',
+    'groups',
 ]
 
 MIDDLEWARE = [
@@ -57,6 +59,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
 
 DATABASES = {
     'default': {
@@ -106,3 +109,13 @@ SIMPLE_JWT = {
 AUTHENTICATION_BACKENDS = [
     'accounts.backends.NameAuthBackend',
 ]
+
+# Django Channels
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],
+        },
+    },
+}

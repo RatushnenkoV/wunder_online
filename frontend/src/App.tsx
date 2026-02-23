@@ -15,6 +15,7 @@ import TasksPage from './pages/TasksPage';
 import RequestsPage from './pages/RequestsPage';
 import LessonsPage from './pages/LessonsPage';
 import LessonEditorPage from './pages/LessonEditorPage';
+import GroupsPage from './pages/GroupsPage';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; adminOnly?: boolean }) {
@@ -61,6 +62,7 @@ function App() {
             <Route path="/ktp" element={<KTPListPage />} />
             <Route path="/ktp/:id" element={<KTPDetailPage />} />
             <Route path="/schedule" element={<SchedulePage />} />
+            <Route path="/groups" element={<GroupsPage />} />
             <Route path="/admin/people" element={<ProtectedRoute adminOnly><PeoplePage /></ProtectedRoute>} />
             <Route path="/admin/school" element={<ProtectedRoute adminOnly><SchoolPage /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute adminOnly><SettingsPage /></ProtectedRoute>} />

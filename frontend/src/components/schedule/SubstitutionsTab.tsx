@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import type {
@@ -15,6 +15,8 @@ const VIEW_MODES: { key: ViewMode; label: string }[] = [
   { key: 'teacher', label: 'По учителю' },
   { key: 'room', label: 'По кабинету' },
 ];
+
+const LESSON_NUMBERS = [1, 2, 3, 4, 5, 6, 7];
 
 function getMonday(date: Date): Date {
   const d = new Date(date);
@@ -37,11 +39,111 @@ function toISODate(d: Date): string {
   return d.toISOString().split('T')[0];
 }
 
+function todayISO(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
 function formatWeekRange(monday: Date): string {
   const friday = new Date(monday);
   friday.setDate(monday.getDate() + 4);
   const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long' };
   return `${monday.toLocaleDateString('ru-RU', opts)} — ${friday.toLocaleDateString('ru-RU', { ...opts, year: 'numeric' })}`;
+}
+
+/** Shared print styles injected into generated print pages */
+const PRINT_STYLES = `
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; color: #111; }
+  h1 { font-size: 16px; margin-bottom: 4px; }
+  .subtitle { color: #555; font-size: 12px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f3f4f6; text-align: left; padding: 6px 8px; border: 1px solid #d1d5db; font-size: 11px; }
+  td { padding: 5px 8px; border: 1px solid #e5e7eb; vertical-align: middle; }
+  td.num { text-align: center; font-weight: bold; width: 30px; }
+  th.num { width: 30px; }
+  .sub-row td { background: #fffbeb; border-top: 2px solid #d97706 !important; border-bottom: 2px solid #d97706 !important; }
+  .sub-row td:first-child { border-left: 3px solid #d97706 !important; }
+  .sub-row td:last-child { border-right: 3px solid #d97706 !important; }
+  .badge { display: inline-block; background: #d97706; color: white; font-size: 9px; padding: 1px 5px; border-radius: 2px; vertical-align: middle; margin-left: 4px; font-weight: bold; letter-spacing: 0.3px; }
+  .group { color: #2563eb; font-size: 10px; }
+  .orig { color: #9ca3af; font-size: 10px; }
+  .empty { text-align: center; color: #9ca3af; padding: 20px; }
+  @media print { body { margin: 10px; } }
+`;
+
+/** Build pairs of (lesson, sub) for a given lesson number within a set of lessons/subs.
+ *  Returns sorted array ready for row rendering. */
+function buildPairs(
+  numLessons: ScheduleLesson[],
+  numSubs: Substitution[],
+): Array<{ lesson: ScheduleLesson | null; sub: Substitution | null }> {
+  const matched = new Set<number>();
+  const pairs: Array<{ lesson: ScheduleLesson | null; sub: Substitution | null }> = [];
+
+  numLessons.forEach(lesson => {
+    const sub = numSubs.find(s =>
+      !matched.has(s.id) &&
+      s.school_class === lesson.school_class &&
+      (s.group === lesson.group || s.original_lesson === lesson.id),
+    ) ?? null;
+    if (sub) matched.add(sub.id);
+    pairs.push({ lesson, sub });
+  });
+
+  numSubs.filter(s => !matched.has(s.id)).forEach(sub => {
+    pairs.push({ lesson: null, sub });
+  });
+
+  return pairs.sort((a, b) => {
+    const aName = a.lesson?.class_name ?? a.sub?.class_name ?? '';
+    const bName = b.lesson?.class_name ?? b.sub?.class_name ?? '';
+    return aName.localeCompare(bName, 'ru');
+  });
+}
+
+/** Generate a single print row for a lesson/sub pair. */
+function buildRow(
+  num: number,
+  lesson: ScheduleLesson | null,
+  sub: Substitution | null,
+  showClass: boolean,
+): string {
+  const isSub = !!sub;
+  const className = lesson?.class_name ?? sub?.class_name ?? '—';
+  const groupName = lesson?.group_name ?? sub?.group_name;
+  const subject = sub ? sub.subject_name : (lesson?.subject_name ?? '—');
+  const teacher = sub ? (sub.teacher_name ?? '—') : (lesson?.teacher_name ?? '—');
+  const room = sub ? (sub.room_name ?? '—') : (lesson?.room_name ?? '—');
+  const classCell = showClass
+    ? `<td>${className}${groupName ? ` <span class="group">(${groupName})</span>` : ''}</td>`
+    : `<td>${groupName ? `<span class="group">${groupName}</span>` : '—'}</td>`;
+  const subjectCell = `<td>${subject}${isSub ? ' <span class="badge">ЗАМЕНА</span>' : ''}</td>`;
+  const origCell = isSub
+    ? `<td class="orig">${sub!.original_subject_name ?? '—'}<br>${sub!.original_teacher_name ?? ''}</td>`
+    : '<td class="orig">—</td>';
+
+  return `<tr class="${isSub ? 'sub-row' : ''}">
+    <td class="num">${num}</td>
+    ${classCell}
+    ${subjectCell}
+    <td>${teacher}</td>
+    <td>${room}</td>
+    ${origCell}
+  </tr>`;
+}
+
+/** Open a new window, write HTML and trigger print. */
+function openPrintWindow(html: string) {
+  const win = window.open('', '_blank');
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+    win.print();
+  }
 }
 
 interface Props {
@@ -69,6 +171,11 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
     sub: Substitution | null;
   } | null>(null);
 
+  // Print-all-classes menu state
+  const [showPrintAllMenu, setShowPrintAllMenu] = useState(false);
+  const [printAllDate, setPrintAllDate] = useState(todayISO);
+  const printAllMenuRef = useRef<HTMLDivElement>(null);
+
   const weekDates = getWeekDates(monday);
   const dateFrom = toISODate(weekDates[0]);
   const dateTo = toISODate(weekDates[4]);
@@ -87,6 +194,18 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
   }, [dateFrom, dateTo]);
 
   useEffect(() => { loadSubstitutions(); }, [loadSubstitutions]);
+
+  // Close print-all dropdown on outside click
+  useEffect(() => {
+    if (!showPrintAllMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (printAllMenuRef.current && !printAllMenuRef.current.contains(e.target as Node)) {
+        setShowPrintAllMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showPrintAllMenu]);
 
   // Load class subjects + groups when class changes
   useEffect(() => {
@@ -137,7 +256,6 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
     sub: Substitution | null,
   ) => {
     if (!user?.is_admin) return;
-    // Load class subjects for the relevant class
     const classId = sub?.school_class ?? originalLesson?.school_class ?? selectedId;
     if (classId && viewMode !== 'class') {
       const [subjRes, groupRes] = await Promise.all([
@@ -175,9 +293,143 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
     loadSubstitutions();
   };
 
-  const handleExport = () => {
+  /** Print the full schedule for a single day column (all classes, all lessons + substitutions). */
+  const handlePrintDay = (dateStr: string) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    const weekday = date.getDay();
+    const daySubs = allSubstitutions.filter(s => s.date === dateStr);
+    const dayLessons = allLessons.filter(l => l.weekday === weekday);
+
+    const dateLabel = date.toLocaleDateString('ru-RU', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    });
+
+    const rows: string[] = [];
+    for (const num of LESSON_NUMBERS) {
+      const numLessons = dayLessons.filter(l => l.lesson_number === num);
+      const numSubs = daySubs.filter(s => s.lesson_number === num);
+      if (numLessons.length === 0 && numSubs.length === 0) continue;
+      buildPairs(numLessons, numSubs).forEach(({ lesson, sub }) => {
+        rows.push(buildRow(num, lesson, sub, true));
+      });
+    }
+
+    const html = `<!DOCTYPE html><html lang="ru"><head>
+  <meta charset="UTF-8">
+  <title>Расписание — ${dateLabel}</title>
+  <style>${PRINT_STYLES}</style>
+</head><body>
+  <h1>Расписание на день</h1>
+  <div class="subtitle">${dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}</div>
+  <table>
+    <thead>
+      <tr>
+        <th class="num">№</th><th>Класс</th><th>Предмет</th>
+        <th>Учитель</th><th>Кабинет</th><th>Отменённый урок</th>
+      </tr>
+    </thead>
+    <tbody>${rows.join('') || '<tr><td colspan="6" class="empty">Нет уроков</td></tr>'}</tbody>
+  </table>
+</body></html>`;
+
+    openPrintWindow(html);
+  };
+
+  /** Print per-class schedule cards for a given date (for distributing to classrooms). */
+  const handlePrintAll = async () => {
+    setShowPrintAllMenu(false);
+
+    const date = new Date(printAllDate + 'T00:00:00');
+    const weekday = date.getDay();
+
+    const res = await api.get('/school/substitutions/', {
+      params: { date_from: printAllDate, date_to: printAllDate },
+    });
+    const dateSubs: Substitution[] = res.data;
+    const dayLessons = allLessons.filter(l => l.weekday === weekday);
+
+    const dateLabel = date.toLocaleDateString('ru-RU', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    });
+
+    // Collect all class IDs that appear in lessons or subs for this day
+    const classIds = [...new Set([
+      ...dayLessons.map(l => l.school_class),
+      ...dateSubs.map(s => s.school_class),
+    ])];
+
+    const classMap = new Map(classes.map(c => [c.id, c]));
+    classIds.sort((a, b) =>
+      (classMap.get(a)?.display_name ?? '').localeCompare(classMap.get(b)?.display_name ?? '', 'ru'),
+    );
+
+    const sections = classIds.map((classId, idx) => {
+      const cls = classMap.get(classId);
+      const classLessons = dayLessons.filter(l => l.school_class === classId);
+      const classSubs = dateSubs.filter(s => s.school_class === classId);
+
+      const rows: string[] = [];
+      for (const num of LESSON_NUMBERS) {
+        const numLessons = classLessons.filter(l => l.lesson_number === num);
+        const numSubs = classSubs.filter(s => s.lesson_number === num);
+        if (numLessons.length === 0 && numSubs.length === 0) continue;
+        buildPairs(numLessons, numSubs).forEach(({ lesson, sub }) => {
+          rows.push(buildRow(num, lesson, sub, false));
+        });
+      }
+
+      if (rows.length === 0) return '';
+
+      return `<div class="class-card${idx > 0 ? ' page-break' : ''}">
+  <div class="card-header">
+    <span class="class-name">${cls?.display_name ?? `Класс ${classId}`}</span>
+    <span class="card-date">${dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th class="num">№</th><th>Гр.</th><th>Предмет</th>
+        <th>Учитель</th><th>Кабинет</th><th>Отменённый урок</th>
+      </tr>
+    </thead>
+    <tbody>${rows.join('')}</tbody>
+  </table>
+</div>`;
+    }).filter(Boolean);
+
+    if (sections.length === 0) {
+      alert('Нет уроков для выбранной даты');
+      return;
+    }
+
+    const html = `<!DOCTYPE html><html lang="ru"><head>
+  <meta charset="UTF-8">
+  <title>Расписание по классам — ${dateLabel}</title>
+  <style>
+    ${PRINT_STYLES}
+    .class-card { padding: 16px 20px; }
+    .page-break { page-break-before: always; }
+    .card-header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 10px; }
+    .class-name { font-size: 22px; font-weight: bold; }
+    .card-date { font-size: 12px; color: #555; }
+    @media print { body { margin: 0; } .class-card { padding: 12px 16px; } }
+  </style>
+</head><body>
+  ${sections.join('')}
+</body></html>`;
+
+    openPrintWindow(html);
+  };
+
+  const handleExport = async () => {
     const params = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
-    window.open(`/api/school/substitutions/export/?${params}`, '_blank');
+    const response = await api.get(`/school/substitutions/export/?${params}`, { responseType: 'blob' });
+    const url = URL.createObjectURL(response.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `substitutions_${dateFrom}_${dateTo}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // Substitutions filtered for the selected entity (for the grid)
@@ -227,13 +479,58 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
           className="border rounded px-2 py-1 text-sm text-gray-600"
           title="Перейти к дате"
         />
+
         {user?.is_admin && (
-          <button
-            onClick={handleExport}
-            className="ml-auto px-3 py-1.5 rounded border bg-white text-gray-700 hover:bg-gray-50 text-sm flex items-center gap-1.5"
-          >
-            <span>Экспорт Excel</span>
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            {/* Print all classes by date */}
+            <div className="relative" ref={printAllMenuRef}>
+              <button
+                onClick={() => setShowPrintAllMenu(v => !v)}
+                className="px-3 py-1.5 rounded border bg-white text-gray-700 hover:bg-gray-50 text-sm flex items-center gap-1.5"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9"/>
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                  <rect x="6" y="14" width="12" height="8"/>
+                </svg>
+                <span>Печать по классам</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+
+              {showPrintAllMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg p-3 z-20 min-w-[210px]">
+                  <label className="block text-xs text-gray-500 mb-1 font-medium">Дата</label>
+                  <input
+                    type="date"
+                    value={printAllDate}
+                    onChange={e => setPrintAllDate(e.target.value)}
+                    className="border rounded px-2 py-1.5 text-sm w-full mb-3"
+                  />
+                  <button
+                    onClick={handlePrintAll}
+                    className="w-full px-3 py-1.5 rounded bg-gray-800 text-white text-sm hover:bg-gray-900 flex items-center justify-center gap-1.5"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 6 2 18 2 18 9"/>
+                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                      <rect x="6" y="14" width="12" height="8"/>
+                    </svg>
+                    Распечатать
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Export Excel */}
+            <button
+              onClick={handleExport}
+              className="px-3 py-1.5 rounded border bg-white text-gray-700 hover:bg-gray-50 text-sm flex items-center gap-1.5"
+            >
+              <span>Экспорт Excel</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -273,6 +570,7 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
             viewMode={viewMode}
             selectedId={selectedId}
             onCellClick={handleCellClick}
+            onPrintDay={handlePrintDay}
           />
 
           {/* Substitutions summary for the week */}

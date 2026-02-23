@@ -14,6 +14,7 @@ interface Props {
     originalLesson: ScheduleLesson | null,
     sub: Substitution | null,
   ) => void;
+  onPrintDay?: (date: string) => void;
 }
 
 function formatDate(d: Date): string {
@@ -29,7 +30,7 @@ function toISODate(d: Date): string {
 }
 
 export default function SubstitutionsGrid({
-  weekDates, allLessons, allSubstitutions, viewMode, selectedId, onCellClick,
+  weekDates, allLessons, allSubstitutions, viewMode, selectedId, onCellClick, onPrintDay,
 }: Props) {
   const today = toISODate(new Date());
 
@@ -72,8 +73,25 @@ export default function SubstitutionsGrid({
               const isToday = ds === today;
               return (
                 <th key={ds} className={`px-3 py-2 text-sm font-medium min-w-[160px] ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>
-                  <div className={`capitalize ${isToday ? 'font-bold' : ''}`}>{formatDate(d)}</div>
-                  {isToday && <div className="text-xs text-blue-400 font-normal">Сегодня</div>}
+                  <div className="flex items-center justify-between gap-1">
+                    <div>
+                      <div className={`capitalize ${isToday ? 'font-bold' : ''}`}>{formatDate(d)}</div>
+                      {isToday && <div className="text-xs text-blue-400 font-normal">Сегодня</div>}
+                    </div>
+                    {onPrintDay && (
+                      <button
+                        onClick={() => onPrintDay(ds)}
+                        title="Распечатать замены за этот день"
+                        className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition flex-shrink-0"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="6 9 6 2 18 2 18 9"/>
+                          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                          <rect x="6" y="14" width="12" height="8"/>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 </th>
               );
             })}

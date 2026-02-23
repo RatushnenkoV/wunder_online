@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Rnd } from 'react-rnd';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { TextStyle, Color, FontSize } from '@tiptap/extension-text-style';
+import { TextStyle, Color, FontSize, FontFamily } from '@tiptap/extension-text-style';
 import api from '../api/client';
 import type { Lesson, Slide, SlideBlock, ShapeType, SlideType } from '../types';
 
@@ -16,6 +16,16 @@ const MIN_H    = 20;
 const WORKSPACE_PAD = 600; // рабочая область вокруг слайда
 
 const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 96];
+
+const FONT_FAMILIES = [
+  { family: 'Arial, Helvetica, sans-serif',    label: 'Arial'           },
+  { family: 'Times New Roman, Times, serif',   label: 'Times New Roman' },
+  { family: 'Courier New, Courier, monospace', label: 'Courier New'     },
+  { family: 'Verdana, Geneva, sans-serif',     label: 'Verdana'         },
+  { family: 'Georgia, serif',                  label: 'Georgia'         },
+  { family: 'Tahoma, Geneva, sans-serif',      label: 'Tahoma'          },
+  { family: 'Impact, Charcoal, sans-serif',    label: 'Impact'          },
+];
 
 function newBlockId() {
   return `b${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -53,8 +63,6 @@ function starPoints(n: number, outerR: number, innerR: number, cx: number, cy: n
   }).join(' ');
 }
 
-// w/h — реальные размеры блока в canvas-координатах.
-// viewBox совпадает с реальными размерами → strokeWidth = реальные пиксели, без искажений.
 function ShapeSvg({ w, h, block }: { w: number; h: number; block: Partial<SlideBlock> }) {
   const { shape = 'rect', fillColor = '#6366f1', strokeColor = 'transparent', strokeWidth = 3 } = block;
 
@@ -144,9 +152,10 @@ function TiptapToolbar({ editor }: { editor: ReturnType<typeof useEditor> | null
 
   if (!editor) return <div className="h-10 border-b border-gray-200 bg-white" />;
 
-  const currentColor    = (editor.getAttributes('textStyle').color as string | undefined) ?? '#1f2937';
-  const rawSize         = (editor.getAttributes('textStyle').fontSize as string | undefined) ?? '';
-  const currentFontSize = rawSize.replace('px', '') || '16';
+  const currentColor      = (editor.getAttributes('textStyle').color as string | undefined) ?? '#1f2937';
+  const rawSize           = (editor.getAttributes('textStyle').fontSize as string | undefined) ?? '';
+  const currentFontSize   = rawSize.replace('px', '') || '16';
+  const currentFontFamily = (editor.getAttributes('textStyle').fontFamily as string | undefined) ?? '';
 
   const btn = (active: boolean, onClick: () => void, label: string, title: string) => (
     <button
@@ -160,13 +169,35 @@ function TiptapToolbar({ editor }: { editor: ReturnType<typeof useEditor> | null
   return (
     <div className="flex items-center gap-0.5 px-3 py-1 bg-white border-b border-gray-200 flex-wrap min-h-[40px]">
       {/* Форматирование */}
-      {btn(editor.isActive('bold'),                   () => editor.chain().focus().toggleBold().run(),               'B',  'Жирный')}
-      {btn(editor.isActive('italic'),                 () => editor.chain().focus().toggleItalic().run(),             'I',  'Курсив')}
-      {btn(editor.isActive('strike'),                 () => editor.chain().focus().toggleStrike().run(),             'S̶', 'Зачёркнутый')}
+      {btn(editor.isActive('bold'),        () => editor.chain().focus().toggleBold().run(),        'B',  'Жирный')}
+      {btn(editor.isActive('italic'),      () => editor.chain().focus().toggleItalic().run(),      'I',  'Курсив')}
+      {btn(editor.isActive('strike'),      () => editor.chain().focus().toggleStrike().run(),      'S̶', 'Зачёркнутый')}
       <div className="w-px h-5 bg-gray-200 mx-1" />
-      {btn(editor.isActive('bulletList'),             () => editor.chain().focus().toggleBulletList().run(),         '•≡', 'Маркированный список')}
-      {btn(editor.isActive('orderedList'),            () => editor.chain().focus().toggleOrderedList().run(),        '1≡', 'Нумерованный список')}
+      {btn(editor.isActive('bulletList'),  () => editor.chain().focus().toggleBulletList().run(),  '•≡', 'Маркированный список')}
+      {btn(editor.isActive('orderedList'), () => editor.chain().focus().toggleOrderedList().run(), '1≡', 'Нумерованный список')}
       <div className="w-px h-5 bg-gray-200 mx-1" />
+
+      {/* Шрифт */}
+      <select
+        value={currentFontFamily}
+        onMouseDown={e => e.stopPropagation()}
+        onChange={e => {
+          const ff = e.target.value;
+          if (ff) {
+            editor.chain().focus().setFontFamily(ff).run();
+          } else {
+            editor.chain().focus().unsetFontFamily().run();
+          }
+        }}
+        className="text-xs border border-gray-200 rounded px-1 h-6 text-gray-600 bg-white cursor-pointer"
+        style={{ maxWidth: 110, fontFamily: currentFontFamily || 'inherit' }}
+        title="Шрифт"
+      >
+        <option value="">Шрифт</option>
+        {FONT_FAMILIES.map(({ family, label }) => (
+          <option key={family} value={family} style={{ fontFamily: family }}>{label}</option>
+        ))}
+      </select>
 
       {/* Размер шрифта */}
       <select
@@ -174,7 +205,7 @@ function TiptapToolbar({ editor }: { editor: ReturnType<typeof useEditor> | null
         onMouseDown={e => e.stopPropagation()}
         onChange={e => {
           const sz = e.target.value;
-          editor.chain().focus().setMark('textStyle', { fontSize: `${sz}px` }).run();
+          editor.chain().focus().setFontSize(`${sz}px`).run();
         }}
         className="text-xs border border-gray-200 rounded px-1 h-6 text-gray-600 bg-white cursor-pointer"
         title="Размер шрифта"
@@ -300,7 +331,7 @@ interface TextBlockProps {
 
 const TextBlock = memo(function TextBlock({ block, isEditing, onActivate, onSave, setActiveEditor }: TextBlockProps) {
   const editor = useEditor({
-    extensions: [StarterKit, TextStyle, Color, FontSize],
+    extensions: [StarterKit, TextStyle, Color, FontSize, FontFamily],
     content: block.html ?? '<p></p>',
     editable: false,
     onBlur: ({ editor }) => { onSave(editor.getHTML()); },
@@ -311,7 +342,6 @@ const TextBlock = memo(function TextBlock({ block, isEditing, onActivate, onSave
     editor.setEditable(isEditing);
     if (isEditing) {
       setActiveEditor(editor);
-      // Двойной rAF гарантирует, что ProseMirror уже выставил contenteditable в DOM
       requestAnimationFrame(() => requestAnimationFrame(() => {
         if (editor.isEditable) editor.commands.focus('end');
       }));
@@ -323,7 +353,7 @@ const TextBlock = memo(function TextBlock({ block, isEditing, onActivate, onSave
   useEffect(() => {
     if (!editor || isEditing) return;
     if (editor.getHTML() !== block.html) {
-      editor.commands.setContent(block.html ?? '<p></p>', false);
+      editor.commands.setContent(block.html ?? '<p></p>', { emitUpdate: false });
     }
   }, [block.html, isEditing]);
 
@@ -386,31 +416,130 @@ const ImageBlock = memo(function ImageBlock({ block, lessonId, onSave }: { block
 function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; lessonId: number; coverColor: string; onSaved: (s: Slide) => void }) {
   const content = slide.content?.blocks ? slide.content : emptyContent();
   const [blocks,       setBlocks]       = useState<SlideBlock[]>(content.blocks);
-  const [selectedId,   setSelectedId]   = useState<string | null>(null);
+  const [selectedIds,  setSelectedIds]  = useState<string[]>([]);
   const [editingId,    setEditingId]     = useState<string | null>(null);
   const [activeEditor, setActiveEditor] = useState<ReturnType<typeof useEditor> | null>(null);
   const [baseScale,    setBaseScale]    = useState(1);
   const [zoomMul,      setZoomMul]      = useState(1);
   const [showShapePicker, setShowShapePicker] = useState(false);
 
-  const containerRef      = useRef<HTMLDivElement>(null);
-  const innerCanvasRef    = useRef<HTMLDivElement>(null);
-  const isDraggingRef     = useRef(false);
-  const saveTimer         = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const shapePickerRef    = useRef<HTMLDivElement>(null);
-  const copiedBlockRef    = useRef<SlideBlock | null>(null);
-  const initialScrollDone = useRef(false);
+  const containerRef          = useRef<HTMLDivElement>(null);
+  const innerCanvasRef        = useRef<HTMLDivElement>(null);
+  const outerCanvasRef        = useRef<HTMLDivElement>(null);
+  const isDraggingRef         = useRef(false);
+  const saveTimer             = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shapePickerRef        = useRef<HTMLDivElement>(null);
+  const copiedBlockRef        = useRef<SlideBlock[] | null>(null);
+  const dragStartBlocksRef    = useRef<{ [id: string]: { x: number; y: number } }>({});
+  const zoomPivotRef          = useRef<{ sl: number; st: number; px: number; py: number; prevScale: number } | null>(null);
+  const scaleRef              = useRef(1);
+  const initialScrollDone     = useRef(false);
+  const touchStateRef         = useRef<{ dist: number } | null>(null);
 
   const scale = baseScale * zoomMul;
 
+  // Синхронизируем scaleRef с актуальным scale
+  scaleRef.current = scale;
+
+  // Сброс при смене слайда
   useEffect(() => {
     const c = slide.content?.blocks ? slide.content : emptyContent();
     setBlocks(c.blocks);
-    setSelectedId(null);
+    setSelectedIds([]);
     setEditingId(null);
     setActiveEditor(null);
   }, [slide.id]);
 
+  // Центрирование: запускаем каждый раз когда baseScale меняется,
+  // но только один раз на жизнь компонента (initialScrollDone.current).
+  // baseScale устанавливается ResizeObserver-ом — к моменту когда таймаут
+  // сработает, scrollWidth уже посчитан на правильном масштабе.
+  useEffect(() => {
+    if (initialScrollDone.current) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const tid = setTimeout(() => {
+      if (!el.clientWidth) return; // макет ещё не готов
+      el.scrollLeft = Math.max(0, (el.scrollWidth  - el.clientWidth)  / 2);
+      el.scrollTop  = Math.max(0, (el.scrollHeight - el.clientHeight) / 2);
+      initialScrollDone.current = true;
+    }, 100);
+    return () => clearTimeout(tid);
+  }, [baseScale]); // перезапускаем когда baseScale меняется, пока не сцентрировали
+
+  // Корректируем позицию прокрутки при зуме, чтобы точка под курсором не смещалась
+  useEffect(() => {
+    const el  = containerRef.current;
+    const piv = zoomPivotRef.current;
+    if (!el || !piv) return;
+    zoomPivotRef.current = null;
+    const ratio = scale / piv.prevScale;
+    el.scrollLeft = Math.max(0, (piv.sl + piv.px) * ratio - piv.px);
+    el.scrollTop  = Math.max(0, (piv.st + piv.py) * ratio - piv.py);
+  }, [scale]);
+
+  // Zoom через Ctrl+Колёсико и пинч на тачпаде (trackpad pinch = wheel с ctrlKey)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      zoomPivotRef.current = {
+        sl: el.scrollLeft, st: el.scrollTop,
+        px: e.clientX - rect.left, py: e.clientY - rect.top,
+        prevScale: scaleRef.current,
+      };
+      // deltaY: отрицательное = приближение (pinch-out / Ctrl+↑)
+      const step = e.deltaY < 0 ? 0.1 : -0.1;
+      setZoomMul(z => Math.min(3, Math.max(0.25, Math.round((z + step) * 100) / 100)));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // Zoom через пинч двумя пальцами на сенсорном экране
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        touchStateRef.current = { dist: Math.hypot(dx, dy) };
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2 || !touchStateRef.current) return;
+      e.preventDefault();
+      const dx   = e.touches[0].clientX - e.touches[1].clientX;
+      const dy   = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const ratio = dist / touchStateRef.current.dist;
+      touchStateRef.current.dist = dist;
+      const mx   = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const my   = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const rect = el.getBoundingClientRect();
+      zoomPivotRef.current = {
+        sl: el.scrollLeft, st: el.scrollTop,
+        px: mx - rect.left, py: my - rect.top,
+        prevScale: scaleRef.current,
+      };
+      setZoomMul(z => Math.min(3, Math.max(0.25, z * ratio)));
+    };
+    const onTouchEnd = () => { touchStateRef.current = null; };
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove',  onTouchMove,  { passive: false });
+    el.addEventListener('touchend',   onTouchEnd,   { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove',  onTouchMove);
+      el.removeEventListener('touchend',   onTouchEnd);
+    };
+  }, []);
+
+  // Отслеживаем ширину контейнера → baseScale
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -422,20 +551,7 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
     return () => obs.disconnect();
   }, []);
 
-  // Центрирование холста при первом монтировании слайда
-  useEffect(() => {
-    if (initialScrollDone.current || baseScale === 0) return;
-    const el = containerRef.current;
-    if (!el) return;
-    initialScrollDone.current = true;
-    const tid = setTimeout(() => {
-      const sc = baseScale;
-      el.scrollLeft = Math.max(0, WORKSPACE_PAD * sc + (CANVAS_W * sc - el.clientWidth)  / 2);
-      el.scrollTop  = Math.max(0, WORKSPACE_PAD * sc + (CANVAS_H * sc - el.clientHeight) / 2);
-    }, 0);
-    return () => clearTimeout(tid);
-  }, [baseScale]);
-
+  // Закрытие shape picker по клику вне
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (shapePickerRef.current && !shapePickerRef.current.contains(e.target as Node)) {
@@ -466,33 +582,54 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
     });
   }, [saveBlocks]);
 
-  // Ctrl+C / Ctrl+V — копирование блоков
+  // ── Клавиатурные сокращения ──────────────────────────────────────────────────
+  // Используем фазу захвата (capture), чтобы наш обработчик срабатывал раньше
+  // Tiptap/ProseMirror и другие элементы не могли заблокировать событие.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (editingId) return; // не перехватываем когда редактируем текст
+      // Игнорируем события из полей ввода (заголовок урока и т.п.)
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+      // Игнорируем, когда пользователь редактирует текстовый блок
+      if (editingId) return;
+
+      // Удаление выделенных блоков по Delete
+      if (e.key === 'Delete') {
+        if (selectedIds.length === 0) return;
+        setBlocks(prev => { const next = prev.filter(b => !selectedIds.includes(b.id)); saveBlocks(next); return next; });
+        setSelectedIds([]);
+        setEditingId(null);
+        e.preventDefault();
+        return;
+      }
+
       if (!(e.ctrlKey || e.metaKey)) return;
+
       if (e.key === 'c') {
-        const block = blocks.find(b => b.id === selectedId);
-        if (!block) return;
-        copiedBlockRef.current = { ...block };
+        // Копируем все выделенные блоки
+        const selected = blocks.filter(b => selectedIds.includes(b.id));
+        if (selected.length === 0) return;
+        copiedBlockRef.current = selected.map(b => ({ ...b }));
         e.preventDefault();
       } else if (e.key === 'v' && copiedBlockRef.current) {
-        const src = copiedBlockRef.current;
-        const newBlock: SlideBlock = {
+        const sources = copiedBlockRef.current;
+        const maxZ = blocks.length > 0 ? Math.max(...blocks.map(b => b.zIndex)) : 0;
+        const newBlocks: SlideBlock[] = sources.map((src, i) => ({
           ...src,
           id: newBlockId(),
           x: src.x + 20,
           y: src.y + 20,
-          zIndex: (blocks.length > 0 ? Math.max(...blocks.map(b => b.zIndex)) : 0) + 1,
-        };
-        setBlocks(prev => { const next = [...prev, newBlock]; saveBlocks(next); return next; });
-        setSelectedId(newBlock.id);
+          zIndex: maxZ + i + 1,
+        }));
+        setBlocks(prev => { const next = [...prev, ...newBlocks]; saveBlocks(next); return next; });
+        setSelectedIds(newBlocks.map(b => b.id));
         e.preventDefault();
       }
     };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [blocks, editingId, selectedId, saveBlocks]);
+    // capture: true — срабатываем до того, как элемент на странице обработает событие
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, [blocks, editingId, selectedIds, saveBlocks]);
 
   // ── Слои ────────────────────────────────────────────────────────────────────
 
@@ -538,25 +675,26 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
     const block = type === 'text' ? defaultTextBlock() : type === 'image' ? defaultImageBlock() : defaultShapeBlock(shape ?? 'rect');
     block.zIndex = (blocks.length > 0 ? Math.max(...blocks.map(b => b.zIndex)) : 0) + 1;
     setBlocks(prev => { const next = [...prev, block]; saveBlocks(next); return next; });
-    setSelectedId(block.id);
+    setSelectedIds([block.id]);
   };
 
   const deleteBlock = (id: string) => {
     setBlocks(prev => { const next = prev.filter(b => b.id !== id); saveBlocks(next); return next; });
-    if (selectedId === id) setSelectedId(null);
-    if (editingId  === id) setEditingId(null);
+    setSelectedIds(prev => prev.filter(sid => sid !== id));
+    if (editingId === id) setEditingId(null);
   };
 
   const handleCanvasClick = () => {
     if (isDraggingRef.current) return;
     if (activeEditor && editingId) updateBlock(editingId, { html: activeEditor.getHTML() });
-    setSelectedId(null);
+    setSelectedIds([]);
     setEditingId(null);
     setActiveEditor(null);
     setShowShapePicker(false);
   };
 
-  const selectedBlock = blocks.find(b => b.id === selectedId) ?? null;
+  // selectedBlock — только при одиночном выделении (для плавающей панели)
+  const selectedBlock = selectedIds.length === 1 ? (blocks.find(b => b.id === selectedIds[0]) ?? null) : null;
 
   // ── Кастомные ручки resize (вращаются вместе с блоком) ──────────────────────
 
@@ -579,16 +717,14 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
     const cosA  = Math.cos(angle);
     const sinA  = Math.sin(angle);
 
-    // Центр блока в canvas-координатах
     const cx = block.x + block.w / 2;
     const cy = block.y + block.h / 2;
 
-    // Неподвижный угол (противоположный перетаскиваемому) в canvas-координатах
     const fixedLocalMap: { [k: string]: { lx: number; ly: number } } = {
-      br: { lx: -startW / 2, ly: -startH / 2 }, // tl зафиксирован
-      bl: { lx:  startW / 2, ly: -startH / 2 }, // tr зафиксирован
-      tr: { lx: -startW / 2, ly:  startH / 2 }, // bl зафиксирован
-      tl: { lx:  startW / 2, ly:  startH / 2 }, // br зафиксирован
+      br: { lx: -startW / 2, ly: -startH / 2 },
+      bl: { lx:  startW / 2, ly: -startH / 2 },
+      tr: { lx: -startW / 2, ly:  startH / 2 },
+      tl: { lx:  startW / 2, ly:  startH / 2 },
     };
     const fl = fixedLocalMap[corner];
     const fixedWorld = {
@@ -600,7 +736,6 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
       const dx = (me.clientX - startClient.x) / scale;
       const dy = (me.clientY - startClient.y) / scale;
 
-      // Перевод смещения мыши в локальное пространство блока (поворот на -angle)
       const localDx =  dx * cosA + dy * sinA;
       const localDy = -dx * sinA + dy * cosA;
 
@@ -610,7 +745,6 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
       else if (corner === 'tr') { newW = Math.max(MIN_W, startW + localDx); newH = Math.max(MIN_H, startH - localDy); }
       else                       { newW = Math.max(MIN_W, startW - localDx); newH = Math.max(MIN_H, startH - localDy); }
 
-      // Новый центр: fixedWorld + R(angle) * (вектор от фикс. угла до нового центра)
       const halfLocalMap: { [k: string]: { lx: number; ly: number } } = {
         br: { lx:  newW / 2, ly:  newH / 2 },
         bl: { lx: -newW / 2, ly:  newH / 2 },
@@ -635,9 +769,9 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
 
   // ── Контекстный тулбар ──────────────────────────────────────────────────────
   let toolbar: React.ReactNode;
-  if (editingId && activeEditor)          toolbar = <TiptapToolbar editor={activeEditor} />;
-  else if (selectedBlock?.type === 'shape') toolbar = <ShapeToolbar block={selectedBlock} onChange={p => updateBlock(selectedBlock.id, p)} />;
-  else                                      toolbar = <div className="h-10 border-b border-gray-200 bg-white" />;
+  if (editingId && activeEditor)              toolbar = <TiptapToolbar editor={activeEditor} />;
+  else if (selectedBlock?.type === 'shape')   toolbar = <ShapeToolbar block={selectedBlock} onChange={p => updateBlock(selectedBlock.id, p)} />;
+  else                                        toolbar = <div className="h-10 border-b border-gray-200 bg-white" />;
 
   return (
     <div className="flex flex-col h-full">
@@ -649,9 +783,9 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
         style={{ position: 'relative' }}
         onClick={handleCanvasClick}
       >
-        <div className="flex items-start justify-center" style={{ padding: WORKSPACE_PAD * scale }}>
+        <div className="flex items-center justify-center" style={{ padding: WORKSPACE_PAD * scale, minHeight: '100%', boxSizing: 'border-box' }}>
           {/* Внешняя обёртка — scaled-размер холста, якорь для плавающей панели */}
-          <div style={{ width: CANVAS_W * scale, height: CANVAS_H * scale, position: 'relative', flexShrink: 0 }}>
+          <div ref={outerCanvasRef} style={{ width: CANVAS_W * scale, height: CANVAS_H * scale, position: 'relative', flexShrink: 0 }}>
 
             {/* Внутренний холст 960×540 */}
             <div
@@ -680,15 +814,76 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
                   disableDragging={editingId === block.id}
                   enableResizing={false}
                   style={{ zIndex: block.zIndex }}
-                  onMouseDown={e => { e.stopPropagation(); setSelectedId(block.id); }}
+                  onMouseDown={e => {
+                    e.stopPropagation();
+                    if (e.shiftKey) {
+                      // Shift+клик: добавляем/убираем из выделения
+                      setSelectedIds(prev =>
+                        prev.includes(block.id)
+                          ? prev.filter(id => id !== block.id)
+                          : [...prev, block.id]
+                      );
+                    } else if (!selectedIds.includes(block.id)) {
+                      // Клик по НЕ выделенному блоку: сделать его единственным выделенным
+                      if (editingId && editingId !== block.id) {
+                        if (activeEditor) updateBlock(editingId, { html: activeEditor.getHTML() });
+                        setEditingId(null);
+                        setActiveEditor(null);
+                      }
+                      setSelectedIds([block.id]);
+                    }
+                    // Если блок уже в выделении — ничего не меняем (чтобы не сбросить мультивыделение при начале перетаскивания)
+                  }}
                   onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                  onDragStart={() => { isDraggingRef.current = true; }}
+                  onDragStart={(_, d) => {
+                    isDraggingRef.current = true;
+                    // Сохраняем стартовые позиции всех блоков
+                    dragStartBlocksRef.current = Object.fromEntries(
+                      blocks.map(b => [b.id, { x: b.x, y: b.y }])
+                    );
+                    // react-rnd передаёт стартовую позицию в d
+                    dragStartBlocksRef.current[block.id] = { x: d.x, y: d.y };
+                  }}
+                  onDrag={(_, d) => {
+                    // В реальном времени двигаем все ОСТАЛЬНЫЕ выделенные блоки
+                    if (!selectedIds.includes(block.id) || selectedIds.length < 2) return;
+                    const orig = dragStartBlocksRef.current[block.id];
+                    if (!orig) return;
+                    const dx = d.x - orig.x;
+                    const dy = d.y - orig.y;
+                    setBlocks(prev => prev.map(b => {
+                      if (b.id === block.id) return b; // этот блок ведёт react-rnd
+                      const bs = dragStartBlocksRef.current[b.id];
+                      if (bs && selectedIds.includes(b.id)) {
+                        return { ...b, x: bs.x + dx, y: bs.y + dy };
+                      }
+                      return b;
+                    }));
+                  }}
                   onDragStop={(_, d) => {
                     setTimeout(() => { isDraggingRef.current = false; }, 100);
-                    updateBlock(block.id, { x: d.x, y: d.y });
+                    if (selectedIds.includes(block.id) && selectedIds.length > 1) {
+                      // Фиксируем финальные позиции всех выделенных блоков
+                      const orig = dragStartBlocksRef.current[block.id];
+                      const dx = orig ? d.x - orig.x : 0;
+                      const dy = orig ? d.y - orig.y : 0;
+                      setBlocks(prev => {
+                        const next = prev.map(b => {
+                          const bs = dragStartBlocksRef.current[b.id];
+                          if (bs && selectedIds.includes(b.id)) {
+                            return { ...b, x: bs.x + dx, y: bs.y + dy };
+                          }
+                          return b;
+                        });
+                        saveBlocks(next);
+                        return next;
+                      });
+                    } else {
+                      updateBlock(block.id, { x: d.x, y: d.y });
+                    }
                   }}
                 >
-                  {/* Вращение на внутреннем div — react-draggable не перезаписывает его transform */}
+                  {/* Вращение на внутреннем div */}
                   <div
                     style={{
                       width: '100%', height: '100%',
@@ -701,7 +896,7 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
                     <div
                       style={{
                         width: '100%', height: '100%',
-                        outline: selectedId === block.id ? `2px solid ${coverColor}` : 'none',
+                        outline: selectedIds.includes(block.id) ? `2px solid ${coverColor}` : 'none',
                         outlineOffset: 1,
                         borderRadius: 2,
                         position: 'relative',
@@ -712,7 +907,7 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
                         <TextBlock
                           block={block}
                           isEditing={editingId === block.id}
-                          onActivate={() => { setSelectedId(block.id); setEditingId(block.id); }}
+                          onActivate={() => { setSelectedIds([block.id]); setEditingId(block.id); }}
                           onSave={html => updateBlock(block.id, { html })}
                           setActiveEditor={setActiveEditor}
                         />
@@ -727,8 +922,8 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
                       )}
                     </div>
 
-                    {/* Угловые ручки resize — внутри rotation div, вращаются вместе с блоком */}
-                    {selectedId === block.id && editingId !== block.id && (
+                    {/* Угловые ручки resize — только при одиночном выделении */}
+                    {selectedIds.length === 1 && selectedIds[0] === block.id && editingId !== block.id && (
                       (['tl', 'tr', 'bl', 'br'] as const).map(corner => {
                         const s: React.CSSProperties = {
                           position: 'absolute',
@@ -750,14 +945,14 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
               ))}
             </div>
 
-            {/* Плавающая панель (в scaled-пространстве) */}
+            {/* Плавающая панель — одиночное выделение */}
             {selectedBlock && editingId !== selectedBlock.id && (() => {
               const b = selectedBlock;
               const cx = (b.x + b.w / 2) * scale;
               const ty = Math.max(-WORKSPACE_PAD * scale + 4, b.y * scale - 38);
               return (
                 <div
-                  style={{ position: 'absolute', left: cx, top: ty, transform: 'translateX(-50%)', zIndex: 9999, pointerEvents: 'all', userSelect: 'none' }}
+                  style={{ position: 'absolute', left: cx, top: ty, transform: 'translateX(-50%)', zIndex: 9999, pointerEvents: 'auto', userSelect: 'none' }}
                   onClick={e => e.stopPropagation()}
                   onMouseDown={e => e.stopPropagation()}
                 >
@@ -779,13 +974,56 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
                     <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-base" onClick={() => moveDown(b.id)} title="Уровень ниже">↓</button>
                     <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-base" onClick={() => sendToBack(b.id)} title="На задний план">⬇</button>
                     <div className="w-px h-5 bg-gray-200 mx-0.5" />
+                    {/* Дублировать — создаёт копию чуть ниже и правее */}
                     <button
                       className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-sm text-gray-500 hover:text-gray-800"
-                      onClick={() => { copiedBlockRef.current = { ...b }; }}
-                      title="Копировать (Ctrl+C)"
+                      onClick={() => {
+                        const newBlock: SlideBlock = {
+                          ...b,
+                          id: newBlockId(),
+                          x: b.x + 20,
+                          y: b.y + 20,
+                          zIndex: (blocks.length > 0 ? Math.max(...blocks.map(bl => bl.zIndex)) : 0) + 1,
+                        };
+                        setBlocks(prev => { const next = [...prev, newBlock]; saveBlocks(next); return next; });
+                        setSelectedIds([newBlock.id]);
+                      }}
+                      title="Дублировать"
                     >⧉</button>
                     <div className="w-px h-5 bg-gray-200 mx-0.5" />
-                    <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 text-gray-400 hover:text-red-500" onClick={() => deleteBlock(b.id)} title="Удалить">
+                    <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 text-gray-400 hover:text-red-500" onClick={() => deleteBlock(b.id)} title="Удалить (Delete)">
+                      <IconTrash />
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Плавающая панель — множественное выделение */}
+            {selectedIds.length > 1 && (() => {
+              const selBlocks = blocks.filter(b => selectedIds.includes(b.id));
+              if (selBlocks.length === 0) return null;
+              const avgCx = selBlocks.reduce((s, b) => s + (b.x + b.w / 2), 0) / selBlocks.length * scale;
+              const minY  = Math.min(...selBlocks.map(b => b.y)) * scale;
+              const ty    = Math.max(-WORKSPACE_PAD * scale + 4, minY - 38);
+              return (
+                <div
+                  style={{ position: 'absolute', left: avgCx, top: ty, transform: 'translateX(-50%)', zIndex: 9999, pointerEvents: 'auto', userSelect: 'none' }}
+                  onClick={e => e.stopPropagation()}
+                  onMouseDown={e => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-0.5 bg-white rounded-lg shadow-lg border border-gray-200 px-1.5 py-1 text-xs whitespace-nowrap">
+                    <span className="text-gray-400 px-1 text-[11px]">{selectedIds.length} эл.</span>
+                    <div className="w-px h-5 bg-gray-200 mx-0.5" />
+                    <button
+                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 text-gray-400 hover:text-red-500"
+                      onClick={() => {
+                        setBlocks(prev => { const next = prev.filter(b => !selectedIds.includes(b.id)); saveBlocks(next); return next; });
+                        setSelectedIds([]);
+                        setEditingId(null);
+                      }}
+                      title="Удалить выделенные (Delete)"
+                    >
                       <IconTrash />
                     </button>
                   </div>
@@ -796,16 +1034,38 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
         </div>
 
         {/* Zoom controls */}
-        <div className="sticky bottom-4 flex justify-end pr-4 pointer-events-none" style={{ marginTop: -40 }}>
+        <div className="sticky bottom-4 flex justify-end pr-4" style={{ marginTop: -40, pointerEvents: 'none' }}>
           <div
-            className="flex items-center gap-1 bg-white/95 rounded-lg shadow border border-gray-200 px-2 py-1 select-none pointer-events-all"
+            className="flex items-center gap-1 bg-white/95 rounded-lg shadow border border-gray-200 px-2 py-1 select-none"
+            style={{ pointerEvents: 'auto' }}
             onClick={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
           >
-            <button onClick={() => setZoomMul(z => Math.max(0.25, Math.round((z - 0.25) * 100) / 100))} className="w-6 h-6 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded text-lg leading-none">−</button>
+            <button
+              onClick={() => {
+                const el = containerRef.current;
+                if (el) zoomPivotRef.current = { sl: el.scrollLeft, st: el.scrollTop, px: el.clientWidth / 2, py: el.clientHeight / 2, prevScale: scaleRef.current };
+                setZoomMul(z => Math.max(0.25, Math.round((z - 0.25) * 100) / 100));
+              }}
+              className="w-6 h-6 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded text-lg leading-none"
+            >−</button>
             <span className="text-xs text-gray-600 w-10 text-center">{Math.round(scale * 100)}%</span>
-            <button onClick={() => setZoomMul(z => Math.min(3, Math.round((z + 0.25) * 100) / 100))} className="w-6 h-6 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded text-lg leading-none">+</button>
-            <button onClick={() => setZoomMul(1)} className="ml-1 px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100 rounded">Fit</button>
+            <button
+              onClick={() => {
+                const el = containerRef.current;
+                if (el) zoomPivotRef.current = { sl: el.scrollLeft, st: el.scrollTop, px: el.clientWidth / 2, py: el.clientHeight / 2, prevScale: scaleRef.current };
+                setZoomMul(z => Math.min(3, Math.round((z + 0.25) * 100) / 100));
+              }}
+              className="w-6 h-6 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded text-lg leading-none"
+            >+</button>
+            <button
+              onClick={() => {
+                const el = containerRef.current;
+                if (el) zoomPivotRef.current = { sl: el.scrollLeft, st: el.scrollTop, px: el.clientWidth / 2, py: el.clientHeight / 2, prevScale: scaleRef.current };
+                setZoomMul(1);
+              }}
+              className="ml-1 px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100 rounded"
+            >Fit</button>
           </div>
         </div>
       </div>
