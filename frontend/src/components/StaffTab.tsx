@@ -19,7 +19,7 @@ interface StaffRow {
 
 const emptyRow = (): StaffRow => ({ first_name: '', last_name: '', email: '', phone: '', roles: ['teacher'] });
 
-export default function StaffTab() {
+export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
   const [users, setUsers] = useState<User[]>([]);
   const [pagination, setPagination] = useState({ page: 1, per_page: 25, total: 0, pages: 1 });
   const [filters, setFilters] = useState({ last_name: '', first_name: '', email: '', phone: '', role: '' });
@@ -30,6 +30,31 @@ export default function StaffTab() {
   const [editUser, setEditUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState({ first_name: '', last_name: '', email: '', phone: '', birth_date: '', roles: [] as string[] });
   const [ctxMenu, setCtxMenu] = useState<{ user: User; x: number; y: number } | null>(null);
+  const [viewUser, setViewUser] = useState<User | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const copyToClipboard = (value: string, field: string) => {
+    const done = () => {
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 1500);
+    };
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(value).then(done).catch(() => fallbackCopy(value, done));
+    } else {
+      fallbackCopy(value, done);
+    }
+  };
+
+  const fallbackCopy = (value: string, done: () => void) => {
+    const el = document.createElement('textarea');
+    el.value = value;
+    el.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(el);
+    el.focus();
+    el.select();
+    try { document.execCommand('copy'); done(); } catch {}
+    document.body.removeChild(el);
+  };
 
   const load = useCallback(async (page = pagination.page) => {
     const params: Record<string, string> = {
@@ -179,9 +204,11 @@ export default function StaffTab() {
             </button>
           ))}
         </div>
-        <button onClick={openCreateModal} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
-          + Добавить
-        </button>
+        {!readOnly && (
+          <button onClick={openCreateModal} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+            + Добавить
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -201,37 +228,38 @@ export default function StaffTab() {
                 </button>
                 <input placeholder="Фильтр..." value={filters.first_name} onChange={e => setFilters(f => ({ ...f, first_name: e.target.value }))} className="block w-full border rounded px-2 py-1 text-xs mt-1 font-normal" />
               </th>
-              <th className="px-4 py-2 text-left">
+              <th className="px-4 py-2 text-left hidden sm:table-cell">
                 <span className="font-medium text-gray-600">Email</span>
                 <input placeholder="Фильтр..." value={filters.email} onChange={e => setFilters(f => ({ ...f, email: e.target.value }))} className="block w-full border rounded px-2 py-1 text-xs mt-1 font-normal" />
               </th>
-              <th className="px-4 py-2 text-left">
+              <th className="px-4 py-2 text-left hidden sm:table-cell">
                 <span className="font-medium text-gray-600">Телефон</span>
                 <input placeholder="Фильтр..." value={filters.phone} onChange={e => setFilters(f => ({ ...f, phone: e.target.value }))} className="block w-full border rounded px-2 py-1 text-xs mt-1 font-normal" />
               </th>
-              <th className="px-4 py-2 text-left">
+              <th className="px-4 py-2 text-left hidden sm:table-cell">
                 <span className="font-medium text-gray-600">Роли</span>
                 <select value={filters.role} onChange={e => setFilters(f => ({ ...f, role: e.target.value }))} className="block w-full border rounded px-2 py-1 text-xs mt-1 font-normal">
                   <option value="">Все</option>
                   {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </th>
-              <th className="px-4 py-2 text-left font-medium text-gray-600">Врем. пароль</th>
-              <th className="w-10"></th>
+              <th className="px-4 py-2 text-left font-medium text-gray-600 hidden sm:table-cell">Врем. пароль</th>
+              {!readOnly && <th className="w-10 hidden sm:table-cell"></th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {users.map(u => (
               <tr
                 key={u.id}
-                className="hover:bg-gray-50"
-                onContextMenu={e => { e.preventDefault(); openContextMenu(u, e.clientX, e.clientY); }}
+                className="hover:bg-gray-50 cursor-pointer"
+                onClick={() => setViewUser(u)}
+                onContextMenu={e => { e.preventDefault(); if (!readOnly) openContextMenu(u, e.clientX, e.clientY); }}
               >
                 <td className="px-4 py-2">{u.last_name}</td>
                 <td className="px-4 py-2">{u.first_name}</td>
-                <td className="px-4 py-2 text-gray-500">{u.email || '—'}</td>
-                <td className="px-4 py-2 text-gray-500">{u.phone || '—'}</td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2 text-gray-500 hidden sm:table-cell">{u.email || '—'}</td>
+                <td className="px-4 py-2 text-gray-500 hidden sm:table-cell">{u.phone || '—'}</td>
+                <td className="px-4 py-2 hidden sm:table-cell">
                   <div className="flex flex-wrap gap-1">
                     {u.roles.filter(r => r !== 'parent').map(r => (
                       <span key={r} className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded">
@@ -245,19 +273,27 @@ export default function StaffTab() {
                     ))}
                   </div>
                 </td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2 hidden sm:table-cell" onClick={e => e.stopPropagation()}>
                   {u.must_change_password && u.temp_password ? (
-                    <code className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs">{u.temp_password}</code>
+                    <button
+                      onClick={() => copyToClipboard(u.temp_password!, `temp_${u.id}`)}
+                      className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs font-mono hover:bg-yellow-100 transition-colors cursor-copy"
+                      title="Нажмите, чтобы скопировать"
+                    >
+                      {copiedField === `temp_${u.id}` ? '✓ Скопировано' : u.temp_password}
+                    </button>
                   ) : '—'}
                 </td>
-                <td className="px-2 py-2 text-center">
-                  <button
-                    onClick={e => { e.stopPropagation(); openContextMenu(u, e.clientX, e.clientY); }}
-                    className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
-                  >
-                    &#8942;
-                  </button>
-                </td>
+                {!readOnly && (
+                  <td className="px-2 py-2 text-center hidden sm:table-cell">
+                    <button
+                      onClick={e => { e.stopPropagation(); openContextMenu(u, e.clientX, e.clientY); }}
+                      className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
+                    >
+                      &#8942;
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -277,6 +313,113 @@ export default function StaffTab() {
       {/* Context Menu */}
       {ctxMenu && (
         <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={getMenuItems(ctxMenu.user)} onClose={() => setCtxMenu(null)} />
+      )}
+
+      {/* Teacher View Card */}
+      {viewUser && (
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50" onClick={() => setViewUser(null)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl p-6 w-full sm:max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-5">
+              <h3 className="text-lg font-semibold">{viewUser.last_name} {viewUser.first_name}</h3>
+              <button onClick={() => setViewUser(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-gray-500">Email</span>
+                <div className="flex items-center gap-2">
+                  <span>{viewUser.email || '—'}</span>
+                  {viewUser.email && (
+                    <button
+                      onClick={() => copyToClipboard(viewUser.email, 'email')}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Копировать"
+                    >
+                      {copiedField === 'email' ? (
+                        <svg className="w-4 h-4 text-green-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414L8.414 15l-4.121-4.121a1 1 0 111.414-1.414L8.414 12.172l7.879-7.879a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                      ) : (
+                        <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M8 2a2 2 0 00-2 2v1H5a2 2 0 00-2 2v9a2 2 0 002 2h8a2 2 0 002-2v-1h1a2 2 0 002-2V7a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H8zm0 2h4v1H8V4zM5 7h10v9H5V7z"/></svg>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-gray-500">Телефон</span>
+                <div className="flex items-center gap-2">
+                  <span>{viewUser.phone || '—'}</span>
+                  {viewUser.phone && (
+                    <button
+                      onClick={() => copyToClipboard(viewUser.phone, 'phone')}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Копировать"
+                    >
+                      {copiedField === 'phone' ? (
+                        <svg className="w-4 h-4 text-green-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414L8.414 15l-4.121-4.121a1 1 0 111.414-1.414L8.414 12.172l7.879-7.879a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                      ) : (
+                        <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M8 2a2 2 0 00-2 2v1H5a2 2 0 00-2 2v9a2 2 0 002 2h8a2 2 0 002-2v-1h1a2 2 0 002-2V7a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H8zm0 2h4v1H8V4zM5 7h10v9H5V7z"/></svg>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {viewUser.birth_date && (
+                <div className="flex justify-between py-2 border-b">
+                  <span className="text-gray-500">Дата рождения</span>
+                  <span>{new Date(viewUser.birth_date).toLocaleDateString('ru-RU')}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center py-2 border-b">
+                <span className="text-gray-500">Роли</span>
+                <div className="flex flex-wrap gap-1 justify-end">
+                  {viewUser.roles.filter(r => r !== 'parent').map(r => (
+                    <span key={r} className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded">
+                      {ROLE_OPTIONS.find(o => o.value === r)?.label || r}
+                    </span>
+                  ))}
+                  {(viewUser.curated_classes ?? []).map(cls => (
+                    <span key={cls} className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">
+                      Куратор {cls}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              {viewUser.must_change_password && viewUser.temp_password && (
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-gray-500">Врем. пароль</span>
+                  <button
+                    onClick={() => copyToClipboard(viewUser.temp_password!, 'temp_card')}
+                    className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs font-mono hover:bg-yellow-100 transition-colors cursor-copy"
+                    title="Нажмите, чтобы скопировать"
+                  >
+                    {copiedField === 'temp_card' ? '✓ Скопировано' : viewUser.temp_password}
+                  </button>
+                </div>
+              )}
+            </div>
+            {!readOnly && (
+              <div className="flex gap-2 mt-6 pt-4 border-t">
+                <button
+                  onClick={() => { openEdit(viewUser); setViewUser(null); }}
+                  className="flex-1 px-3 py-2 text-sm border rounded hover:bg-gray-50"
+                >
+                  Изменить
+                </button>
+                <button
+                  onClick={() => { handleResetPassword(viewUser); setViewUser(null); }}
+                  className="flex-1 px-3 py-2 text-sm border rounded hover:bg-gray-50"
+                >
+                  Сбросить пароль
+                </button>
+                <button
+                  onClick={() => { handleDelete(viewUser); setViewUser(null); }}
+                  className="flex-1 px-3 py-2 text-sm border border-red-200 text-red-600 rounded hover:bg-red-50"
+                >
+                  Удалить
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Create Modal */}

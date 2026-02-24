@@ -9,7 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from school.models import StudentProfile, SchoolClass, ParentProfile
 from .models import User
-from .permissions import IsAdmin, PasswordChanged
+from .permissions import IsAdmin, IsAdminOrTeacher, PasswordChanged
 from .serializers import (
     LoginSerializer, ChangePasswordSerializer,
     UserCreateSerializer, UserListSerializer, UserSerializer,
@@ -139,7 +139,7 @@ def _apply_user_filters(queryset, request):
 # --- Staff (сотрудники: admins, teachers, parents) ---
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAdmin, PasswordChanged])
+@permission_classes([IsAdminOrTeacher, PasswordChanged])
 def staff_list_create(request):
     if request.method == 'GET':
         users = User.objects.filter(is_student=False)
@@ -161,7 +161,9 @@ def staff_list_create(request):
             'pagination': pagination,
         })
 
-    # Batch create
+    # Batch create — only admins
+    if not request.user.is_admin:
+        return Response({'detail': 'Недостаточно прав.'}, status=status.HTTP_403_FORBIDDEN)
     entries = request.data if isinstance(request.data, list) else [request.data]
     created = []
     errors = []

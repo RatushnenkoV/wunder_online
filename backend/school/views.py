@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view, permission_classes, parser_class
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
-from accounts.permissions import IsAdmin, PasswordChanged
+from accounts.permissions import IsAdmin, IsAdminOrTeacher, PasswordChanged
 from accounts.models import User
 from rest_framework.permissions import IsAuthenticated
 from .models import (
@@ -52,7 +52,7 @@ def grade_level_delete(request, pk):
 # --- School Classes ---
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAdmin, PasswordChanged])
+@permission_classes([IsAdminOrTeacher, PasswordChanged])
 def school_class_list_create(request):
     if request.method == 'GET':
         classes = SchoolClass.objects.select_related('grade_level').all()
@@ -61,6 +61,8 @@ def school_class_list_create(request):
             classes = classes.filter(grade_level_id=grade)
         return Response(SchoolClassSerializer(classes, many=True).data)
 
+    if not request.user.is_admin:
+        return Response({'detail': 'Недостаточно прав.'}, status=status.HTTP_403_FORBIDDEN)
     serializer = SchoolClassSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     sc = SchoolClass.objects.create(
@@ -98,12 +100,14 @@ def school_class_detail(request, pk):
 # --- Subjects ---
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAdmin, PasswordChanged])
+@permission_classes([IsAdminOrTeacher, PasswordChanged])
 def subject_list_create(request):
     if request.method == 'GET':
         subjects = Subject.objects.all()
         return Response(SubjectSerializer(subjects, many=True).data)
 
+    if not request.user.is_admin:
+        return Response({'detail': 'Недостаточно прав.'}, status=status.HTTP_403_FORBIDDEN)
     name = request.data.get('name', '').strip()
     if not name:
         return Response({'detail': 'Название предмета обязательно'}, status=status.HTTP_400_BAD_REQUEST)
@@ -125,7 +129,7 @@ def subject_delete(request, pk):
 # --- Grade Level Subjects ---
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAdmin, PasswordChanged])
+@permission_classes([IsAdminOrTeacher, PasswordChanged])
 def grade_subject_list_create(request):
     if request.method == 'GET':
         links = GradeLevelSubject.objects.select_related('grade_level', 'subject').all()
@@ -134,6 +138,8 @@ def grade_subject_list_create(request):
             links = links.filter(grade_level_id=grade)
         return Response(GradeLevelSubjectSerializer(links, many=True).data)
 
+    if not request.user.is_admin:
+        return Response({'detail': 'Недостаточно прав.'}, status=status.HTTP_403_FORBIDDEN)
     grade_id = request.data.get('grade_level')
     subject_id = request.data.get('subject')
     if not grade_id or not subject_id:
@@ -272,7 +278,7 @@ def class_group_detail(request, pk):
 # --- Class Subjects ---
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAdmin, PasswordChanged])
+@permission_classes([IsAdminOrTeacher, PasswordChanged])
 def class_subject_list_create(request, class_id):
     try:
         sc = SchoolClass.objects.get(pk=class_id)
@@ -283,6 +289,8 @@ def class_subject_list_create(request, class_id):
         subjects = ClassSubject.objects.filter(school_class=sc)
         return Response(ClassSubjectSerializer(subjects, many=True).data)
 
+    if not request.user.is_admin:
+        return Response({'detail': 'Недостаточно прав.'}, status=status.HTTP_403_FORBIDDEN)
     # Batch create
     entries = request.data if isinstance(request.data, list) else [request.data]
     created = []
@@ -321,10 +329,22 @@ def class_subject_detail(request, pk):
     return Response(ClassSubjectSerializer(cs).data)
 
 
+# --- Subjects by class (from schedule) ---
+
+@api_view(['GET'])
+@permission_classes([IsAdminOrTeacher, PasswordChanged])
+def class_schedule_subjects(request, class_id):
+    """Return distinct global Subject objects that appear in the schedule for a given class."""
+    subjects = Subject.objects.filter(
+        schedule_lessons__school_class_id=class_id
+    ).distinct().order_by('name')
+    return Response(SubjectSerializer(subjects, many=True).data)
+
+
 # --- Teachers list (lightweight) ---
 
 @api_view(['GET'])
-@permission_classes([IsAdmin, PasswordChanged])
+@permission_classes([IsAdminOrTeacher, PasswordChanged])
 def teacher_list(request):
     teachers = User.objects.filter(is_teacher=True).order_by('last_name', 'first_name')
     data = [{'id': t.id, 'first_name': t.first_name, 'last_name': t.last_name} for t in teachers]
@@ -334,12 +354,14 @@ def teacher_list(request):
 # --- Rooms ---
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAdmin, PasswordChanged])
+@permission_classes([IsAdminOrTeacher, PasswordChanged])
 def room_list_create(request):
     if request.method == 'GET':
         rooms = Room.objects.all()
         return Response(RoomSerializer(rooms, many=True).data)
 
+    if not request.user.is_admin:
+        return Response({'detail': 'Недостаточно прав.'}, status=status.HTTP_403_FORBIDDEN)
     name = request.data.get('name', '').strip()
     if not name:
         return Response({'detail': 'Название кабинета обязательно'}, status=status.HTTP_400_BAD_REQUEST)

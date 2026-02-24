@@ -18,13 +18,14 @@ import LessonEditorPage from './pages/LessonEditorPage';
 import GroupsPage from './pages/GroupsPage';
 import type { ReactNode } from 'react';
 
-function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; adminOnly?: boolean }) {
+function ProtectedRoute({ children, adminOnly = false, staffOnly = false }: { children: ReactNode; adminOnly?: boolean; staffOnly?: boolean }) {
   const { user, loading } = useAuth();
 
   if (loading) return <div className="flex items-center justify-center min-h-screen">Загрузка...</div>;
   if (!user) return <Navigate to="/login" />;
   if (user.must_change_password) return <Navigate to="/change-password" />;
   if (adminOnly && !user.is_admin) return <Navigate to="/" />;
+  if (staffOnly && !user.is_admin && !user.is_teacher) return <Navigate to="/" />;
 
   return <>{children}</>;
 }
@@ -63,12 +64,13 @@ function App() {
             <Route path="/ktp/:id" element={<KTPDetailPage />} />
             <Route path="/schedule" element={<SchedulePage />} />
             <Route path="/groups" element={<GroupsPage />} />
+            <Route path="/people" element={<PeoplePage />} />
             <Route path="/admin/people" element={<ProtectedRoute adminOnly><PeoplePage /></ProtectedRoute>} />
             <Route path="/admin/school" element={<ProtectedRoute adminOnly><SchoolPage /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute adminOnly><SettingsPage /></ProtectedRoute>} />
             <Route path="/account" element={<AccountPage />} />
-            <Route path="/tasks" element={<TasksPage />} />
-            <Route path="/requests" element={<RequestsPage />} />
+            <Route path="/tasks" element={<ProtectedRoute staffOnly><TasksPage /></ProtectedRoute>} />
+            <Route path="/requests" element={<ProtectedRoute staffOnly><RequestsPage /></ProtectedRoute>} />
             <Route path="/lessons" element={<LessonsPage />} />
             <Route path="/lessons/:id/edit" element={<LessonEditorPage />} />
           </Route>

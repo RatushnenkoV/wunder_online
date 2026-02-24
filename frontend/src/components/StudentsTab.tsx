@@ -40,6 +40,30 @@ export default function StudentsTab() {
   const [showCreate, setShowCreate] = useState(false);
   const [rows, setRows] = useState<StudentRow[]>([emptyRow()]);
   const [message, setMessage] = useState('');
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const fallbackCopy = (value: string, done: () => void) => {
+    const el = document.createElement('textarea');
+    el.value = value;
+    el.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(el);
+    el.focus();
+    el.select();
+    try { document.execCommand('copy'); done(); } catch {}
+    document.body.removeChild(el);
+  };
+
+  const copyToClipboard = (value: string, field: string) => {
+    const done = () => {
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 1500);
+    };
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(value).then(done).catch(() => fallbackCopy(value, done));
+    } else {
+      fallbackCopy(value, done);
+    }
+  };
 
   // Student edit modal
   const [editUser, setEditUser] = useState<StudentUser | null>(null);
@@ -370,9 +394,15 @@ export default function StudentsTab() {
                 <td className="px-4 py-2 text-gray-500">{u.email || '—'}</td>
                 <td className="px-4 py-2 text-gray-500">{u.phone || '—'}</td>
                 <td className="px-4 py-2 text-gray-500">{u.school_class_name || '—'}</td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2" onClick={e => e.stopPropagation()}>
                   {u.must_change_password && u.temp_password ? (
-                    <code className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs">{u.temp_password}</code>
+                    <button
+                      onClick={() => copyToClipboard(u.temp_password!, `temp_${u.id}`)}
+                      className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs font-mono hover:bg-yellow-100 transition-colors cursor-copy"
+                      title="Нажмите, чтобы скопировать"
+                    >
+                      {copiedField === `temp_${u.id}` ? '✓ Скопировано' : u.temp_password}
+                    </button>
                   ) : '—'}
                 </td>
                 <td className="px-2 py-2 text-center">

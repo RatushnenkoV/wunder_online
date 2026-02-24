@@ -21,6 +21,7 @@ urlpatterns = [
     # Class Subjects
     path('classes/<int:class_id>/subjects/', views.class_subject_list_create),
     path('class-subjects/<int:pk>/', views.class_subject_detail),
+    path('classes/<int:class_id>/schedule-subjects/', views.class_schedule_subjects),
 
     # Teachers (lightweight)
     path('teachers/', views.teacher_list),

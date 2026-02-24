@@ -66,14 +66,18 @@ export default function SchedulePage() {
 
   useEffect(() => {
     const loadOptions = async () => {
-      const [classesRes, teachersRes, roomsRes] = await Promise.all([
-        api.get('/school/classes/'),
-        api.get('/school/teachers/'),
-        api.get('/school/rooms/'),
-      ]);
-      setClasses(classesRes.data);
-      setTeachers(teachersRes.data);
-      setRooms(roomsRes.data);
+      try {
+        const [classesRes, teachersRes, roomsRes] = await Promise.all([
+          api.get('/school/classes/'),
+          api.get('/school/teachers/'),
+          api.get('/school/rooms/'),
+        ]);
+        setClasses(classesRes.data);
+        setTeachers(teachersRes.data);
+        setRooms(roomsRes.data);
+      } catch {
+        // ignore — списки останутся пустыми
+      }
     };
     loadOptions();
   }, []);

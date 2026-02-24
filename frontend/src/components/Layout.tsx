@@ -178,21 +178,30 @@ export default function Layout() {
     };
   }, [sidebarOpen]);
 
+  const isStaff = user?.is_admin || user?.is_teacher;
+
   const navItems = [
     { to: '/', label: 'Главная', icon: <IconHome />, end: true, badge: null },
     { to: '/ktp', label: 'КТП', icon: <IconBook />, end: false, badge: null },
     { to: '/schedule', label: 'Расписание', icon: <IconCalendar />, end: false, badge: null },
-    {
-      to: '/tasks',
-      label: 'Задачи',
-      icon: <IconTasks />,
-      end: false,
-      badge: tasksCount && tasksCount.total > 0 ? tasksCount.total : null,
-    },
+    ...(isStaff
+      ? [{
+          to: '/tasks',
+          label: 'Задачи',
+          icon: <IconTasks />,
+          end: false,
+          badge: tasksCount && tasksCount.total > 0 ? tasksCount.total : null,
+        }]
+      : []),
     { to: '/lessons', label: 'Уроки', icon: <IconPresentation />, end: false, badge: null },
-    { to: '/requests', label: 'Заявки', icon: <IconWrench />, end: false, badge: null },
-    ...(user?.is_admin || user?.is_teacher
+    ...(isStaff
+      ? [{ to: '/requests', label: 'Заявки', icon: <IconWrench />, end: false, badge: null }]
+      : []),
+    ...(isStaff
       ? [{ to: '/groups', label: 'Группы', icon: <IconGroups />, end: false, badge: null }]
+      : []),
+    ...(user?.is_teacher && !user?.is_admin
+      ? [{ to: '/people', label: 'Сотрудники', icon: <IconPeople />, end: false, badge: null }]
       : []),
     ...(user?.is_admin
       ? [

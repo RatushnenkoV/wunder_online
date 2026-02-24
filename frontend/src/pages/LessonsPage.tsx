@@ -552,19 +552,21 @@ export default function LessonsPage() {
       </div>
 
       {/* Вкладки */}
-      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
-        {(['mine', 'all'] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-1.5 text-sm rounded-md font-medium transition-colors ${
-              tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {t === 'mine' ? 'Мои уроки' : 'Все уроки'}
-          </button>
-        ))}
-      </div>
+      {isStaff && (
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+          {(['mine', 'all'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-1.5 text-sm rounded-md font-medium transition-colors ${
+                tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {t === 'mine' ? 'Мои уроки' : 'Все уроки'}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Хлебные крошки (только для вкладки «Мои») */}
       {tab === 'mine' && folderPath.length > 0 && (

@@ -1,5 +1,7 @@
+import { useAuth } from '../contexts/AuthContext';
 import StaffTab from '../components/StaffTab';
 
 export default function PeoplePage() {
-  return <StaffTab />;
+  const { user } = useAuth();
+  return <StaffTab readOnly={!user?.is_admin} />;
 }

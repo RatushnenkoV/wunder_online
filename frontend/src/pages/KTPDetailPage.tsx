@@ -68,6 +68,7 @@ export default function KTPDetailPage() {
 
   const isOwner = ctp && user && ctp.teacher === user.id;
   const canEdit = isOwner;
+  const canClone = user?.is_teacher || user?.is_admin;
 
   const handleAddTopic = async (e: FormEvent) => {
     e.preventDefault();
@@ -335,16 +336,18 @@ export default function KTPDetailPage() {
             {!ctp.is_public && <span className="ml-2 bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded">Скрытый</span>}
           </p>
         </div>
-        {canEdit && (
-          <div className="flex gap-2">
+        <div className="flex gap-2">
+          {canClone && (
             <button onClick={() => { setShowCopy(true); api.get('/school/classes/').then(r => setClasses(r.data)); }} className="bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm hover:bg-gray-300">
-              Копировать
+              Клонировать
             </button>
+          )}
+          {canEdit && (
             <button onClick={handleDeleteCtp} className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm hover:bg-red-200">
               Удалить КТП
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {message && (
@@ -358,13 +361,13 @@ export default function KTPDetailPage() {
       {showCopy && (
         <div className="bg-white p-4 rounded-lg shadow mb-4 flex gap-4 items-end">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Копировать в класс</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Клонировать в класс</label>
             <select value={copyClassId} onChange={e => setCopyClassId(parseInt(e.target.value))} className="border rounded px-3 py-2 text-sm">
               <option value={0}>Выберите класс</option>
               {classes.map(c => <option key={c.id} value={c.id}>{c.display_name}</option>)}
             </select>
           </div>
-          <button onClick={handleCopy} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Копировать</button>
+          <button onClick={handleCopy} disabled={!copyClassId} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">Клонировать</button>
           <button onClick={() => setShowCopy(false)} className="text-gray-400 hover:text-gray-600 text-sm">Отмена</button>
         </div>
       )}

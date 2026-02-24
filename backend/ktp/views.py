@@ -41,6 +41,10 @@ def ctp_list_create(request):
         if class_ids is not None:
             ctps = ctps.filter(school_class_id__in=class_ids, is_public=True)
 
+        mine = request.query_params.get('mine')
+        if mine and (request.user.is_teacher or request.user.is_admin):
+            ctps = ctps.filter(teacher=request.user)
+
         class_filter = request.query_params.get('school_class')
         if class_filter:
             ctps = ctps.filter(school_class_id=class_filter)

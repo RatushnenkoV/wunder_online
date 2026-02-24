@@ -293,16 +293,52 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
     loadSubstitutions();
   };
 
-  /** Print the full schedule for a single day column (all classes, all lessons + substitutions). */
+  /** Print the schedule for a single day column, filtered by the current view mode and selection. */
   const handlePrintDay = (dateStr: string) => {
     const date = new Date(dateStr + 'T00:00:00');
     const weekday = date.getDay();
-    const daySubs = allSubstitutions.filter(s => s.date === dateStr);
-    const dayLessons = allLessons.filter(l => l.weekday === weekday);
+
+    const allDaySubs = allSubstitutions.filter(s => s.date === dateStr);
+    const allDayLessons = allLessons.filter(l => l.weekday === weekday);
+
+    let dayLessons = allDayLessons;
+    let daySubs = allDaySubs;
+    let entityLabel = '';
+    let showClass = true;
+
+    if (selectedId) {
+      if (viewMode === 'class') {
+        dayLessons = allDayLessons.filter(l => l.school_class === selectedId);
+        daySubs = allDaySubs.filter(s => s.school_class === selectedId);
+        const cls = classes.find(c => c.id === selectedId);
+        entityLabel = cls ? `Класс ${cls.display_name}` : '';
+        showClass = false;
+      } else if (viewMode === 'teacher') {
+        dayLessons = allDayLessons.filter(l => l.teacher === selectedId);
+        daySubs = allDaySubs.filter(s =>
+          s.teacher === selectedId ||
+          allLessons.find(l => l.id === s.original_lesson)?.teacher === selectedId,
+        );
+        const t = teachers.find(t => t.id === selectedId);
+        entityLabel = t ? `${t.last_name} ${t.first_name}` : '';
+        showClass = true;
+      } else if (viewMode === 'room') {
+        dayLessons = allDayLessons.filter(l => l.room === selectedId);
+        daySubs = allDaySubs.filter(s =>
+          s.room === selectedId ||
+          allLessons.find(l => l.id === s.original_lesson)?.room === selectedId,
+        );
+        const r = rooms.find(r => r.id === selectedId);
+        entityLabel = r ? `Кабинет ${r.name}` : '';
+        showClass = true;
+      }
+    }
 
     const dateLabel = date.toLocaleDateString('ru-RU', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     });
+    const title = entityLabel ? `Расписание — ${entityLabel}` : 'Расписание на день';
+    const secondColHeader = showClass ? '<th>Класс</th>' : '<th>Гр.</th>';
 
     const rows: string[] = [];
     for (const num of LESSON_NUMBERS) {
@@ -310,21 +346,21 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
       const numSubs = daySubs.filter(s => s.lesson_number === num);
       if (numLessons.length === 0 && numSubs.length === 0) continue;
       buildPairs(numLessons, numSubs).forEach(({ lesson, sub }) => {
-        rows.push(buildRow(num, lesson, sub, true));
+        rows.push(buildRow(num, lesson, sub, showClass));
       });
     }
 
     const html = `<!DOCTYPE html><html lang="ru"><head>
   <meta charset="UTF-8">
-  <title>Расписание — ${dateLabel}</title>
+  <title>${title} — ${dateLabel}</title>
   <style>${PRINT_STYLES}</style>
 </head><body>
-  <h1>Расписание на день</h1>
+  <h1>${title}</h1>
   <div class="subtitle">${dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}</div>
   <table>
     <thead>
       <tr>
-        <th class="num">№</th><th>Класс</th><th>Предмет</th>
+        <th class="num">№</th>${secondColHeader}<th>Предмет</th>
         <th>Учитель</th><th>Кабинет</th><th>Отменённый урок</th>
       </tr>
     </thead>
