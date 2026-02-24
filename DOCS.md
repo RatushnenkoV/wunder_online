@@ -151,11 +151,12 @@ WunderOnline/
 - `POST /api/lessons/lessons/` — создать урок
 - `GET/PUT/DELETE /api/lessons/lessons/:id/` — CRUD урока
 - `POST /api/lessons/lessons/:id/duplicate/` — дублировать урок
-- `GET/POST /api/lessons/lessons/:id/slides/` — слайды урока
+- `GET/POST /api/lessons/lessons/:id/slides/` — слайды урока (slide_type: content|form|video|discussion)
 - `POST /api/lessons/lessons/:id/slides/reorder/` — {order: [id, ...]} — переставить слайды
 - `GET/PUT/DELETE /api/lessons/lessons/:id/slides/:sid/` — CRUD слайда
 - `POST /api/lessons/lessons/:id/slides/:sid/image/` — загрузить изображение (multipart: image)
 - `POST /api/lessons/lessons/:id/upload/` — загрузить медиафайл для блока (multipart: file) → `{id, url, uploaded_at}`
+- **WebSocket** `ws://…/ws/discussion/<slide_id>/?token=<jwt>` — доска обсуждений (DiscussionConsumer)
 
 ### КТП (`/api/ktp/`)
 - `GET/POST /api/ktp/ctps/` — список КТП
@@ -285,9 +286,13 @@ Lesson
 Slide
   lesson -> Lesson
   order: int
-  slide_type: content | image | poll | quiz | open_question | video
+  slide_type: content | image | poll | quiz | open_question | video | form | discussion
   title: str (blank)
-  content: JSON  # {blocks: [SlideBlock, ...]} — canvas-блоки с позицией/размером/контентом
+  content: JSON  # структура зависит от slide_type:
+    # content  → {blocks: [SlideBlock, ...]}
+    # form     → {questions: [FormQuestion, ...]}
+    # video    → {url, embed_url, caption}
+    # discussion → {stickers: [...], strokes: [...]}
   image: FileField (null)  # upload_to='lesson_images/%Y/%m/'
   created_at: datetime
   updated_at: datetime
@@ -439,9 +444,12 @@ TaskFile         # файл, прикреплённый к задаче
 - При переключении вкладки: GET `/ktp/topics-by-date/?date=...&student_id={sp.id}`
 - Если детей нет — сообщение "Нет привязанных учеников"
 
-### Редактор урока (LessonEditorPage.tsx) — Фаза 2 (Canvas-редактор)
+### Редактор урока (LessonEditorPage.tsx) — Фаза 3 (Форма, Видео, Доска)
 - Страница `/lessons/:id/edit` — двухпанельный интерфейс: шапка + левая панель слайдов + холст
 - **npm-зависимости**: `react-rnd` (drag блоков), `@tiptap/react` + `@tiptap/starter-kit` + `@tiptap/extension-text-style` (rich text, цвет, размер шрифта)
+- **Фаза 3**: SlideTypePicker (4 типа), FormEditor, VideoEditor, DiscussionBoard (WebSocket)
+- **WS Discussion**: `ws://localhost:8000/ws/discussion/<slide_id>/?token=<jwt>` — синхронизация стикеров и рисований
+- **Иконки типов**: 📄 content, 📋 form, 📹 video, 💬 discussion — отображаются в SlideThumb
 
 #### Шапка
 - Кнопка «← Уроки», редактируемый заголовок урока (сохранение на blur)

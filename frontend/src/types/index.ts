@@ -279,7 +279,49 @@ export interface Lesson {
   updated_at: string;
 }
 
-export type SlideType = 'content' | 'image' | 'poll' | 'quiz' | 'open_question' | 'video';
+export type SlideType = 'content' | 'image' | 'poll' | 'quiz' | 'open_question' | 'video' | 'form' | 'discussion';
+
+export type FormQuestionType = 'single' | 'multiple' | 'text' | 'scale';
+
+export interface FormQuestion {
+  id: string;
+  type: FormQuestionType;
+  text: string;
+  required: boolean;
+  options?: string[];
+  scale_min?: number;
+  scale_max?: number;
+  scale_min_label?: string;
+  scale_max_label?: string;
+  // Правильные ответы (опционально — если не указаны, учитель проверяет вручную)
+  correct_options?: number[];  // индексы правильных вариантов (single/multiple)
+  correct_text?: string;       // для type='text'
+  correct_scale?: number;      // для type='scale'
+}
+
+export interface VideoContent {
+  url: string;
+  embed_url: string;
+  caption: string;
+}
+
+export interface DiscussionSticker {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  author_id: number;
+  author_name: string;
+  created_at: string;
+}
+
+export interface DiscussionStroke {
+  id: string;
+  points: [number, number][];
+  color: string;
+  width: number;
+}
 
 export type ShapeType = 'rect' | 'circle' | 'triangle' | 'diamond' | 'star' | 'line';
 
@@ -311,7 +353,8 @@ export interface Slide {
   order: number;
   slide_type: SlideType;
   title: string;
-  content: SlideContent;
+  // content varies by slide_type: SlideContent | {questions} | VideoContent | {stickers,strokes}
+  content: SlideContent & Record<string, unknown>;
   image_url: string | null;
   created_at: string;
   updated_at: string;

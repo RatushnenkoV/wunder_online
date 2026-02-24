@@ -5,7 +5,8 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { TextStyle, Color, FontSize, FontFamily } from '@tiptap/extension-text-style';
 import api from '../api/client';
-import type { Lesson, Slide, SlideBlock, ShapeType, SlideType } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import type { Lesson, Slide, SlideBlock, ShapeType, SlideType, FormQuestion, FormQuestionType, VideoContent, DiscussionSticker, DiscussionStroke } from '../types';
 
 // ─── Константы ────────────────────────────────────────────────────────────────
 
@@ -1132,12 +1133,28 @@ interface SlideThumbProps {
   onDragLeave: () => void; onDrop: (e: React.DragEvent) => void;
 }
 
+const SLIDE_TYPE_ICONS: Partial<Record<SlideType, string>> = {
+  content: '📄', form: '📋', video: '📹', discussion: '💬',
+};
+
 function SlideThumb({ slide, index, isSelected, isDragOver, onClick, onDelete, onDragStart, onDragOver, onDragLeave, onDrop }: SlideThumbProps) {
-  const blocks = slide.content?.blocks ?? [];
-  const firstText = blocks.find(b => b.type === 'text');
-  const label = firstText?.html
-    ? firstText.html.replace(/<[^>]+>/g, '').slice(0, 30) || `Слайд ${index + 1}`
-    : `Слайд ${index + 1}`;
+  const icon = SLIDE_TYPE_ICONS[slide.slide_type] ?? '📄';
+
+  let label: string;
+  if (slide.slide_type === 'form') {
+    const qs = (slide.content as { questions?: FormQuestion[] }).questions;
+    label = qs && qs.length > 0 ? `${qs.length} вопр.` : 'Форма';
+  } else if (slide.slide_type === 'video') {
+    label = (slide.content as { url?: string }).url ? 'Видео' : 'Видео';
+  } else if (slide.slide_type === 'discussion') {
+    label = 'Доска';
+  } else {
+    const blocks = slide.content?.blocks ?? [];
+    const firstText = blocks.find(b => b.type === 'text');
+    label = firstText?.html
+      ? firstText.html.replace(/<[^>]+>/g, '').slice(0, 30) || `Слайд ${index + 1}`
+      : `Слайд ${index + 1}`;
+  }
 
   return (
     <div
@@ -1146,9 +1163,726 @@ function SlideThumb({ slide, index, isSelected, isDragOver, onClick, onDelete, o
       className={`group flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors border-b border-gray-100 ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'} ${isDragOver ? 'border-t-2 border-t-blue-400' : ''}`}
     >
       <span className="cursor-grab flex-shrink-0 opacity-40 group-hover:opacity-70 transition-opacity"><IconDrag /></span>
-      <span className="text-xs text-gray-400 w-5 text-center flex-shrink-0 font-medium">{index + 1}</span>
+      <span className="text-sm flex-shrink-0 leading-none">{icon}</span>
+      <span className="text-xs text-gray-400 w-4 text-center flex-shrink-0 font-medium">{index + 1}</span>
       <span className={`flex-1 text-xs truncate ${isSelected ? 'text-blue-700 font-medium' : 'text-gray-600'}`}>{label}</span>
       <button onClick={e => { e.stopPropagation(); onDelete(); }} className="flex-shrink-0 opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all rounded"><IconTrash /></button>
+    </div>
+  );
+}
+
+// ─── SlideTypePicker ──────────────────────────────────────────────────────────
+
+function SlideTypePicker({ onSelect, onClose }: { onSelect: (type: SlideType) => void; onClose: () => void }) {
+  const types: { type: SlideType; icon: string; label: string; desc: string }[] = [
+    { type: 'content',    icon: '📄', label: 'Контент',    desc: 'Свободный холст' },
+    { type: 'form',       icon: '📋', label: 'Форма',      desc: 'Вопросы и ответы' },
+    { type: 'video',      icon: '📹', label: 'Видео',      desc: 'YouTube и другие' },
+    { type: 'discussion', icon: '💬', label: 'Доска',      desc: 'Стикеры + рисунок' },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl p-6 w-96" onClick={e => e.stopPropagation()}>
+        <h2 className="text-base font-semibold text-gray-800 mb-4">Выберите тип слайда</h2>
+        <div className="grid grid-cols-2 gap-3">
+          {types.map(({ type, icon, label, desc }) => (
+            <button
+              key={type}
+              onClick={() => onSelect(type)}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-100 hover:border-blue-400 hover:bg-blue-50 transition-all text-center"
+            >
+              <span className="text-3xl">{icon}</span>
+              <div>
+                <div className="font-medium text-sm text-gray-800">{label}</div>
+                <div className="text-xs text-gray-500 mt-0.5">{desc}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} className="mt-4 w-full py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Отмена</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── FormEditor ───────────────────────────────────────────────────────────────
+
+function FormEditor({ slide, lessonId, onSaved }: { slide: Slide; lessonId: number; onSaved: (s: Slide) => void }) {
+  const getQuestions = () => {
+    const c = slide.content as { questions?: FormQuestion[] };
+    return c?.questions ?? [];
+  };
+
+  const [questions, setQuestions] = useState<FormQuestion[]>(getQuestions);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => { setQuestions(getQuestions()); }, [slide.id]);
+
+  const save = useCallback((qs: FormQuestion[]) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      try {
+        const res = await api.put(`/lessons/lessons/${lessonId}/slides/${slide.id}/`, { content: { questions: qs } });
+        onSaved(res.data);
+      } catch { /* ignore */ }
+    }, 400);
+  }, [lessonId, slide.id, onSaved]);
+
+  const updateQ = (idx: number, patch: Partial<FormQuestion>) => {
+    setQuestions(prev => { const next = prev.map((q, i) => i === idx ? { ...q, ...patch } : q); save(next); return next; });
+  };
+
+  const addQuestion = () => {
+    const q: FormQuestion = { id: `q${Date.now()}`, type: 'single', text: '', required: false, options: ['', ''] };
+    setQuestions(prev => { const next = [...prev, q]; save(next); return next; });
+  };
+
+  const deleteQuestion = (idx: number) => {
+    setQuestions(prev => { const next = prev.filter((_, i) => i !== idx); save(next); return next; });
+  };
+
+  const moveQuestion = (idx: number, dir: -1 | 1) => {
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= questions.length) return;
+    setQuestions(prev => { const next = [...prev]; [next[idx], next[newIdx]] = [next[newIdx], next[idx]]; save(next); return next; });
+  };
+
+  const addOption   = (qi: number) => updateQ(qi, { options: [...(questions[qi].options ?? []), ''] });
+  const updateOption = (qi: number, oi: number, val: string) => {
+    const opts = [...(questions[qi].options ?? [])]; opts[oi] = val; updateQ(qi, { options: opts });
+  };
+  const deleteOption = (qi: number, oi: number) => {
+    updateQ(qi, { options: (questions[qi].options ?? []).filter((_, i) => i !== oi) });
+  };
+
+  const Q_TYPES: { value: FormQuestionType; label: string }[] = [
+    { value: 'single',   label: 'Один ответ' },
+    { value: 'multiple', label: 'Несколько'  },
+    { value: 'text',     label: 'Текст'      },
+    { value: 'scale',    label: 'Шкала'      },
+  ];
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="h-10 border-b border-gray-200 bg-white flex items-center px-4">
+        <span className="text-sm text-gray-500">📋 Редактор формы</span>
+      </div>
+      <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
+        <div className="max-w-2xl mx-auto space-y-4">
+          {questions.length === 0 && (
+            <div className="text-center py-12 text-gray-400">
+              <div className="text-4xl mb-3">📋</div>
+              <p className="text-sm">Нет вопросов. Добавьте первый!</p>
+            </div>
+          )}
+          {questions.map((q, idx) => (
+            <div key={q.id} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-3">
+                    <input
+                      type="text" value={q.text}
+                      onChange={e => updateQ(idx, { text: e.target.value })}
+                      placeholder={`Вопрос ${idx + 1}`}
+                      className="flex-1 text-sm font-medium text-gray-800 border-b border-transparent hover:border-gray-200 focus:border-blue-400 focus:outline-none pb-0.5 bg-transparent"
+                    />
+                    <select
+                      value={q.type}
+                      onChange={e => updateQ(idx, { type: e.target.value as FormQuestionType })}
+                      className="text-xs border border-gray-200 rounded px-2 h-7 bg-white text-gray-600 cursor-pointer"
+                    >
+                      {Q_TYPES.map(({ value, label }) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {(q.type === 'single' || q.type === 'multiple') && (
+                    <div className="space-y-1.5 ml-1">
+                      {(q.options ?? []).map((opt, oi) => {
+                        const isCorrect = (q.correct_options ?? []).includes(oi);
+                        const toggleCorrect = () => {
+                          if (q.type === 'single') {
+                            updateQ(idx, { correct_options: isCorrect ? [] : [oi] });
+                          } else {
+                            const cur = q.correct_options ?? [];
+                            updateQ(idx, { correct_options: isCorrect ? cur.filter(i => i !== oi) : [...cur, oi] });
+                          }
+                        };
+                        return (
+                          <div key={oi} className="flex items-center gap-2">
+                            <span className="text-gray-300 text-xs flex-shrink-0">{q.type === 'single' ? '○' : '□'}</span>
+                            <input
+                              type="text" value={opt}
+                              onChange={e => updateOption(idx, oi, e.target.value)}
+                              placeholder={`Вариант ${oi + 1}`}
+                              className="flex-1 text-sm text-gray-700 border-b border-gray-100 hover:border-gray-300 focus:border-blue-400 focus:outline-none pb-0.5 bg-transparent"
+                            />
+                            <button
+                              onClick={toggleCorrect}
+                              title={isCorrect ? 'Убрать правильный ответ' : 'Отметить как правильный'}
+                              className={`w-5 h-5 rounded-full border flex-shrink-0 flex items-center justify-center text-[11px] transition-colors ${
+                                isCorrect
+                                  ? 'bg-green-100 border-green-400 text-green-600'
+                                  : 'border-gray-200 text-gray-300 hover:border-green-300 hover:text-green-500'
+                              }`}
+                            >✓</button>
+                            {(q.options?.length ?? 0) > 1 && (
+                              <button onClick={() => deleteOption(idx, oi)} className="text-gray-300 hover:text-red-400 text-sm leading-none">×</button>
+                            )}
+                          </div>
+                        );
+                      })}
+                      <button onClick={() => addOption(idx)} className="text-xs text-blue-500 hover:text-blue-700 mt-1">
+                        + Добавить вариант
+                      </button>
+                      {(q.correct_options ?? []).length > 0 && (
+                        <p className="text-[10px] text-green-600 mt-0.5">
+                          ✓ Правильный ответ задан — система проверит автоматически
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {q.type === 'text' && (
+                    <div className="ml-1 mt-2 space-y-2">
+                      <div className="border border-dashed border-gray-200 rounded p-2 text-xs text-gray-400 italic">Поле для ответа</div>
+                      <input
+                        type="text"
+                        value={q.correct_text ?? ''}
+                        onChange={e => updateQ(idx, { correct_text: e.target.value || undefined })}
+                        placeholder="Правильный ответ (необязательно)"
+                        className={`w-full text-xs rounded px-2 py-1.5 border focus:outline-none bg-transparent transition-colors ${
+                          q.correct_text
+                            ? 'border-green-300 text-green-700 placeholder:text-green-300 focus:border-green-400'
+                            : 'border-dashed border-gray-200 text-gray-600 placeholder:text-gray-300 focus:border-blue-300'
+                        }`}
+                      />
+                      {q.correct_text && (
+                        <p className="text-[10px] text-green-600">✓ Правильный ответ задан — система проверит автоматически</p>
+                      )}
+                    </div>
+                  )}
+
+                  {q.type === 'scale' && (
+                    <div className="ml-1 mt-2 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 w-10 flex-shrink-0">Мин</span>
+                        <input type="number" value={q.scale_min ?? 1}
+                          onChange={e => updateQ(idx, { scale_min: Number(e.target.value) })}
+                          className="w-14 text-xs border border-gray-200 rounded px-1.5 h-6 text-center" />
+                        <input type="text" value={q.scale_min_label ?? ''}
+                          onChange={e => updateQ(idx, { scale_min_label: e.target.value })}
+                          placeholder="Подпись" className="flex-1 text-xs border-b border-gray-100 focus:border-blue-400 focus:outline-none bg-transparent pb-0.5" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 w-10 flex-shrink-0">Макс</span>
+                        <input type="number" value={q.scale_max ?? 5}
+                          onChange={e => updateQ(idx, { scale_max: Number(e.target.value) })}
+                          className="w-14 text-xs border border-gray-200 rounded px-1.5 h-6 text-center" />
+                        <input type="text" value={q.scale_max_label ?? ''}
+                          onChange={e => updateQ(idx, { scale_max_label: e.target.value })}
+                          placeholder="Подпись" className="flex-1 text-xs border-b border-gray-100 focus:border-blue-400 focus:outline-none bg-transparent pb-0.5" />
+                      </div>
+                      <div className="flex gap-1 flex-wrap">
+                        {Array.from({ length: Math.max(1, (q.scale_max ?? 5) - (q.scale_min ?? 1) + 1) }, (_, i) => {
+                          const val = (q.scale_min ?? 1) + i;
+                          const isCorrect = q.correct_scale === val;
+                          return (
+                            <button
+                              key={i}
+                              onClick={() => updateQ(idx, { correct_scale: isCorrect ? undefined : val })}
+                              title={isCorrect ? 'Убрать правильный ответ' : 'Отметить как правильный'}
+                              className={`w-7 h-7 rounded border flex items-center justify-center text-xs transition-colors ${
+                                isCorrect
+                                  ? 'bg-green-100 border-green-400 text-green-700 font-semibold'
+                                  : 'border-gray-200 text-gray-500 hover:border-green-300 hover:text-green-500'
+                              }`}
+                            >{val}</button>
+                          );
+                        })}
+                      </div>
+                      {q.correct_scale != null ? (
+                        <p className="text-[10px] text-green-600">✓ Правильный ответ: {q.correct_scale} — система проверит автоматически</p>
+                      ) : (
+                        <p className="text-[10px] text-gray-400">Кликните на значение, чтобы отметить правильный ответ</p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3 mt-3 pt-2 border-t border-gray-100">
+                    <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+                      <input type="checkbox" checked={q.required}
+                        onChange={e => updateQ(idx, { required: e.target.checked })}
+                        className="accent-blue-500" />
+                      Обязательный
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-0.5 flex-shrink-0 mt-1">
+                  <button onClick={() => moveQuestion(idx, -1)} disabled={idx === 0}
+                    className="p-1 text-gray-300 hover:text-gray-600 disabled:opacity-20 text-sm leading-none">↑</button>
+                  <button onClick={() => moveQuestion(idx, 1)} disabled={idx === questions.length - 1}
+                    className="p-1 text-gray-300 hover:text-gray-600 disabled:opacity-20 text-sm leading-none">↓</button>
+                  <button onClick={() => deleteQuestion(idx)} className="p-1 text-gray-300 hover:text-red-400 mt-0.5"><IconTrash /></button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <button
+            onClick={addQuestion}
+            className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50/50 transition-all"
+          >
+            + Добавить вопрос
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── VideoEditor ──────────────────────────────────────────────────────────────
+
+function parseVideoUrl(rawUrl: string): string {
+  if (!rawUrl) return '';
+  const url = rawUrl.trim();
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+  const vkMatch = url.match(/vk\.com\/video(-?\d+)_(\d+)/);
+  if (vkMatch) return `https://vk.com/video_ext.php?oid=${vkMatch[1]}&id=${vkMatch[2]}&hd=2`;
+  const rutubeMatch = url.match(/rutube\.ru\/video\/([a-zA-Z0-9]+)/);
+  if (rutubeMatch) return `https://rutube.ru/play/embed/${rutubeMatch[1]}`;
+  const yandexMatch = url.match(/filmId=([a-zA-Z0-9]+)/);
+  if (yandexMatch) return `https://frontend.vh.yandex.ru/player/${yandexMatch[1]}`;
+  return url;
+}
+
+function VideoEditor({ slide, lessonId, onSaved }: { slide: Slide; lessonId: number; onSaved: (s: Slide) => void }) {
+  const getContent = (): VideoContent => {
+    const c = slide.content as Partial<VideoContent>;
+    return { url: c?.url ?? '', embed_url: c?.embed_url ?? '', caption: c?.caption ?? '' };
+  };
+
+  const [url,      setUrl]      = useState(getContent().url);
+  const [caption,  setCaption]  = useState(getContent().caption);
+  const [embedUrl, setEmbedUrl] = useState(getContent().embed_url);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const c = getContent();
+    setUrl(c.url); setCaption(c.caption); setEmbedUrl(c.embed_url);
+  }, [slide.id]);
+
+  const doSave = (u: string, eu: string, cap: string) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      try {
+        const res = await api.put(`/lessons/lessons/${lessonId}/slides/${slide.id}/`, { content: { url: u, embed_url: eu, caption: cap } });
+        onSaved(res.data);
+      } catch { /* ignore */ }
+    }, 400);
+  };
+
+  const handleUrlChange = (val: string) => {
+    const parsed = parseVideoUrl(val);
+    setUrl(val); setEmbedUrl(parsed);
+    doSave(val, parsed, caption);
+  };
+
+  const handleCaptionChange = (val: string) => {
+    setCaption(val);
+    doSave(url, embedUrl, val);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="h-10 border-b border-gray-200 bg-white flex items-center px-4">
+        <span className="text-sm text-gray-500">📹 Редактор видео</span>
+      </div>
+      <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
+        <div className="max-w-2xl mx-auto space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Ссылка на видео</label>
+            <input
+              type="url" value={url}
+              onChange={e => handleUrlChange(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-400 bg-white"
+            />
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm" style={{ aspectRatio: '16/9' }}>
+            {embedUrl ? (
+              <iframe
+                src={embedUrl} className="w-full h-full"
+                allowFullScreen allow="autoplay; encrypted-media; fullscreen"
+                title="Video preview"
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
+                <span className="text-4xl mb-2">📹</span>
+                <span className="text-sm">Введите ссылку на видео</span>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Подпись (опционально)</label>
+            <input
+              type="text" value={caption}
+              onChange={e => handleCaptionChange(e.target.value)}
+              placeholder="Описание видео..."
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-400 bg-white"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── DiscussionBoard ──────────────────────────────────────────────────────────
+
+const STICKER_COLORS = ['#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#fed7aa', '#e9d5ff'];
+
+interface StickerItemProps {
+  sticker: DiscussionSticker;
+  isOwn: boolean;
+  isAdmin: boolean;
+  onMove: (x: number, y: number) => void;
+  onTextChange: (text: string) => void;
+  onDelete: () => void;
+}
+
+function StickerItem({ sticker, isOwn, isAdmin, onMove, onTextChange, onDelete }: StickerItemProps) {
+  const [localX, setLocalX] = useState(sticker.x);
+  const [localY, setLocalY] = useState(sticker.y);
+  const dragRef = useRef<{ startMX: number; startMY: number; startX: number; startY: number } | null>(null);
+
+  useEffect(() => { setLocalX(sticker.x); setLocalY(sticker.y); }, [sticker.x, sticker.y]);
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    dragRef.current = { startMX: e.clientX, startMY: e.clientY, startX: localX, startY: localY };
+    const handleMove = (me: MouseEvent) => {
+      if (!dragRef.current) return;
+      setLocalX(dragRef.current.startX + me.clientX - dragRef.current.startMX);
+      setLocalY(dragRef.current.startY + me.clientY - dragRef.current.startMY);
+    };
+    const handleUp = (me: MouseEvent) => {
+      if (!dragRef.current) return;
+      const nx = dragRef.current.startX + me.clientX - dragRef.current.startMX;
+      const ny = dragRef.current.startY + me.clientY - dragRef.current.startMY;
+      onMove(nx, ny);
+      dragRef.current = null;
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleUp);
+    };
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleUp);
+  };
+
+  return (
+    <div
+      style={{
+        position: 'absolute', left: localX, top: localY,
+        width: 180, minHeight: 130,
+        backgroundColor: sticker.color,
+        borderRadius: 8,
+        boxShadow: '0 2px 12px rgba(0,0,0,0.13)',
+        display: 'flex', flexDirection: 'column',
+        zIndex: 10, cursor: 'grab', userSelect: 'none',
+      }}
+      onMouseDown={onMouseDown}
+    >
+      <div className="flex items-center justify-end px-2 pt-1.5">
+        {(isOwn || isAdmin) && (
+          <button
+            onMouseDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onDelete(); }}
+            className="text-gray-400 hover:text-red-500 text-sm w-5 h-5 flex items-center justify-center rounded hover:bg-black/10"
+          >×</button>
+        )}
+      </div>
+      <textarea
+        value={sticker.text}
+        onChange={e => onTextChange(e.target.value)}
+        onMouseDown={e => e.stopPropagation()}
+        placeholder="Введите текст..."
+        className="flex-1 px-2.5 pb-1 text-sm bg-transparent resize-none border-none outline-none text-gray-800 placeholder:text-gray-400 cursor-text"
+        style={{ minHeight: 70 }}
+      />
+      <div className="px-2.5 pb-1.5 text-[10px] text-gray-500 font-medium border-t border-black/10 pt-1 truncate">
+        {sticker.author_name}
+      </div>
+    </div>
+  );
+}
+
+function DiscussionBoard({ slide }: { slide: Slide }) {
+  const { user: currentUser } = useAuth();
+
+  const [stickers, setStickers] = useState<DiscussionSticker[]>([]);
+  const [strokes,  setStrokes]  = useState<DiscussionStroke[]>([]);
+  const [tool,     setTool]     = useState<'sticker' | 'pen' | 'eraser'>('sticker');
+  const [penColor, setPenColor] = useState('#1f2937');
+  const [penWidth, setPenWidth] = useState(3);
+  const [stickerColor, setStickerColor] = useState(STICKER_COLORS[0]);
+  const [isConnected, setIsConnected] = useState(false);
+
+  const wsRef       = useRef<WebSocket | null>(null);
+  const canvasRef   = useRef<HTMLCanvasElement>(null);
+  const isDrawing   = useRef(false);
+  const curStroke   = useRef<[number, number][]>([]);
+  const colorRef    = useRef<HTMLInputElement>(null);
+
+  // WebSocket
+  useEffect(() => {
+    const token = localStorage.getItem('access_token') ?? '';
+    const ws = new WebSocket(`ws://localhost:8000/ws/discussion/${slide.id}/?token=${token}`);
+    wsRef.current = ws;
+
+    ws.onopen  = () => setIsConnected(true);
+    ws.onclose = () => { setIsConnected(false); wsRef.current = null; };
+    ws.onerror = () => setIsConnected(false);
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        switch (data.type) {
+          case 'init':
+            setStickers(data.stickers ?? []);
+            setStrokes(data.strokes ?? []);
+            break;
+          case 'sticker_added':
+            setStickers(prev => [...prev, data.sticker]);
+            break;
+          case 'sticker_updated':
+            setStickers(prev => prev.map(s => s.id === data.sticker.id ? data.sticker : s));
+            break;
+          case 'sticker_deleted':
+            setStickers(prev => prev.filter(s => s.id !== data.id));
+            break;
+          case 'stroke_added':
+            setStrokes(prev => [...prev, data.stroke]);
+            break;
+          case 'strokes_cleared':
+            setStrokes([]);
+            break;
+        }
+      } catch { /* ignore */ }
+    };
+
+    return () => { ws.close(); };
+  }, [slide.id]);
+
+  // Перерисовка canvas при изменении strokes
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!ctx || !canvas) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const stroke of strokes) {
+      if (stroke.points.length < 2) continue;
+      ctx.beginPath();
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth   = stroke.width;
+      ctx.lineCap     = 'round';
+      ctx.lineJoin    = 'round';
+      ctx.moveTo(stroke.points[0][0], stroke.points[0][1]);
+      for (let i = 1; i < stroke.points.length; i++) ctx.lineTo(stroke.points[i][0], stroke.points[i][1]);
+      ctx.stroke();
+    }
+  }, [strokes]);
+
+  const sendWs = (data: object) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify(data));
+  };
+
+  const addSticker = () => {
+    sendWs({
+      type: 'add_sticker',
+      x: 80 + Math.random() * 300, y: 60 + Math.random() * 200,
+      text: '', color: stickerColor,
+      created_at: new Date().toISOString(),
+    });
+  };
+
+  const moveStickerLocal = (id: string, x: number, y: number) => {
+    sendWs({ type: 'update_sticker', id, x, y });
+    setStickers(prev => prev.map(s => s.id === id ? { ...s, x, y } : s));
+  };
+
+  const updateStickerText = (id: string, text: string) => {
+    sendWs({ type: 'update_sticker', id, text });
+    setStickers(prev => prev.map(s => s.id === id ? { ...s, text } : s));
+  };
+
+  const deleteSticker = (id: string) => sendWs({ type: 'delete_sticker', id });
+  const clearStrokes  = () => sendWs({ type: 'clear_strokes' });
+
+  const getPos = (e: React.MouseEvent<HTMLCanvasElement>): [number, number] => {
+    const r = canvasRef.current!.getBoundingClientRect();
+    return [e.clientX - r.left, e.clientY - r.top];
+  };
+
+  const onCanvasDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (tool === 'sticker') return;
+    isDrawing.current = true;
+    curStroke.current = [getPos(e)];
+  };
+
+  const onCanvasMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing.current) return;
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    const pos = getPos(e);
+    curStroke.current.push(pos);
+    const pts = curStroke.current;
+    if (pts.length >= 2) {
+      ctx.beginPath();
+      ctx.strokeStyle = tool === 'eraser' ? 'white' : penColor;
+      ctx.lineWidth   = tool === 'eraser' ? 24 : penWidth;
+      ctx.lineCap     = 'round'; ctx.lineJoin = 'round';
+      ctx.moveTo(pts[pts.length - 2][0], pts[pts.length - 2][1]);
+      ctx.lineTo(pos[0], pos[1]);
+      ctx.stroke();
+    }
+  };
+
+  const onCanvasUp = () => {
+    if (!isDrawing.current) return;
+    isDrawing.current = false;
+    const pts = curStroke.current;
+    if (pts.length >= 2 && tool === 'pen') {
+      const stroke: DiscussionStroke = {
+        id: `s${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        points: pts, color: penColor, width: penWidth,
+      };
+      sendWs({ type: 'add_stroke', stroke });
+    }
+    // For eraser, just redraw strokes without sending (local visual only)
+    if (tool === 'eraser') {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d');
+      if (ctx && canvas) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (const stroke of strokes) {
+          if (stroke.points.length < 2) continue;
+          ctx.beginPath();
+          ctx.strokeStyle = stroke.color; ctx.lineWidth = stroke.width;
+          ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+          ctx.moveTo(stroke.points[0][0], stroke.points[0][1]);
+          for (let i = 1; i < stroke.points.length; i++) ctx.lineTo(stroke.points[i][0], stroke.points[i][1]);
+          ctx.stroke();
+        }
+      }
+    }
+    curStroke.current = [];
+  };
+
+  const TOOLS = [
+    { id: 'sticker' as const, icon: '🗒',  title: 'Добавить стикер (клик)' },
+    { id: 'pen'     as const, icon: '✏️', title: 'Карандаш' },
+    { id: 'eraser'  as const, icon: '◻',  title: 'Ластик' },
+  ] as const;
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Toolbar */}
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-white border-b border-gray-200 flex-wrap min-h-[44px] text-xs">
+        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+          {TOOLS.map(({ id, icon, title }) => (
+            <button
+              key={id}
+              onClick={() => id === 'sticker' ? addSticker() : setTool(id)}
+              className={`px-3 py-1.5 transition-colors text-sm ${tool === id && id !== 'sticker' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
+              title={title}
+            >{icon}</button>
+          ))}
+        </div>
+
+        <div className="w-px h-5 bg-gray-200" />
+
+        {/* Sticker color */}
+        <div className="flex items-center gap-1">
+          <span className="text-gray-400 mr-0.5">Стикер</span>
+          {STICKER_COLORS.map(c => (
+            <button
+              key={c} onClick={() => setStickerColor(c)}
+              className={`w-4 h-4 rounded border-2 transition-all ${stickerColor === c ? 'border-blue-500 scale-110' : 'border-transparent hover:border-gray-300'}`}
+              style={{ backgroundColor: c }}
+            />
+          ))}
+        </div>
+
+        <div className="w-px h-5 bg-gray-200" />
+
+        {/* Pen color + width */}
+        <div className="flex items-center gap-1.5">
+          <div
+            className="w-5 h-5 rounded border border-gray-300 cursor-pointer flex-shrink-0"
+            style={{ backgroundColor: penColor }}
+            onClick={() => colorRef.current?.click()}
+          />
+          <input ref={colorRef} type="color" value={penColor}
+            onChange={e => setPenColor(e.target.value)}
+            className="w-0 h-0 opacity-0 absolute pointer-events-none" />
+          <input type="range" min={1} max={20} value={penWidth}
+            onChange={e => setPenWidth(Number(e.target.value))}
+            className="w-20 accent-blue-500 cursor-pointer" title="Толщина" />
+          <span className="w-4 text-gray-500">{penWidth}</span>
+        </div>
+
+        <div className="w-px h-5 bg-gray-200" />
+
+        <button onClick={clearStrokes} className="text-gray-400 hover:text-red-500 transition-colors px-1.5 py-1 rounded hover:bg-red-50">
+          Очистить рисунок
+        </button>
+
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
+          <span className={isConnected ? 'text-green-600' : 'text-red-500'}>{isConnected ? 'Подключено' : 'Нет связи'}</span>
+        </div>
+      </div>
+
+      {/* Board */}
+      <div className="flex-1 overflow-auto bg-gray-100 flex items-start justify-center py-8">
+        <div
+          style={{
+            width: CANVAS_W, height: CANVAS_H, position: 'relative', flexShrink: 0,
+            background: 'white', boxShadow: '0 4px 32px rgba(0,0,0,0.15)', borderRadius: 8,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Stickers */}
+          {stickers.map(s => (
+            <StickerItem
+              key={s.id} sticker={s}
+              isOwn={s.author_id === currentUser?.id}
+              isAdmin={currentUser?.is_admin ?? false}
+              onMove={(x, y) => moveStickerLocal(s.id, x, y)}
+              onTextChange={text => updateStickerText(s.id, text)}
+              onDelete={() => deleteSticker(s.id)}
+            />
+          ))}
+
+          {/* Drawing canvas */}
+          <canvas
+            ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
+            style={{
+              position: 'absolute', top: 0, left: 0,
+              pointerEvents: tool === 'sticker' ? 'none' : 'auto',
+              cursor: tool === 'pen' ? 'crosshair' : tool === 'eraser' ? 'cell' : 'default',
+            }}
+            onMouseDown={onCanvasDown} onMouseMove={onCanvasMove}
+            onMouseUp={onCanvasUp} onMouseLeave={onCanvasUp}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -1165,6 +1899,8 @@ export default function LessonEditorPage() {
   const [selectedId,  setSelectedId]  = useState<number | null>(null);
   const [loading,     setLoading]     = useState(true);
   const [saveStatus,  setSaveStatus]  = useState<SaveStatus>('saved');
+
+  const [showTypePicker, setShowTypePicker] = useState(false);
 
   const [dragIdx,     setDragIdx]     = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
@@ -1198,12 +1934,15 @@ export default function LessonEditorPage() {
     } catch { setSaveStatus('unsaved'); }
   }, [lesson, lessonId, lessonTitle]);
 
-  const addSlide = async () => {
-    const res = await api.post(`/lessons/lessons/${lessonId}/slides/`, { slide_type: 'content' as SlideType, content: emptyContent() });
+  const addSlide = async (type: SlideType = 'content') => {
+    const initialContent = type === 'content' ? emptyContent() : {};
+    const res = await api.post(`/lessons/lessons/${lessonId}/slides/`, { slide_type: type, content: initialContent });
     const newSlide: Slide = res.data;
     setSlides(prev => [...prev, newSlide]);
     setSelectedId(newSlide.id);
   };
+
+  const openTypePicker = () => setShowTypePicker(true);
 
   const deleteSlide = async (slide: Slide) => {
     if (!confirm(`Удалить слайд ${slides.indexOf(slide) + 1}?`)) return;
@@ -1261,7 +2000,7 @@ export default function LessonEditorPage() {
         <aside className="w-48 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Слайды</span>
-            <button onClick={addSlide} title="Добавить слайд" className="p-1 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"><IconPlus /></button>
+            <button onClick={openTypePicker} title="Добавить слайд" className="p-1 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"><IconPlus /></button>
           </div>
           <div className="flex-1 overflow-y-auto">
             {slides.length === 0
@@ -1282,25 +2021,44 @@ export default function LessonEditorPage() {
             }
           </div>
           <div className="border-t border-gray-100 p-2">
-            <button onClick={addSlide} className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+            <button onClick={openTypePicker} className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
               <IconPlus />Добавить слайд
             </button>
           </div>
         </aside>
 
         <main className="flex-1 flex flex-col min-w-0 min-h-0">
-          {selectedSlide
-            ? <SlideCanvas key={selectedSlide.id} slide={selectedSlide} lessonId={lessonId} coverColor={lesson.cover_color} onSaved={handleSlideUpdated} />
-            : (
-              <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-400 bg-gray-50">
-                <span className="text-5xl">📄</span>
-                <p className="text-sm">Добавьте первый слайд</p>
-                <button onClick={addSlide} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Добавить слайд</button>
-              </div>
-            )
-          }
+          {selectedSlide ? (
+            <>
+              {(selectedSlide.slide_type === 'content' || !['form', 'video', 'discussion'].includes(selectedSlide.slide_type)) && (
+                <SlideCanvas key={selectedSlide.id} slide={selectedSlide} lessonId={lessonId} coverColor={lesson.cover_color} onSaved={handleSlideUpdated} />
+              )}
+              {selectedSlide.slide_type === 'form' && (
+                <FormEditor key={selectedSlide.id} slide={selectedSlide} lessonId={lessonId} onSaved={handleSlideUpdated} />
+              )}
+              {selectedSlide.slide_type === 'video' && (
+                <VideoEditor key={selectedSlide.id} slide={selectedSlide} lessonId={lessonId} onSaved={handleSlideUpdated} />
+              )}
+              {selectedSlide.slide_type === 'discussion' && (
+                <DiscussionBoard key={selectedSlide.id} slide={selectedSlide} />
+              )}
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-400 bg-gray-50">
+              <span className="text-5xl">📄</span>
+              <p className="text-sm">Добавьте первый слайд</p>
+              <button onClick={openTypePicker} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Добавить слайд</button>
+            </div>
+          )}
         </main>
       </div>
+
+      {showTypePicker && (
+        <SlideTypePicker
+          onSelect={type => { setShowTypePicker(false); addSlide(type); }}
+          onClose={() => setShowTypePicker(false)}
+        />
+      )}
     </div>
   );
 }

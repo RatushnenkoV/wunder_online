@@ -65,6 +65,8 @@ class Slide(models.Model):
     TYPE_QUIZ = 'quiz'
     TYPE_OPEN_QUESTION = 'open_question'
     TYPE_VIDEO = 'video'
+    TYPE_FORM = 'form'
+    TYPE_DISCUSSION = 'discussion'
 
     TYPE_CHOICES = [
         (TYPE_CONTENT, 'Контент'),
@@ -73,6 +75,8 @@ class Slide(models.Model):
         (TYPE_QUIZ, 'Викторина'),
         (TYPE_OPEN_QUESTION, 'Открытый вопрос'),
         (TYPE_VIDEO, 'Видео'),
+        (TYPE_FORM, 'Форма'),
+        (TYPE_DISCUSSION, 'Доска обсуждений'),
     ]
 
     lesson = models.ForeignKey(
