@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Lesson, LessonFolder, Slide, LessonMedia
+from .models import Lesson, LessonFolder, Slide, LessonMedia, LessonSession
 
 
 class LessonFolderSerializer(serializers.ModelSerializer):
@@ -79,6 +79,38 @@ class SlideSerializer(serializers.ModelSerializer):
         if request:
             return request.build_absolute_uri(obj.image.url)
         return obj.image.url
+
+
+class LessonSessionSerializer(serializers.ModelSerializer):
+    lesson_title = serializers.SerializerMethodField()
+    teacher_name = serializers.SerializerMethodField()
+    school_class_name = serializers.SerializerMethodField()
+    current_slide_id = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LessonSession
+        fields = [
+            'id', 'lesson', 'lesson_title',
+            'teacher', 'teacher_name',
+            'school_class', 'school_class_name',
+            'current_slide_id',
+            'is_active', 'started_at', 'ended_at',
+        ]
+        read_only_fields = ['teacher', 'started_at', 'ended_at', 'is_active']
+
+    def get_lesson_title(self, obj):
+        return obj.lesson.title if obj.lesson else ''
+
+    def get_teacher_name(self, obj):
+        if not obj.teacher:
+            return ''
+        return f'{obj.teacher.last_name} {obj.teacher.first_name}'.strip()
+
+    def get_school_class_name(self, obj):
+        return str(obj.school_class) if obj.school_class else ''
+
+    def get_current_slide_id(self, obj):
+        return obj.current_slide_id
 
 
 class LessonMediaSerializer(serializers.ModelSerializer):

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
+import StartSessionDialog from '../components/StartSessionDialog';
 import type { Lesson, LessonFolder, FolderContents } from '../types';
 
 // ─── Иконки ──────────────────────────────────────────────────────────────────
@@ -297,12 +298,14 @@ function FolderCard({ folder, isOwner, onClick, onRename, onDelete }: FolderCard
 interface LessonCardProps {
   lesson: Lesson;
   showOwner?: boolean;
+  isStaff?: boolean;
   onOpen: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onStart: () => void;
 }
 
-function LessonCard({ lesson, showOwner, onOpen, onDuplicate, onDelete }: LessonCardProps) {
+function LessonCard({ lesson, showOwner, isStaff, onOpen, onDuplicate, onDelete, onStart }: LessonCardProps) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
 
   const handleMenuClick = (e: React.MouseEvent) => {
@@ -312,6 +315,7 @@ function LessonCard({ lesson, showOwner, onOpen, onDuplicate, onDelete }: Lesson
 
   const menuItems = [
     { label: 'Открыть редактор', onClick: onOpen },
+    ...(isStaff ? [{ label: 'Начать урок', onClick: onStart }] : []),
     { label: 'Дублировать', onClick: onDuplicate },
     ...(lesson.is_owner ? [{ label: 'Удалить', onClick: onDelete, danger: true }] : []),
   ];
@@ -337,12 +341,25 @@ function LessonCard({ lesson, showOwner, onOpen, onDuplicate, onDelete }: Lesson
             <div className="font-medium text-gray-900 text-sm leading-tight line-clamp-2 flex-1">
               {lesson.title}
             </div>
-            <button
-              onClick={handleMenuClick}
-              className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all"
-            >
-              <IconDots />
-            </button>
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 flex-shrink-0 transition-all">
+              {isStaff && (
+                <button
+                  onClick={e => { e.stopPropagation(); onStart(); }}
+                  className="p-1.5 rounded-md text-green-500 hover:bg-green-50 hover:text-green-700 transition-colors"
+                  title="Начать урок"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={handleMenuClick}
+                className="p-1 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+              >
+                <IconDots />
+              </button>
+            </div>
           </div>
           {showOwner && (
             <div className="text-xs text-gray-400">{lesson.owner_name}</div>
@@ -423,6 +440,7 @@ export default function LessonsPage() {
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [editingFolder, setEditingFolder] = useState<LessonFolder | null>(null);
   const [showLessonModal, setShowLessonModal] = useState(false);
+  const [startingLesson, setStartingLesson] = useState<Lesson | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -615,9 +633,11 @@ export default function LessonsPage() {
               key={`lesson-${lesson.id}`}
               lesson={lesson}
               showOwner={tab === 'all'}
+              isStaff={!!isStaff}
               onOpen={() => navigate(`/lessons/${lesson.id}/edit`)}
               onDuplicate={() => handleDuplicate(lesson)}
               onDelete={() => handleDeleteLesson(lesson)}
+              onStart={() => setStartingLesson(lesson)}
             />
           ))}
         </div>
@@ -646,6 +666,14 @@ export default function LessonsPage() {
           folderId={currentFolder?.id ?? null}
           onSave={handleLessonCreated}
           onClose={() => setShowLessonModal(false)}
+        />
+      )}
+
+      {startingLesson && (
+        <StartSessionDialog
+          lessonId={startingLesson.id}
+          lessonTitle={startingLesson.title}
+          onClose={() => setStartingLesson(null)}
         />
       )}
     </div>

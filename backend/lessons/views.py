@@ -4,9 +4,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from django.utils import timezone
 from accounts.permissions import PasswordChanged
-from .models import Lesson, LessonFolder, Slide, LessonMedia
-from .serializers import LessonFolderSerializer, LessonSerializer, SlideSerializer, LessonMediaSerializer
+from .models import Lesson, LessonFolder, Slide, LessonMedia, LessonSession
+from .serializers import LessonFolderSerializer, LessonSerializer, SlideSerializer, LessonMediaSerializer, LessonSessionSerializer
 
 
 def _ctx(request):
@@ -279,3 +280,97 @@ def lesson_duplicate(request, lesson_id):
         cover_color=lesson.cover_color,
     )
     return Response(LessonSerializer(new_lesson, context=_ctx(request)).data, status=201)
+
+
+# ─── Сессии ───────────────────────────────────────────────────────────────────
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def session_list_create(request):
+    """
+    GET  – список сессий (фильтр ?lesson=id для учителя).
+    POST – создать сессию (только учитель/admin).
+    """
+    if request.method == 'GET':
+        lesson_id = request.query_params.get('lesson')
+        if lesson_id:
+            sessions = LessonSession.objects.filter(lesson_id=lesson_id)
+            if not _is_staff(request.user):
+                sessions = sessions.filter(is_active=True)
+        else:
+            if _is_staff(request.user):
+                sessions = LessonSession.objects.filter(teacher=request.user)
+            else:
+                sessions = LessonSession.objects.none()
+        return Response(LessonSessionSerializer(sessions, many=True, context=_ctx(request)).data)
+
+    # POST
+    if not _is_staff(request.user):
+        return Response({'error': 'Только учителя могут начинать уроки'}, status=403)
+
+    lesson_id = request.data.get('lesson')
+    school_class_id = request.data.get('school_class')
+
+    lesson = get_object_or_404(Lesson, id=lesson_id)
+    first_slide = lesson.slides.first()
+
+    session = LessonSession.objects.create(
+        lesson=lesson,
+        teacher=request.user,
+        school_class_id=school_class_id,
+        current_slide=first_slide,
+        is_active=True,
+    )
+    return Response(LessonSessionSerializer(session, context=_ctx(request)).data, status=201)
+
+
+@api_view(['GET', 'PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def session_detail(request, session_id):
+    session = get_object_or_404(LessonSession, id=session_id)
+
+    if request.method == 'GET':
+        return Response(LessonSessionSerializer(session, context=_ctx(request)).data)
+
+    # Изменять/удалять может только учитель сессии или admin
+    if session.teacher_id != request.user.id and not request.user.is_admin:
+        return Response({'error': 'Нет доступа'}, status=403)
+
+    if request.method == 'PATCH':
+        if 'is_active' in request.data and not request.data['is_active']:
+            session.is_active = False
+            session.ended_at = timezone.now()
+        if 'current_slide' in request.data:
+            session.current_slide_id = request.data['current_slide']
+        session.save()
+        return Response(LessonSessionSerializer(session, context=_ctx(request)).data)
+
+    if request.method == 'DELETE':
+        session.delete()
+        return Response(status=204)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def sessions_active(request):
+    """Активные сессии, доступные текущему пользователю."""
+    user = request.user
+
+    if _is_staff(user):
+        # Учителя/адмики видят все активные сессии
+        sessions = LessonSession.objects.filter(is_active=True).select_related('lesson', 'teacher', 'school_class')
+    elif user.is_student:
+        # Студенты видят сессии своего класса
+        try:
+            from school.models import StudentProfile
+            profile = StudentProfile.objects.get(user=user)
+            sessions = LessonSession.objects.filter(
+                is_active=True,
+                school_class=profile.school_class,
+            ).select_related('lesson', 'teacher', 'school_class')
+        except Exception:
+            sessions = LessonSession.objects.none()
+    else:
+        sessions = LessonSession.objects.none()
+
+    return Response(LessonSessionSerializer(sessions, many=True, context=_ctx(request)).data)

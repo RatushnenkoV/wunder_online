@@ -20,4 +20,9 @@ urlpatterns = [
     path('lessons/<int:lesson_id>/slides/reorder/', views.slides_reorder),
     path('lessons/<int:lesson_id>/slides/<int:slide_id>/', views.slide_detail),
     path('lessons/<int:lesson_id>/slides/<int:slide_id>/image/', views.slide_image_upload),
+
+    # Сессии
+    path('sessions/', views.session_list_create),
+    path('sessions/active/', views.sessions_active),
+    path('sessions/<int:session_id>/', views.session_detail),
 ]

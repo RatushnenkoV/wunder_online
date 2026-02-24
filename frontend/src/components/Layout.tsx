@@ -107,6 +107,7 @@ export default function Layout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tasksCount, setTasksCount] = useState<TasksCount | null>(null);
+  const [activeLessonsCount, setActiveLessonsCount] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
@@ -178,6 +179,22 @@ export default function Layout() {
     };
   }, [sidebarOpen]);
 
+  // Poll active sessions for students
+  useEffect(() => {
+    if (!user?.is_student) return;
+    const fetchActive = async () => {
+      try {
+        const res = await api.get('/lessons/sessions/active/');
+        setActiveLessonsCount(Array.isArray(res.data) ? res.data.length : 0);
+      } catch {
+        // ignore
+      }
+    };
+    fetchActive();
+    const interval = setInterval(fetchActive, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   const isStaff = user?.is_admin || user?.is_teacher;
 
   const navItems = [
@@ -193,7 +210,7 @@ export default function Layout() {
           badge: tasksCount && tasksCount.total > 0 ? tasksCount.total : null,
         }]
       : []),
-    { to: '/lessons', label: 'Уроки', icon: <IconPresentation />, end: false, badge: null },
+    { to: '/lessons', label: 'Уроки', icon: <IconPresentation />, end: false, badge: null, live: user?.is_student && activeLessonsCount > 0 },
     ...(isStaff
       ? [{ to: '/requests', label: 'Заявки', icon: <IconWrench />, end: false, badge: null }]
       : []),
@@ -266,6 +283,9 @@ export default function Layout() {
                     <span className="bg-blue-600 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none">
                       {item.badge}
                     </span>
+                  )}
+                  {'live' in item && item.live && (
+                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse flex-shrink-0" />
                   )}
                 </>
               )}

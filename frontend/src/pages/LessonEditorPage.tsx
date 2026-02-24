@@ -6,7 +6,8 @@ import StarterKit from '@tiptap/starter-kit';
 import { TextStyle, Color, FontSize, FontFamily } from '@tiptap/extension-text-style';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
-import type { Lesson, Slide, SlideBlock, ShapeType, SlideType, FormQuestion, FormQuestionType, VideoContent, DiscussionSticker, DiscussionStroke } from '../types';
+import StartSessionDialog from '../components/StartSessionDialog';
+import type { Lesson, Slide, SlideBlock, ShapeType, SlideType, FormQuestion, FormQuestionType, VideoContent, DiscussionSticker, DiscussionArrow } from '../types';
 
 // ─── Константы ────────────────────────────────────────────────────────────────
 
@@ -1178,7 +1179,7 @@ function SlideTypePicker({ onSelect, onClose }: { onSelect: (type: SlideType) =>
     { type: 'content',    icon: '📄', label: 'Контент',    desc: 'Свободный холст' },
     { type: 'form',       icon: '📋', label: 'Форма',      desc: 'Вопросы и ответы' },
     { type: 'video',      icon: '📹', label: 'Видео',      desc: 'YouTube и другие' },
-    { type: 'discussion', icon: '💬', label: 'Доска',      desc: 'Стикеры + рисунок' },
+    { type: 'discussion', icon: '💬', label: 'Доска',      desc: 'Стикеры + стрелки' },
   ];
 
   return (
@@ -1546,18 +1547,36 @@ function VideoEditor({ slide, lessonId, onSaved }: { slide: Slide; lessonId: num
 
 // ─── DiscussionBoard ──────────────────────────────────────────────────────────
 
+const STICKER_W = 180;
+const STICKER_H = 130;
 const STICKER_COLORS = ['#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#fed7aa', '#e9d5ff'];
+
+function stickerEdgePoint(s: DiscussionSticker, tx: number, ty: number): [number, number] {
+  const cx = s.x + STICKER_W / 2;
+  const cy = s.y + STICKER_H / 2;
+  const dx = tx - cx;
+  const dy = ty - cy;
+  if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return [cx, cy];
+  const hw = STICKER_W / 2;
+  const hh = STICKER_H / 2;
+  const tX = Math.abs(dx) > 0.01 ? hw / Math.abs(dx) : Infinity;
+  const tY = Math.abs(dy) > 0.01 ? hh / Math.abs(dy) : Infinity;
+  const t = Math.min(tX, tY);
+  return [cx + dx * t, cy + dy * t];
+}
 
 interface StickerItemProps {
   sticker: DiscussionSticker;
-  isOwn: boolean;
-  isAdmin: boolean;
+  canDelete: boolean;
+  connectMode: boolean;
+  isConnectSource: boolean;
   onMove: (x: number, y: number) => void;
   onTextChange: (text: string) => void;
   onDelete: () => void;
+  onConnectClick: () => void;
 }
 
-function StickerItem({ sticker, isOwn, isAdmin, onMove, onTextChange, onDelete }: StickerItemProps) {
+function StickerItem({ sticker, canDelete, connectMode, isConnectSource, onMove, onTextChange, onDelete, onConnectClick }: StickerItemProps) {
   const [localX, setLocalX] = useState(sticker.x);
   const [localY, setLocalY] = useState(sticker.y);
   const dragRef = useRef<{ startMX: number; startMY: number; startX: number; startY: number } | null>(null);
@@ -1565,6 +1584,7 @@ function StickerItem({ sticker, isOwn, isAdmin, onMove, onTextChange, onDelete }
   useEffect(() => { setLocalX(sticker.x); setLocalY(sticker.y); }, [sticker.x, sticker.y]);
 
   const onMouseDown = (e: React.MouseEvent) => {
+    if (connectMode) return;
     e.preventDefault();
     dragRef.current = { startMX: e.clientX, startMY: e.clientY, startX: localX, startY: localY };
     const handleMove = (me: MouseEvent) => {
@@ -1589,33 +1609,41 @@ function StickerItem({ sticker, isOwn, isAdmin, onMove, onTextChange, onDelete }
     <div
       style={{
         position: 'absolute', left: localX, top: localY,
-        width: 180, minHeight: 130,
+        width: STICKER_W, height: STICKER_H,
         backgroundColor: sticker.color,
-        borderRadius: 8,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.13)',
+        borderRadius: 10,
+        boxShadow: isConnectSource
+          ? '0 0 0 3px #3b82f6, 0 4px 16px rgba(0,0,0,0.18)'
+          : '0 2px 12px rgba(0,0,0,0.13)',
         display: 'flex', flexDirection: 'column',
-        zIndex: 10, cursor: 'grab', userSelect: 'none',
+        zIndex: 10,
+        cursor: connectMode ? 'pointer' : 'grab',
+        userSelect: 'none',
+        outline: connectMode && !isConnectSource ? '2px dashed #93c5fd' : 'none',
+        transition: 'box-shadow 0.15s, outline 0.15s',
       }}
       onMouseDown={onMouseDown}
+      onClick={() => { if (connectMode) onConnectClick(); }}
     >
-      <div className="flex items-center justify-end px-2 pt-1.5">
-        {(isOwn || isAdmin) && (
+      <div style={{ height: 26, flexShrink: 0 }} className="flex items-center justify-end px-2 pt-1.5">
+        {canDelete && !connectMode && (
           <button
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onDelete(); }}
-            className="text-gray-400 hover:text-red-500 text-sm w-5 h-5 flex items-center justify-center rounded hover:bg-black/10"
+            className="text-gray-400 hover:text-red-500 w-5 h-5 flex items-center justify-center rounded hover:bg-black/10 text-base leading-none"
           >×</button>
         )}
       </div>
       <textarea
         value={sticker.text}
         onChange={e => onTextChange(e.target.value)}
-        onMouseDown={e => e.stopPropagation()}
+        onMouseDown={e => { if (!connectMode) e.stopPropagation(); }}
         placeholder="Введите текст..."
-        className="flex-1 px-2.5 pb-1 text-sm bg-transparent resize-none border-none outline-none text-gray-800 placeholder:text-gray-400 cursor-text"
-        style={{ minHeight: 70 }}
+        readOnly={connectMode}
+        className="flex-1 px-2.5 text-sm bg-transparent resize-none border-none outline-none text-gray-800 placeholder:text-gray-400"
+        style={{ cursor: connectMode ? 'pointer' : 'text' }}
       />
-      <div className="px-2.5 pb-1.5 text-[10px] text-gray-500 font-medium border-t border-black/10 pt-1 truncate">
+      <div style={{ height: 26, flexShrink: 0 }} className="px-2.5 pb-1.5 text-[10px] text-gray-500 font-medium border-t border-black/10 pt-1 truncate">
         {sticker.author_name}
       </div>
     </div>
@@ -1625,21 +1653,20 @@ function StickerItem({ sticker, isOwn, isAdmin, onMove, onTextChange, onDelete }
 function DiscussionBoard({ slide }: { slide: Slide }) {
   const { user: currentUser } = useAuth();
 
-  const [stickers, setStickers] = useState<DiscussionSticker[]>([]);
-  const [strokes,  setStrokes]  = useState<DiscussionStroke[]>([]);
-  const [tool,     setTool]     = useState<'sticker' | 'pen' | 'eraser'>('sticker');
-  const [penColor, setPenColor] = useState('#1f2937');
-  const [penWidth, setPenWidth] = useState(3);
+  const [stickers,     setStickers]     = useState<DiscussionSticker[]>([]);
+  const [arrows,       setArrows]       = useState<DiscussionArrow[]>([]);
+  const [topic,        setTopic]        = useState('');
+  const [topicEdit,    setTopicEdit]    = useState(false);
+  const [topicDraft,   setTopicDraft]   = useState('');
   const [stickerColor, setStickerColor] = useState(STICKER_COLORS[0]);
-  const [isConnected, setIsConnected] = useState(false);
+  const [connectMode,  setConnectMode]  = useState(false);
+  const [connectFrom,  setConnectFrom]  = useState<string | null>(null);
+  const [hoveredArrow, setHoveredArrow] = useState<string | null>(null);
+  const [isConnected,  setIsConnected]  = useState(false);
 
-  const wsRef       = useRef<WebSocket | null>(null);
-  const canvasRef   = useRef<HTMLCanvasElement>(null);
-  const isDrawing   = useRef(false);
-  const curStroke   = useRef<[number, number][]>([]);
-  const colorRef    = useRef<HTMLInputElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const isTeacherOrAdmin = currentUser?.is_admin || currentUser?.is_teacher;
 
-  // WebSocket
   useEffect(() => {
     const token = localStorage.getItem('access_token') ?? '';
     const ws = new WebSocket(`ws://localhost:8000/ws/discussion/${slide.id}/?token=${token}`);
@@ -1655,7 +1682,8 @@ function DiscussionBoard({ slide }: { slide: Slide }) {
         switch (data.type) {
           case 'init':
             setStickers(data.stickers ?? []);
-            setStrokes(data.strokes ?? []);
+            setArrows(data.arrows ?? []);
+            setTopic(data.topic ?? '');
             break;
           case 'sticker_added':
             setStickers(prev => [...prev, data.sticker]);
@@ -1665,12 +1693,16 @@ function DiscussionBoard({ slide }: { slide: Slide }) {
             break;
           case 'sticker_deleted':
             setStickers(prev => prev.filter(s => s.id !== data.id));
+            setArrows(prev => prev.filter(a => a.from_id !== data.id && a.to_id !== data.id));
             break;
-          case 'stroke_added':
-            setStrokes(prev => [...prev, data.stroke]);
+          case 'arrow_added':
+            setArrows(prev => [...prev, data.arrow]);
             break;
-          case 'strokes_cleared':
-            setStrokes([]);
+          case 'arrow_deleted':
+            setArrows(prev => prev.filter(a => a.id !== data.id));
+            break;
+          case 'topic_updated':
+            setTopic(data.topic ?? '');
             break;
         }
       } catch { /* ignore */ }
@@ -1679,25 +1711,6 @@ function DiscussionBoard({ slide }: { slide: Slide }) {
     return () => { ws.close(); };
   }, [slide.id]);
 
-  // Перерисовка canvas при изменении strokes
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!ctx || !canvas) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (const stroke of strokes) {
-      if (stroke.points.length < 2) continue;
-      ctx.beginPath();
-      ctx.strokeStyle = stroke.color;
-      ctx.lineWidth   = stroke.width;
-      ctx.lineCap     = 'round';
-      ctx.lineJoin    = 'round';
-      ctx.moveTo(stroke.points[0][0], stroke.points[0][1]);
-      for (let i = 1; i < stroke.points.length; i++) ctx.lineTo(stroke.points[i][0], stroke.points[i][1]);
-      ctx.stroke();
-    }
-  }, [strokes]);
-
   const sendWs = (data: object) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify(data));
   };
@@ -1705,7 +1718,7 @@ function DiscussionBoard({ slide }: { slide: Slide }) {
   const addSticker = () => {
     sendWs({
       type: 'add_sticker',
-      x: 80 + Math.random() * 300, y: 60 + Math.random() * 200,
+      x: 60 + Math.random() * 400, y: 40 + Math.random() * 220,
       text: '', color: stickerColor,
       created_at: new Date().toISOString(),
     });
@@ -1722,94 +1735,107 @@ function DiscussionBoard({ slide }: { slide: Slide }) {
   };
 
   const deleteSticker = (id: string) => sendWs({ type: 'delete_sticker', id });
-  const clearStrokes  = () => sendWs({ type: 'clear_strokes' });
+  const deleteArrow   = (id: string) => sendWs({ type: 'delete_arrow', id });
 
-  const getPos = (e: React.MouseEvent<HTMLCanvasElement>): [number, number] => {
-    const r = canvasRef.current!.getBoundingClientRect();
-    return [e.clientX - r.left, e.clientY - r.top];
-  };
-
-  const onCanvasDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (tool === 'sticker') return;
-    isDrawing.current = true;
-    curStroke.current = [getPos(e)];
-  };
-
-  const onCanvasMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing.current) return;
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    const pos = getPos(e);
-    curStroke.current.push(pos);
-    const pts = curStroke.current;
-    if (pts.length >= 2) {
-      ctx.beginPath();
-      ctx.strokeStyle = tool === 'eraser' ? 'white' : penColor;
-      ctx.lineWidth   = tool === 'eraser' ? 24 : penWidth;
-      ctx.lineCap     = 'round'; ctx.lineJoin = 'round';
-      ctx.moveTo(pts[pts.length - 2][0], pts[pts.length - 2][1]);
-      ctx.lineTo(pos[0], pos[1]);
-      ctx.stroke();
+  const handleStickerConnectClick = (stickerId: string) => {
+    if (!connectMode) return;
+    if (!connectFrom) {
+      setConnectFrom(stickerId);
+    } else if (connectFrom === stickerId) {
+      setConnectFrom(null);
+    } else {
+      sendWs({ type: 'add_arrow', from_id: connectFrom, to_id: stickerId });
+      setConnectFrom(null);
+      setConnectMode(false);
     }
   };
 
-  const onCanvasUp = () => {
-    if (!isDrawing.current) return;
-    isDrawing.current = false;
-    const pts = curStroke.current;
-    if (pts.length >= 2 && tool === 'pen') {
-      const stroke: DiscussionStroke = {
-        id: `s${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        points: pts, color: penColor, width: penWidth,
-      };
-      sendWs({ type: 'add_stroke', stroke });
-    }
-    // For eraser, just redraw strokes without sending (local visual only)
-    if (tool === 'eraser') {
-      const canvas = canvasRef.current;
-      const ctx = canvas?.getContext('2d');
-      if (ctx && canvas) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        for (const stroke of strokes) {
-          if (stroke.points.length < 2) continue;
-          ctx.beginPath();
-          ctx.strokeStyle = stroke.color; ctx.lineWidth = stroke.width;
-          ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-          ctx.moveTo(stroke.points[0][0], stroke.points[0][1]);
-          for (let i = 1; i < stroke.points.length; i++) ctx.lineTo(stroke.points[i][0], stroke.points[i][1]);
-          ctx.stroke();
-        }
-      }
-    }
-    curStroke.current = [];
+  const toggleConnectMode = () => {
+    setConnectMode(prev => !prev);
+    setConnectFrom(null);
   };
 
-  const TOOLS = [
-    { id: 'sticker' as const, icon: '🗒',  title: 'Добавить стикер (клик)' },
-    { id: 'pen'     as const, icon: '✏️', title: 'Карандаш' },
-    { id: 'eraser'  as const, icon: '◻',  title: 'Ластик' },
-  ] as const;
+  const saveTopic = () => {
+    sendWs({ type: 'update_topic', topic: topicDraft });
+    setTopic(topicDraft);
+    setTopicEdit(false);
+  };
+
+  const canDeleteItem = (authorId: number) =>
+    !!(currentUser && (isTeacherOrAdmin || authorId === currentUser.id));
 
   return (
     <div className="flex flex-col h-full">
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-white border-b border-gray-200 flex-wrap min-h-[44px] text-xs">
-        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-          {TOOLS.map(({ id, icon, title }) => (
-            <button
-              key={id}
-              onClick={() => id === 'sticker' ? addSticker() : setTool(id)}
-              className={`px-3 py-1.5 transition-colors text-sm ${tool === id && id !== 'sticker' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
-              title={title}
-            >{icon}</button>
-          ))}
-        </div>
+
+      {/* Строка темы */}
+      <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2 min-h-[44px]">
+        {topicEdit && isTeacherOrAdmin ? (
+          <>
+            <input
+              autoFocus
+              value={topicDraft}
+              onChange={e => setTopicDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveTopic(); if (e.key === 'Escape') setTopicEdit(false); }}
+              className="flex-1 text-base font-semibold text-gray-800 bg-white border border-blue-300 rounded px-2 py-0.5 outline-none focus:ring-2 focus:ring-blue-200"
+              placeholder="Тема обсуждения..."
+              maxLength={200}
+            />
+            <button onClick={saveTopic} className="text-xs px-2.5 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Сохранить</button>
+            <button onClick={() => setTopicEdit(false)} className="text-xs px-2.5 py-1 text-gray-500 hover:text-gray-700">Отмена</button>
+          </>
+        ) : (
+          <>
+            <span className="flex-1 text-base font-semibold text-gray-700 truncate">
+              {topic || <span className="text-gray-400 font-normal italic text-sm">Тема не задана</span>}
+            </span>
+            {isTeacherOrAdmin && (
+              <button
+                onClick={() => { setTopicDraft(topic); setTopicEdit(true); }}
+                className="text-xs text-gray-400 hover:text-blue-500 px-1.5 py-1 rounded hover:bg-blue-50 transition-colors flex-shrink-0"
+              >Изменить</button>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Панель инструментов */}
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-white border-b border-gray-200 flex-wrap min-h-[44px]">
+        <button
+          onClick={addSticker}
+          disabled={!isConnected || connectMode}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          <span className="text-base leading-none">+</span> Стикер
+        </button>
+
+        <button
+          onClick={toggleConnectMode}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+            connectMode
+              ? 'bg-orange-50 text-orange-700 border-orange-300'
+              : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+          }`}
+          title="Соединить стикеры стрелкой"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}>
+            <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {connectMode
+            ? (connectFrom ? 'Выберите второй стикер' : 'Выберите первый стикер')
+            : 'Соединить'}
+        </button>
+
+        {connectMode && (
+          <button
+            onClick={() => { setConnectMode(false); setConnectFrom(null); }}
+            className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100"
+          >Отмена</button>
+        )}
 
         <div className="w-px h-5 bg-gray-200" />
 
-        {/* Sticker color */}
         <div className="flex items-center gap-1">
-          <span className="text-gray-400 mr-0.5">Стикер</span>
+          <span className="text-xs text-gray-400 mr-0.5">Цвет</span>
           {STICKER_COLORS.map(c => (
             <button
               key={c} onClick={() => setStickerColor(c)}
@@ -1819,37 +1845,15 @@ function DiscussionBoard({ slide }: { slide: Slide }) {
           ))}
         </div>
 
-        <div className="w-px h-5 bg-gray-200" />
-
-        {/* Pen color + width */}
-        <div className="flex items-center gap-1.5">
-          <div
-            className="w-5 h-5 rounded border border-gray-300 cursor-pointer flex-shrink-0"
-            style={{ backgroundColor: penColor }}
-            onClick={() => colorRef.current?.click()}
-          />
-          <input ref={colorRef} type="color" value={penColor}
-            onChange={e => setPenColor(e.target.value)}
-            className="w-0 h-0 opacity-0 absolute pointer-events-none" />
-          <input type="range" min={1} max={20} value={penWidth}
-            onChange={e => setPenWidth(Number(e.target.value))}
-            className="w-20 accent-blue-500 cursor-pointer" title="Толщина" />
-          <span className="w-4 text-gray-500">{penWidth}</span>
-        </div>
-
-        <div className="w-px h-5 bg-gray-200" />
-
-        <button onClick={clearStrokes} className="text-gray-400 hover:text-red-500 transition-colors px-1.5 py-1 rounded hover:bg-red-50">
-          Очистить рисунок
-        </button>
-
         <div className="ml-auto flex items-center gap-1.5">
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
-          <span className={isConnected ? 'text-green-600' : 'text-red-500'}>{isConnected ? 'Подключено' : 'Нет связи'}</span>
+          <span className={`text-xs ${isConnected ? 'text-green-600' : 'text-red-500'}`}>
+            {isConnected ? 'Подключено' : 'Нет связи'}
+          </span>
         </div>
       </div>
 
-      {/* Board */}
+      {/* Доска */}
       <div className="flex-1 overflow-auto bg-gray-100 flex items-start justify-center py-8">
         <div
           style={{
@@ -1858,29 +1862,90 @@ function DiscussionBoard({ slide }: { slide: Slide }) {
             overflow: 'hidden',
           }}
         >
-          {/* Stickers */}
+          {/* SVG-слой стрелок */}
+          <svg
+            style={{
+              position: 'absolute', top: 0, left: 0,
+              width: '100%', height: '100%',
+              zIndex: 5, overflow: 'visible',
+            }}
+          >
+            <defs>
+              <marker id="db-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af" />
+              </marker>
+              <marker id="db-arrow-del" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444" />
+              </marker>
+            </defs>
+
+            {arrows.map(arrow => {
+              const from = stickers.find(s => s.id === arrow.from_id);
+              const to   = stickers.find(s => s.id === arrow.to_id);
+              if (!from || !to) return null;
+
+              const toCx  = to.x   + STICKER_W / 2;
+              const toCy  = to.y   + STICKER_H / 2;
+              const fromCx = from.x + STICKER_W / 2;
+              const fromCy = from.y + STICKER_H / 2;
+
+              const [x1, y1] = stickerEdgePoint(from, toCx, toCy);
+              const [x2, y2] = stickerEdgePoint(to, fromCx, fromCy);
+              const mx = (x1 + x2) / 2;
+              const my = (y1 + y2) / 2;
+              const isHovered = hoveredArrow === arrow.id;
+              const canDel = canDeleteItem(arrow.author_id);
+
+              return (
+                <g key={arrow.id}>
+                  {/* Видимая линия */}
+                  <line
+                    x1={x1} y1={y1} x2={x2} y2={y2}
+                    stroke={isHovered ? '#ef4444' : '#9ca3af'}
+                    strokeWidth={isHovered ? 2.5 : 2}
+                    markerEnd={isHovered ? 'url(#db-arrow-del)' : 'url(#db-arrow)'}
+                    style={{ pointerEvents: 'none' }}
+                  />
+                  {/* Широкая невидимая линия для захвата событий */}
+                  <line
+                    x1={x1} y1={y1} x2={x2} y2={y2}
+                    stroke="transparent" strokeWidth={18}
+                    style={{ pointerEvents: 'stroke', cursor: canDel ? 'pointer' : 'default' }}
+                    onMouseEnter={() => setHoveredArrow(arrow.id)}
+                    onMouseLeave={() => setHoveredArrow(null)}
+                    onClick={canDel ? () => deleteArrow(arrow.id) : undefined}
+                  />
+                  {/* Кнопка удаления в центре стрелки */}
+                  {isHovered && canDel && (
+                    <g
+                      transform={`translate(${mx}, ${my})`}
+                      style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                      onMouseEnter={() => setHoveredArrow(arrow.id)}
+                      onMouseLeave={() => setHoveredArrow(null)}
+                      onClick={() => deleteArrow(arrow.id)}
+                    >
+                      <circle r={10} fill="white" stroke="#fca5a5" strokeWidth={1.5} />
+                      <text textAnchor="middle" dominantBaseline="middle" fontSize={14} fill="#ef4444" fontWeight="bold">×</text>
+                    </g>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* Стикеры */}
           {stickers.map(s => (
             <StickerItem
               key={s.id} sticker={s}
-              isOwn={s.author_id === currentUser?.id}
-              isAdmin={currentUser?.is_admin ?? false}
+              canDelete={canDeleteItem(s.author_id)}
+              connectMode={connectMode}
+              isConnectSource={connectFrom === s.id}
               onMove={(x, y) => moveStickerLocal(s.id, x, y)}
               onTextChange={text => updateStickerText(s.id, text)}
               onDelete={() => deleteSticker(s.id)}
+              onConnectClick={() => handleStickerConnectClick(s.id)}
             />
           ))}
-
-          {/* Drawing canvas */}
-          <canvas
-            ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
-            style={{
-              position: 'absolute', top: 0, left: 0,
-              pointerEvents: tool === 'sticker' ? 'none' : 'auto',
-              cursor: tool === 'pen' ? 'crosshair' : tool === 'eraser' ? 'cell' : 'default',
-            }}
-            onMouseDown={onCanvasDown} onMouseMove={onCanvasMove}
-            onMouseUp={onCanvasUp} onMouseLeave={onCanvasUp}
-          />
         </div>
       </div>
     </div>
@@ -1892,6 +1957,7 @@ function DiscussionBoard({ slide }: { slide: Slide }) {
 export default function LessonEditorPage() {
   const { id } = useParams<{ id: string }>();
   const lessonId = Number(id);
+  const { user } = useAuth();
 
   const [lesson,      setLesson]      = useState<Lesson | null>(null);
   const [lessonTitle, setLessonTitle] = useState('');
@@ -1900,7 +1966,8 @@ export default function LessonEditorPage() {
   const [loading,     setLoading]     = useState(true);
   const [saveStatus,  setSaveStatus]  = useState<SaveStatus>('saved');
 
-  const [showTypePicker, setShowTypePicker] = useState(false);
+  const [showTypePicker,  setShowTypePicker]  = useState(false);
+  const [showStartDialog, setShowStartDialog] = useState(false);
 
   const [dragIdx,     setDragIdx]     = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
@@ -1994,7 +2061,27 @@ export default function LessonEditorPage() {
           {saveStatus === 'saving'  && <span className="text-gray-400">Сохраняю...</span>}
           {saveStatus === 'unsaved' && <span className="text-amber-500">Не сохранено</span>}
         </div>
+        {(user?.is_teacher || user?.is_admin) && (
+          <button
+            onClick={() => setShowStartDialog(true)}
+            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-medium rounded-lg transition-colors"
+            title="Начать урок в реальном времени"
+          >
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+            </svg>
+            Начать урок
+          </button>
+        )}
       </header>
+
+      {showStartDialog && lesson && (
+        <StartSessionDialog
+          lessonId={lessonId}
+          lessonTitle={lesson.title}
+          onClose={() => setShowStartDialog(false)}
+        />
+      )}
 
       <div className="flex flex-1 min-h-0">
         <aside className="w-48 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">

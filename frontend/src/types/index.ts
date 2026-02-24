@@ -279,6 +279,20 @@ export interface Lesson {
   updated_at: string;
 }
 
+export interface LessonSession {
+  id: number;
+  lesson: number;
+  lesson_title: string;
+  teacher: number;
+  teacher_name: string;
+  school_class: number | null;
+  school_class_name: string;
+  current_slide_id: number | null;
+  is_active: boolean;
+  started_at: string;
+  ended_at: string | null;
+}
+
 export type SlideType = 'content' | 'image' | 'poll' | 'quiz' | 'open_question' | 'video' | 'form' | 'discussion';
 
 export type FormQuestionType = 'single' | 'multiple' | 'text' | 'scale';
@@ -314,6 +328,14 @@ export interface DiscussionSticker {
   author_id: number;
   author_name: string;
   created_at: string;
+}
+
+export interface DiscussionArrow {
+  id: string;
+  from_id: string;
+  to_id: string;
+  author_id: number;
+  author_name: string;
 }
 
 export interface DiscussionStroke {

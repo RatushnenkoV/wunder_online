@@ -111,6 +111,45 @@ class Slide(models.Model):
         return f'Слайд {self.order}: {self.title or self.slide_type}'
 
 
+class LessonSession(models.Model):
+    lesson = models.ForeignKey(
+        Lesson,
+        on_delete=models.CASCADE,
+        related_name='sessions',
+        verbose_name='Урок',
+    )
+    teacher = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='led_sessions',
+        verbose_name='Учитель',
+    )
+    school_class = models.ForeignKey(
+        'school.SchoolClass',
+        on_delete=models.SET_NULL,
+        null=True,
+        verbose_name='Класс',
+    )
+    current_slide = models.ForeignKey(
+        Slide,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name='Текущий слайд',
+    )
+    is_active = models.BooleanField(default=True, verbose_name='Активна')
+    started_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-started_at']
+        verbose_name = 'Сессия урока'
+        verbose_name_plural = 'Сессии уроков'
+
+    def __str__(self):
+        return f'Сессия "{self.lesson}" — {self.started_at:%d.%m.%Y %H:%M}'
+
+
 class LessonMedia(models.Model):
     lesson = models.ForeignKey(
         Lesson,

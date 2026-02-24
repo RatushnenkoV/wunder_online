@@ -4,7 +4,7 @@ import uuid
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-from .models import Slide
+from .models import Slide, LessonSession
 
 
 class DiscussionConsumer(AsyncWebsocketConsumer):
@@ -22,14 +22,21 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
             await self.close(code=4004)
             return
 
-        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        try:
+            await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        except Exception:
+            await self.accept()
+            await self.close(code=1011)
+            return
+
         await self.accept()
 
         content = slide.content or {}
         await self.send(text_data=json.dumps({
             'type': 'init',
             'stickers': content.get('stickers', []),
-            'strokes': content.get('strokes', []),
+            'arrows': content.get('arrows', []),
+            'topic': content.get('topic', ''),
         }))
 
     async def disconnect(self, close_code):
@@ -81,21 +88,41 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
                     {'type': 'sticker_deleted', 'id': sticker_id},
                 )
 
-        elif msg_type == 'add_stroke':
-            stroke = data.get('stroke')
-            if stroke:
-                await self.do_save_stroke(stroke)
+        elif msg_type == 'add_arrow':
+            from_id = data.get('from_id')
+            to_id = data.get('to_id')
+            if from_id and to_id:
+                arrow = {
+                    'id': str(uuid.uuid4()),
+                    'from_id': from_id,
+                    'to_id': to_id,
+                    'author_id': self.user.id,
+                    'author_name': f'{self.user.first_name} {self.user.last_name}'.strip(),
+                }
+                await self.save_arrow(arrow)
                 await self.channel_layer.group_send(
                     self.room_group_name,
-                    {'type': 'stroke_added', 'stroke': stroke},
+                    {'type': 'arrow_added', 'arrow': arrow},
                 )
 
-        elif msg_type == 'clear_strokes':
-            await self.do_clear_strokes()
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {'type': 'strokes_cleared'},
-            )
+        elif msg_type == 'delete_arrow':
+            arrow_id = data.get('id')
+            allowed = await self.can_delete_arrow(arrow_id)
+            if allowed:
+                await self.do_remove_arrow(arrow_id)
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {'type': 'arrow_deleted', 'id': arrow_id},
+                )
+
+        elif msg_type == 'update_topic':
+            if self.user.is_teacher or self.user.is_admin:
+                topic = str(data.get('topic', ''))[:200]
+                await self.do_update_topic(topic)
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {'type': 'topic_updated', 'topic': topic},
+                )
 
     # ── Group message handlers ──────────────────────────────────────────────────
 
@@ -114,13 +141,20 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
             'type': 'sticker_deleted', 'id': event['id'],
         }))
 
-    async def stroke_added(self, event):
+    async def arrow_added(self, event):
         await self.send(text_data=json.dumps({
-            'type': 'stroke_added', 'stroke': event['stroke'],
+            'type': 'arrow_added', 'arrow': event['arrow'],
         }))
 
-    async def strokes_cleared(self, event):
-        await self.send(text_data=json.dumps({'type': 'strokes_cleared'}))
+    async def arrow_deleted(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'arrow_deleted', 'id': event['id'],
+        }))
+
+    async def topic_updated(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'topic_updated', 'topic': event['topic'],
+        }))
 
     # ── DB helpers ──────────────────────────────────────────────────────────────
 
@@ -163,7 +197,7 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
 
     @sync_to_async
     def can_delete_sticker(self, sticker_id):
-        if self.user.is_admin:
+        if self.user.is_admin or self.user.is_teacher:
             return True
         try:
             slide = Slide.objects.get(id=self.slide_id)
@@ -180,32 +214,182 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
         try:
             slide = Slide.objects.get(id=self.slide_id)
             content = dict(slide.content or {})
-            content['stickers'] = [s for s in content.get('stickers', []) if s.get('id') != sticker_id]
+            content['stickers'] = [
+                s for s in content.get('stickers', []) if s.get('id') != sticker_id
+            ]
+            # Remove arrows that referenced this sticker
+            content['arrows'] = [
+                a for a in content.get('arrows', [])
+                if a.get('from_id') != sticker_id and a.get('to_id') != sticker_id
+            ]
             slide.content = content
             slide.save()
         except Slide.DoesNotExist:
             pass
 
     @sync_to_async
-    def do_save_stroke(self, stroke):
+    def save_arrow(self, arrow):
         try:
             slide = Slide.objects.get(id=self.slide_id)
             content = dict(slide.content or {})
-            strokes = list(content.get('strokes', []))
-            strokes.append(stroke)
-            content['strokes'] = strokes
+            arrows = list(content.get('arrows', []))
+            arrows.append(arrow)
+            content['arrows'] = arrows
             slide.content = content
             slide.save()
         except Slide.DoesNotExist:
             pass
 
     @sync_to_async
-    def do_clear_strokes(self):
+    def can_delete_arrow(self, arrow_id):
+        if self.user.is_admin or self.user.is_teacher:
+            return True
+        try:
+            slide = Slide.objects.get(id=self.slide_id)
+            content = slide.content or {}
+            for a in content.get('arrows', []):
+                if a.get('id') == arrow_id:
+                    return a.get('author_id') == self.user.id
+        except Slide.DoesNotExist:
+            pass
+        return False
+
+    @sync_to_async
+    def do_remove_arrow(self, arrow_id):
         try:
             slide = Slide.objects.get(id=self.slide_id)
             content = dict(slide.content or {})
-            content['strokes'] = []
+            content['arrows'] = [a for a in content.get('arrows', []) if a.get('id') != arrow_id]
             slide.content = content
             slide.save()
         except Slide.DoesNotExist:
+            pass
+
+    @sync_to_async
+    def do_update_topic(self, topic):
+        try:
+            slide = Slide.objects.get(id=self.slide_id)
+            content = dict(slide.content or {})
+            content['topic'] = topic
+            slide.content = content
+            slide.save()
+        except Slide.DoesNotExist:
+            pass
+
+
+# ─── LessonSessionConsumer ────────────────────────────────────────────────────
+
+class LessonSessionConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.session_id = self.scope['url_route']['kwargs']['session_id']
+        self.room_group_name = f'lesson_session_{self.session_id}'
+        self.user = self.scope['user']
+
+        if not self.user or not self.user.is_authenticated:
+            await self.close(code=4001)
+            return
+
+        session = await self.get_session()
+        if session is None:
+            await self.close(code=4004)
+            return
+
+        # Студентам нельзя подключаться к завершённой сессии
+        is_presenter = session.teacher_id == self.user.id or self.user.is_admin
+        if not session.is_active and not is_presenter:
+            await self.close(code=4403)
+            return
+
+        try:
+            await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        except Exception:
+            # Redis unavailable — still accept so the client sees a proper close
+            await self.accept()
+            await self.close(code=1011)
+            return
+
+        await self.accept()
+
+        await self.send(text_data=json.dumps({
+            'type': 'init',
+            'session_id': session.id,
+            'current_slide_id': session.current_slide_id,
+            'is_active': session.is_active,
+        }))
+
+    async def disconnect(self, close_code):
+        if hasattr(self, 'room_group_name'):
+            await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+
+    async def receive(self, text_data):
+        try:
+            data = json.loads(text_data)
+        except json.JSONDecodeError:
+            return
+
+        session = await self.get_session()
+        if session is None:
+            return
+
+        # Только учитель/admin управляет сессией
+        is_presenter = session.teacher_id == self.user.id or self.user.is_admin
+        if not is_presenter:
+            return
+
+        msg_type = data.get('type')
+
+        if msg_type == 'set_slide':
+            slide_id = data.get('slide_id')
+            if slide_id:
+                await self.do_set_slide(slide_id)
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {'type': 'slide_changed', 'slide_id': slide_id},
+                )
+
+        elif msg_type == 'end_session':
+            await self.do_end_session()
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {'type': 'session_ended'},
+            )
+
+    # ── Group message handlers ────────────────────────────────────────────────
+
+    async def slide_changed(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'slide_changed',
+            'slide_id': event['slide_id'],
+        }))
+
+    async def session_ended(self, event):
+        await self.send(text_data=json.dumps({'type': 'session_ended'}))
+
+    # ── DB helpers ────────────────────────────────────────────────────────────
+
+    @sync_to_async
+    def get_session(self):
+        try:
+            return LessonSession.objects.get(id=self.session_id)
+        except LessonSession.DoesNotExist:
+            return None
+
+    @sync_to_async
+    def do_set_slide(self, slide_id):
+        try:
+            session = LessonSession.objects.get(id=self.session_id)
+            session.current_slide_id = slide_id
+            session.save(update_fields=['current_slide'])
+        except LessonSession.DoesNotExist:
+            pass
+
+    @sync_to_async
+    def do_end_session(self):
+        from django.utils import timezone
+        try:
+            session = LessonSession.objects.get(id=self.session_id)
+            session.is_active = False
+            session.ended_at = timezone.now()
+            session.save(update_fields=['is_active', 'ended_at'])
+        except LessonSession.DoesNotExist:
             pass
