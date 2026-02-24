@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import StartSessionDialog from '../components/StartSessionDialog';
-import type { Lesson, LessonFolder, FolderContents } from '../types';
+import type { Lesson, LessonFolder, FolderContents, LessonSession } from '../types';
 
 // ─── Иконки ──────────────────────────────────────────────────────────────────
 
@@ -431,6 +431,15 @@ export default function LessonsPage() {
   const [folderPath, setFolderPath] = useState<LessonFolder[]>([]);
   const currentFolder = folderPath[folderPath.length - 1] ?? null;
 
+  // Активные сессии (для студентов — их класс, для staff — все)
+  const [activeSessions, setActiveSessions] = useState<LessonSession[]>([]);
+
+  useEffect(() => {
+    api.get('/lessons/sessions/active/').then(res => {
+      setActiveSessions(Array.isArray(res.data) ? res.data : []);
+    }).catch(() => {});
+  }, []);
+
   // Данные
   const [folders, setFolders] = useState<LessonFolder[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -589,6 +598,42 @@ export default function LessonsPage() {
       {/* Хлебные крошки (только для вкладки «Мои») */}
       {tab === 'mine' && folderPath.length > 0 && (
         <Breadcrumbs path={folderPath} onNavigate={navigateTo} />
+      )}
+
+      {/* Активные уроки */}
+      {activeSessions.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse inline-block" />
+            Идёт сейчас
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {activeSessions.map(ses => (
+              <button
+                key={ses.id}
+                onClick={() => navigate(`/lessons/session/${ses.id}`)}
+                className="flex items-center gap-4 p-4 bg-white border-2 border-green-200 rounded-xl hover:border-green-400 hover:shadow-md transition-all text-left group"
+              >
+                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-sm text-gray-900 truncate group-hover:text-green-700 transition-colors">
+                    {ses.lesson_title}
+                  </div>
+                  <div className="text-xs text-gray-500 truncate mt-0.5">
+                    {ses.teacher_name}{ses.school_class_name ? ` · ${ses.school_class_name}` : ''}
+                  </div>
+                </div>
+                <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full flex-shrink-0">
+                  Войти
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Содержимое */}

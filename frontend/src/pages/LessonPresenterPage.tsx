@@ -279,11 +279,13 @@ export default function LessonPresenterPage() {
   }, [sessionId, navigate]);
 
   // ── WebSocket ──────────────────────────────────────────────────────────────
+  // Подключаемся сразу по sessionId (не ждём REST-загрузки session-объекта),
+  // чтобы избежать двойного запуска эффекта из-за StrictMode + двойного setSession.
   useEffect(() => {
-    if (!session) return;
     let active = true;
     const token = localStorage.getItem('access_token') ?? '';
-    const ws = new WebSocket(`ws://localhost:8000/ws/session/${sessionId}/?token=${token}`);
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${protocol}://${window.location.host}/ws/session/${sessionId}/?token=${token}`);
     wsRef.current = ws;
 
     ws.onopen  = () => { if (active) setIsConnected(true); };
@@ -294,7 +296,11 @@ export default function LessonPresenterPage() {
       if (!active) return;
       try {
         const data = JSON.parse(event.data);
-        if (data.type === 'slide_changed') {
+        if (data.type === 'init') {
+          // Синхронизируем текущий слайд с сервером
+          if (data.current_slide_id != null) setCurrentSlideId(data.current_slide_id);
+          if (!data.is_active) setSessionEnded(true);
+        } else if (data.type === 'slide_changed') {
           setCurrentSlideId(data.slide_id);
         } else if (data.type === 'session_ended') {
           setSessionEnded(true);
@@ -304,7 +310,7 @@ export default function LessonPresenterPage() {
     };
 
     return () => { active = false; ws.close(); };
-  }, [session, sessionId]);
+  }, [sessionId]); // sessionId стабилен — эффект запускается ровно один раз
 
   // ── Навигация (учитель) ────────────────────────────────────────────────────
   const sendWs = (data: object) => {
