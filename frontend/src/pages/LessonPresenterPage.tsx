@@ -279,38 +279,66 @@ export default function LessonPresenterPage() {
   }, [sessionId, navigate]);
 
   // ── WebSocket ──────────────────────────────────────────────────────────────
-  // Подключаемся сразу по sessionId (не ждём REST-загрузки session-объекта),
-  // чтобы избежать двойного запуска эффекта из-за StrictMode + двойного setSession.
   useEffect(() => {
     let active = true;
-    const token = localStorage.getItem('access_token') ?? '';
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws = new WebSocket(`${protocol}://${window.location.host}/ws/session/${sessionId}/?token=${token}`);
-    wsRef.current = ws;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-    ws.onopen  = () => { if (active) setIsConnected(true); };
-    ws.onclose = () => { if (active) { setIsConnected(false); wsRef.current = null; } };
-    ws.onerror = () => { if (active) setIsConnected(false); };
-
-    ws.onmessage = (event) => {
+    const doConnect = () => {
       if (!active) return;
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'init') {
-          // Синхронизируем текущий слайд с сервером
-          if (data.current_slide_id != null) setCurrentSlideId(data.current_slide_id);
-          if (!data.is_active) setSessionEnded(true);
-        } else if (data.type === 'slide_changed') {
-          setCurrentSlideId(data.slide_id);
-        } else if (data.type === 'session_ended') {
-          setSessionEnded(true);
-          setIsConnected(false);
+
+      const token = localStorage.getItem('access_token') ?? '';
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(
+        `${protocol}://${window.location.host}/ws/session/${sessionId}/?token=${token}`,
+      );
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        if (active) setIsConnected(true);
+      };
+
+      ws.onclose = (e) => {
+        // eslint-disable-next-line no-console
+        console.log(`[WS session] closed — code ${e.code}, reason: "${e.reason}"`);
+        wsRef.current = null;
+        if (!active) return;
+        setIsConnected(false);
+        // Авто-реконнект при любом неожиданном закрытии
+        // (1000 = нормальное, 4001 = нет авторизации, 4403 = нет доступа)
+        if (e.code !== 1000 && e.code !== 4001 && e.code !== 4403) {
+          reconnectTimer = setTimeout(doConnect, 2000);
         }
-      } catch { /* ignore */ }
+      };
+
+      ws.onerror = () => {
+        if (active) setIsConnected(false);
+      };
+
+      ws.onmessage = (event) => {
+        if (!active) return;
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'init') {
+            if (data.current_slide_id != null) setCurrentSlideId(data.current_slide_id);
+            if (!data.is_active) setSessionEnded(true);
+          } else if (data.type === 'slide_changed') {
+            setCurrentSlideId(data.slide_id);
+          } else if (data.type === 'session_ended') {
+            setSessionEnded(true);
+            setIsConnected(false);
+          }
+        } catch { /* ignore */ }
+      };
     };
 
-    return () => { active = false; ws.close(); };
-  }, [sessionId]); // sessionId стабилен — эффект запускается ровно один раз
+    doConnect();
+
+    return () => {
+      active = false;
+      if (reconnectTimer !== null) clearTimeout(reconnectTimer);
+      if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
+    };
+  }, [sessionId]);
 
   // ── Навигация (учитель) ────────────────────────────────────────────────────
   const sendWs = (data: object) => {
