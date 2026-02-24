@@ -281,15 +281,17 @@ export default function LessonPresenterPage() {
   // ── WebSocket ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!session) return;
+    let active = true;
     const token = localStorage.getItem('access_token') ?? '';
     const ws = new WebSocket(`ws://localhost:8000/ws/session/${sessionId}/?token=${token}`);
     wsRef.current = ws;
 
-    ws.onopen  = () => setIsConnected(true);
-    ws.onclose = () => { setIsConnected(false); wsRef.current = null; };
-    ws.onerror = () => setIsConnected(false);
+    ws.onopen  = () => { if (active) setIsConnected(true); };
+    ws.onclose = () => { if (active) { setIsConnected(false); wsRef.current = null; } };
+    ws.onerror = () => { if (active) setIsConnected(false); };
 
     ws.onmessage = (event) => {
+      if (!active) return;
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'slide_changed') {
@@ -301,7 +303,7 @@ export default function LessonPresenterPage() {
       } catch { /* ignore */ }
     };
 
-    return () => { ws.close(); };
+    return () => { active = false; ws.close(); };
   }, [session, sessionId]);
 
   // ── Навигация (учитель) ────────────────────────────────────────────────────
