@@ -19,6 +19,16 @@ def _is_staff(user):
     return user.is_admin or user.is_teacher
 
 
+def _folder_has_lessons(folder):
+    """Рекурсивно проверяет, есть ли уроки в папке или её подпапках."""
+    if folder.lessons.exists():
+        return True
+    for child in folder.children.all():
+        if _folder_has_lessons(child):
+            return True
+    return False
+
+
 # ─── Папки ────────────────────────────────────────────────────────────────────
 
 @api_view(['GET', 'POST'])
@@ -60,6 +70,11 @@ def folder_detail(request, folder_id):
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
 
+    if _folder_has_lessons(folder):
+        return Response(
+            {'error': 'Нельзя удалить папку, в которой есть уроки. Сначала удалите или переместите все уроки.'},
+            status=400,
+        )
     folder.delete()
     return Response(status=204)
 

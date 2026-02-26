@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -54,6 +54,13 @@ const COVER_COLORS = [
   '#f97316', '#eab308', '#22c55e', '#06b6d4',
   '#3b82f6', '#14b8a6',
 ];
+
+// ─── Drag item ────────────────────────────────────────────────────────────────
+
+interface DragItem {
+  type: 'folder' | 'lesson';
+  id: number;
+}
 
 // ─── Контекстное меню ─────────────────────────────────────────────────────
 
@@ -233,16 +240,24 @@ function LessonModal({ folderId, onSave, onClose }: LessonModalProps) {
 interface FolderCardProps {
   folder: LessonFolder;
   isOwner: boolean;
+  isDropTarget: boolean;
   onClick: () => void;
   onRename: () => void;
   onDelete: () => void;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDragLeave: () => void;
+  onDrop: (e: React.DragEvent) => void;
 }
 
-function FolderCard({ folder, isOwner, onClick, onRename, onDelete }: FolderCardProps) {
+function FolderCard({ folder, isOwner, isDropTarget, onClick, onRename, onDelete, onDragStart, onDragOver, onDragLeave, onDrop }: FolderCardProps) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  // Отслеживаем drag, чтобы не срабатывал onClick при броске
+  const didDragRef = useRef(false);
 
-  const handleMenuClick = (e: React.MouseEvent) => {
+  const openMenu = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     setMenu({ x: e.clientX, y: e.clientY });
   };
 
@@ -256,16 +271,27 @@ function FolderCard({ folder, isOwner, onClick, onRename, onDelete }: FolderCard
   return (
     <>
       <div
-        onClick={onClick}
-        className="bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer group flex flex-col gap-3"
+        draggable
+        onDragStart={e => { didDragRef.current = true; onDragStart(e); }}
+        onDragEnd={() => { setTimeout(() => { didDragRef.current = false; }, 100); }}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        onClick={() => { if (!didDragRef.current) onClick(); }}
+        onContextMenu={isOwner ? openMenu : undefined}
+        className={`bg-white border rounded-xl p-4 transition-all cursor-pointer group flex flex-col gap-3
+          ${isDropTarget
+            ? 'border-blue-400 shadow-md ring-2 ring-blue-200 bg-blue-50'
+            : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
+          }`}
       >
         <div className="flex items-start justify-between">
-          <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-500">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isDropTarget ? 'bg-blue-100 text-blue-500' : 'bg-amber-50 text-amber-500'}`}>
             <IconFolder />
           </div>
           {isOwner && (
             <button
-              onClick={handleMenuClick}
+              onClick={openMenu}
               className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all"
             >
               <IconDots />
@@ -279,6 +305,9 @@ function FolderCard({ folder, isOwner, onClick, onRename, onDelete }: FolderCard
             {folder.lessons_count} уроков
           </div>
         </div>
+        {isDropTarget && (
+          <div className="text-xs text-blue-500 font-medium text-center">Перенести сюда</div>
+        )}
       </div>
 
       {menu && menuItems.length > 0 && (
@@ -303,10 +332,12 @@ interface LessonCardProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onStart: () => void;
+  onDragStart: (e: React.DragEvent) => void;
 }
 
-function LessonCard({ lesson, showOwner, isStaff, onOpen, onDuplicate, onDelete, onStart }: LessonCardProps) {
+function LessonCard({ lesson, showOwner, isStaff, onOpen, onDuplicate, onDelete, onStart, onDragStart }: LessonCardProps) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const didDragRef = useRef(false);
 
   const handleMenuClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -323,7 +354,10 @@ function LessonCard({ lesson, showOwner, isStaff, onOpen, onDuplicate, onDelete,
   return (
     <>
       <div
-        onClick={onOpen}
+        draggable
+        onDragStart={e => { didDragRef.current = true; onDragStart(e); }}
+        onDragEnd={() => { setTimeout(() => { didDragRef.current = false; }, 100); }}
+        onClick={() => { if (!didDragRef.current) onOpen(); }}
         className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer group flex flex-col"
       >
         {/* Цветная шапка */}
@@ -387,14 +421,21 @@ function LessonCard({ lesson, showOwner, isStaff, onOpen, onDuplicate, onDelete,
 interface BreadcrumbsProps {
   path: LessonFolder[];
   onNavigate: (folder: LessonFolder | null) => void;
+  dropTarget: number | null; // -1 = root
+  onDragOver: (e: React.DragEvent, folderId: number | null) => void;
+  onDragLeave: () => void;
+  onDrop: (e: React.DragEvent, folderId: number | null) => void;
 }
 
-function Breadcrumbs({ path, onNavigate }: BreadcrumbsProps) {
+function Breadcrumbs({ path, onNavigate, dropTarget, onDragOver, onDragLeave, onDrop }: BreadcrumbsProps) {
   return (
     <nav className="flex items-center gap-1 text-sm text-gray-500 flex-wrap">
       <button
         onClick={() => onNavigate(null)}
-        className="hover:text-blue-600 transition-colors"
+        onDragOver={e => onDragOver(e, null)}
+        onDragLeave={onDragLeave}
+        onDrop={e => onDrop(e, null)}
+        className={`hover:text-blue-600 transition-colors px-1.5 py-0.5 rounded ${dropTarget === -1 ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-300' : ''}`}
       >
         Мои уроки
       </button>
@@ -404,12 +445,15 @@ function Breadcrumbs({ path, onNavigate }: BreadcrumbsProps) {
           {i < path.length - 1 ? (
             <button
               onClick={() => onNavigate(folder)}
-              className="hover:text-blue-600 transition-colors"
+              onDragOver={e => onDragOver(e, folder.id)}
+              onDragLeave={onDragLeave}
+              onDrop={e => onDrop(e, folder.id)}
+              className={`hover:text-blue-600 transition-colors px-1.5 py-0.5 rounded ${dropTarget === folder.id ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-300' : ''}`}
             >
               {folder.name}
             </button>
           ) : (
-            <span className="text-gray-900 font-medium">{folder.name}</span>
+            <span className="text-gray-900 font-medium px-1.5 py-0.5">{folder.name}</span>
           )}
         </span>
       ))}
@@ -450,6 +494,15 @@ export default function LessonsPage() {
   const [editingFolder, setEditingFolder] = useState<LessonFolder | null>(null);
   const [showLessonModal, setShowLessonModal] = useState(false);
   const [startingLesson, setStartingLesson] = useState<Lesson | null>(null);
+
+  // Ошибка
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Drag-and-drop
+  const [dragItem, setDragItem] = useState<DragItem | null>(null);
+  const [dropTargetFolderId, setDropTargetFolderId] = useState<number | null>(null);
+  // null = нет цели, -1 = корень, N = папка
+  const [dropTargetBreadcrumb, setDropTargetBreadcrumb] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -523,9 +576,15 @@ export default function LessonsPage() {
 
   // Удаление папки
   const handleDeleteFolder = async (folder: LessonFolder) => {
-    if (!confirm(`Удалить папку «${folder.name}»? Все уроки внутри также будут удалены.`)) return;
-    await api.delete(`/lessons/folders/${folder.id}/`);
-    load();
+    if (!confirm(`Удалить папку «${folder.name}»?`)) return;
+    try {
+      await api.delete(`/lessons/folders/${folder.id}/`);
+      load();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+        ?? 'Не удалось удалить папку';
+      setErrorMsg(msg);
+    }
   };
 
   // Создание урока
@@ -547,10 +606,85 @@ export default function LessonsPage() {
     load();
   };
 
+  // ─── Drag-and-drop ───────────────────────────────────────────────────────
+
+  const handleDragStart = (e: React.DragEvent, item: DragItem) => {
+    setDragItem(item);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify(item));
+  };
+
+  const handleDragOverFolder = (e: React.DragEvent, folderId: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropTargetFolderId(folderId);
+    setDropTargetBreadcrumb(null);
+  };
+
+  const handleDragLeaveFolder = () => {
+    setDropTargetFolderId(null);
+  };
+
+  const handleDropOnFolder = async (e: React.DragEvent, targetFolderId: number) => {
+    e.preventDefault();
+    setDropTargetFolderId(null);
+    const item = dragItem;
+    setDragItem(null);
+    if (!item) return;
+    if (item.type === 'folder' && item.id === targetFolderId) return; // нельзя в себя
+    try {
+      if (item.type === 'lesson') {
+        await api.put(`/lessons/lessons/${item.id}/`, { folder: targetFolderId });
+      } else {
+        await api.put(`/lessons/folders/${item.id}/`, { parent: targetFolderId });
+      }
+      load();
+    } catch {
+      setErrorMsg('Не удалось переместить элемент');
+    }
+  };
+
+  const handleDragOverBreadcrumb = (e: React.DragEvent, folderId: number | null) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropTargetBreadcrumb(folderId === null ? -1 : folderId);
+    setDropTargetFolderId(null);
+  };
+
+  const handleDragLeaveBreadcrumb = () => {
+    setDropTargetBreadcrumb(null);
+  };
+
+  const handleDropOnBreadcrumb = async (e: React.DragEvent, targetFolderId: number | null) => {
+    e.preventDefault();
+    setDropTargetBreadcrumb(null);
+    const item = dragItem;
+    setDragItem(null);
+    if (!item) return;
+    try {
+      if (item.type === 'lesson') {
+        await api.put(`/lessons/lessons/${item.id}/`, { folder: targetFolderId ?? null });
+      } else {
+        await api.put(`/lessons/folders/${item.id}/`, { parent: targetFolderId ?? null });
+      }
+      load();
+    } catch {
+      setErrorMsg('Не удалось переместить элемент');
+    }
+  };
+
   const isEmpty = !loading && folders.length === 0 && lessons.length === 0;
 
   return (
     <div className="space-y-6">
+      {/* Ошибка */}
+      {errorMsg && (
+        <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+          <span>{errorMsg}</span>
+          <button onClick={() => setErrorMsg(null)} className="text-red-400 hover:text-red-600 transition-colors flex-shrink-0">✕</button>
+        </div>
+      )}
+
       {/* Заголовок */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
@@ -597,7 +731,14 @@ export default function LessonsPage() {
 
       {/* Хлебные крошки (только для вкладки «Мои») */}
       {tab === 'mine' && folderPath.length > 0 && (
-        <Breadcrumbs path={folderPath} onNavigate={navigateTo} />
+        <Breadcrumbs
+          path={folderPath}
+          onNavigate={navigateTo}
+          dropTarget={dropTargetBreadcrumb}
+          onDragOver={handleDragOverBreadcrumb}
+          onDragLeave={handleDragLeaveBreadcrumb}
+          onDrop={handleDropOnBreadcrumb}
+        />
       )}
 
       {/* Активные уроки */}
@@ -666,9 +807,14 @@ export default function LessonsPage() {
               key={`folder-${folder.id}`}
               folder={folder}
               isOwner={folder.owner === user?.id}
+              isDropTarget={dropTargetFolderId === folder.id}
               onClick={() => openFolder(folder)}
               onRename={() => setEditingFolder(folder)}
               onDelete={() => handleDeleteFolder(folder)}
+              onDragStart={e => handleDragStart(e, { type: 'folder', id: folder.id })}
+              onDragOver={e => handleDragOverFolder(e, folder.id)}
+              onDragLeave={handleDragLeaveFolder}
+              onDrop={e => handleDropOnFolder(e, folder.id)}
             />
           ))}
 
@@ -683,6 +829,7 @@ export default function LessonsPage() {
               onDuplicate={() => handleDuplicate(lesson)}
               onDelete={() => handleDeleteLesson(lesson)}
               onStart={() => setStartingLesson(lesson)}
+              onDragStart={e => handleDragStart(e, { type: 'lesson', id: lesson.id })}
             />
           ))}
         </div>

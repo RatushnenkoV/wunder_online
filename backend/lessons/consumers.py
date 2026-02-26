@@ -406,6 +406,95 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
                 except Exception as e:
                     logger.error('[LessonSession] video_control broadcast failed: %s', e)
 
+        elif msg_type == 'quiz_start':
+            slide_id = data.get('slide_id')
+            question_idx = int(data.get('question_idx', 0))
+            if is_presenter and slide_id:
+                slide = await self.get_slide_by_id(slide_id)
+                if slide and slide.slide_type == 'quiz':
+                    questions = (slide.content or {}).get('questions', [])
+                    if 0 <= question_idx < len(questions):
+                        time_limit = questions[question_idx].get('time_limit', 30)
+                    else:
+                        time_limit = 30
+                    try:
+                        await self.channel_layer.group_send(
+                            self.room_group_name,
+                            {'type': 'quiz_started', 'slide_id': slide_id, 'question_idx': question_idx, 'time_limit_sec': time_limit},
+                        )
+                    except Exception as e:
+                        logger.error('[LessonSession] quiz_start broadcast failed: %s', e)
+
+        elif msg_type == 'quiz_answer':
+            if not is_presenter:
+                slide_id = data.get('slide_id')
+                question_idx = int(data.get('question_idx', 0))
+                option_index = data.get('option_index')
+                elapsed_ms = int(data.get('elapsed_ms', 0))
+                if slide_id is not None and option_index is not None:
+                    slide = await self.get_slide_by_id(slide_id)
+                    if slide and slide.slide_type == 'quiz':
+                        questions = (slide.content or {}).get('questions', [])
+                        if 0 <= question_idx < len(questions):
+                            q = questions[question_idx]
+                            correct = q.get('correct', -1)
+                            time_limit_ms = q.get('time_limit', 30) * 1000
+                        else:
+                            correct = -1
+                            time_limit_ms = 30000
+                        is_correct = (option_index == correct)
+                        if is_correct:
+                            points = max(100, round(1000 - (elapsed_ms / max(time_limit_ms, 1)) * 900))
+                        else:
+                            points = 0
+                        await self.save_quiz_answer(slide_id, question_idx, option_index, elapsed_ms, points)
+                        answered_count = await self.get_quiz_answered_count(slide_id, question_idx)
+                        try:
+                            await self.channel_layer.group_send(
+                                self.room_group_name,
+                                {'type': 'quiz_answer_received', 'slide_id': slide_id, 'question_idx': question_idx, 'answered_count': answered_count},
+                            )
+                        except Exception as e:
+                            logger.error('[LessonSession] quiz_answer_received broadcast failed: %s', e)
+                        # Прямое подтверждение отвечавшему студенту
+                        await self.send(text_data=json.dumps({
+                            'type': 'quiz_answer_confirmed',
+                            'slide_id': slide_id,
+                            'question_idx': question_idx,
+                            'option_index': option_index,
+                            'points': points,
+                            'is_correct': is_correct,
+                        }))
+
+        elif msg_type == 'quiz_show_results':
+            if is_presenter:
+                slide_id = data.get('slide_id')
+                question_idx = int(data.get('question_idx', 0))
+                if slide_id:
+                    slide = await self.get_slide_by_id(slide_id)
+                    if slide:
+                        questions = (slide.content or {}).get('questions', [])
+                        if 0 <= question_idx < len(questions):
+                            correct = questions[question_idx].get('correct', -1)
+                        else:
+                            correct = -1
+                        leaderboard = await self.get_quiz_leaderboard()
+                        answer_stats = await self.get_quiz_answer_stats(slide_id, question_idx)
+                        try:
+                            await self.channel_layer.group_send(
+                                self.room_group_name,
+                                {
+                                    'type': 'quiz_leaderboard',
+                                    'slide_id': slide_id,
+                                    'question_idx': question_idx,
+                                    'correct_index': correct,
+                                    'leaderboard': leaderboard,
+                                    'answer_stats': answer_stats,
+                                },
+                            )
+                        except Exception as e:
+                            logger.error('[LessonSession] quiz_show_results broadcast failed: %s', e)
+
     # ── Group message handlers ────────────────────────────────────────────────
 
     async def slide_changed(self, event):
@@ -428,6 +517,32 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'type': 'video_control',
             'action': event['action'],
+        }))
+
+    async def quiz_started(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'quiz_started',
+            'slide_id': event['slide_id'],
+            'question_idx': event['question_idx'],
+            'time_limit_sec': event['time_limit_sec'],
+        }))
+
+    async def quiz_answer_received(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'quiz_answer_received',
+            'slide_id': event['slide_id'],
+            'question_idx': event['question_idx'],
+            'answered_count': event['answered_count'],
+        }))
+
+    async def quiz_leaderboard(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'quiz_leaderboard',
+            'slide_id': event['slide_id'],
+            'question_idx': event['question_idx'],
+            'correct_index': event['correct_index'],
+            'leaderboard': event['leaderboard'],
+            'answer_stats': event['answer_stats'],
         }))
 
     # ── DB helpers ────────────────────────────────────────────────────────────
@@ -478,3 +593,62 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
             session.save(update_fields=['is_active', 'ended_at'])
         except LessonSession.DoesNotExist:
             pass
+
+    @sync_to_async
+    def get_slide_by_id(self, slide_id):
+        try:
+            return Slide.objects.get(id=slide_id)
+        except Slide.DoesNotExist:
+            return None
+
+    @sync_to_async
+    def save_quiz_answer(self, slide_id, question_idx, option_index, elapsed_ms, points):
+        fa, _ = FormAnswer.objects.get_or_create(
+            session_id=self.session_id,
+            slide_id=slide_id,
+            student=self.user,
+            defaults={'answers': {}},
+        )
+        if not isinstance(fa.answers, dict):
+            fa.answers = {}
+        fa.answers[str(question_idx)] = {
+            'option_index': option_index, 'elapsed_ms': elapsed_ms, 'points': points,
+        }
+        fa.save(update_fields=['answers'])
+
+    @sync_to_async
+    def get_quiz_answered_count(self, slide_id, question_idx):
+        fas = FormAnswer.objects.filter(session_id=self.session_id, slide_id=slide_id)
+        key = str(question_idx)
+        return sum(1 for fa in fas if isinstance(fa.answers, dict) and key in fa.answers)
+
+    @sync_to_async
+    def get_quiz_leaderboard(self):
+        answers = FormAnswer.objects.filter(
+            session_id=self.session_id,
+        ).select_related('student')
+        totals: dict = {}
+        for fa in answers:
+            sid = fa.student_id
+            name = f'{fa.student.first_name} {fa.student.last_name}'.strip() or f'User {sid}'
+            if sid not in totals:
+                totals[sid] = {'id': sid, 'name': name, 'points': 0}
+            ans_data = fa.answers
+            if isinstance(ans_data, dict):
+                for v in ans_data.values():
+                    if isinstance(v, dict) and 'points' in v:
+                        totals[sid]['points'] += v['points']
+        return sorted(totals.values(), key=lambda x: -x['points'])
+
+    @sync_to_async
+    def get_quiz_answer_stats(self, slide_id, question_idx):
+        fas = FormAnswer.objects.filter(session_id=self.session_id, slide_id=slide_id)
+        key = str(question_idx)
+        stats: dict = {}
+        for fa in fas:
+            if isinstance(fa.answers, dict) and key in fa.answers:
+                v = fa.answers[key]
+                if isinstance(v, dict) and 'option_index' in v:
+                    idx = str(v['option_index'])
+                    stats[idx] = stats.get(idx, 0) + 1
+        return stats

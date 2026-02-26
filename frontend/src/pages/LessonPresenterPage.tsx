@@ -86,6 +86,384 @@ function stickerEdgePoint(s: DiscussionSticker, tx: number, ty: number): [number
   return [cx + dx * t, cy + dy * t];
 }
 
+// ─── Quiz-типы ────────────────────────────────────────────────────────────────
+
+interface QuizQuestion {
+  id: string;
+  text: string;
+  options: string[];
+  correct: number;
+  time_limit: number;
+}
+
+interface QuizContent {
+  questions: QuizQuestion[];
+}
+
+interface QuizLeaderboardEntry {
+  id: number;
+  name: string;
+  points: number;
+}
+
+interface QuizLeaderboardData {
+  slide_id: number;
+  question_idx: number;
+  correct_index: number;
+  leaderboard: QuizLeaderboardEntry[];
+  answer_stats: Record<string, number>;
+}
+
+const OPTION_COLORS = ['#6366f1', '#ec4899', '#22c55e', '#f97316', '#06b6d4', '#eab308'];
+const OPTION_LABELS = ['A', 'B', 'C', 'D', 'E', 'F'];
+const MEDALS = ['🥇', '🥈', '🥉'];
+
+// ─── QuizAnswerView (студент) ─────────────────────────────────────────────────
+
+function QuizAnswerView({
+  slide, scale, questionIdx, isStarted, timeLimitSec, startedAt, answered, onAnswer,
+}: {
+  slide: Slide;
+  scale: number;
+  questionIdx: number;
+  isStarted: boolean;
+  timeLimitSec: number;
+  startedAt: number | null;
+  answered: { optionIndex: number; points: number; isCorrect: boolean } | null;
+  onAnswer: (optionIndex: number, elapsedMs: number) => void;
+}) {
+  const questions = (slide.content as Partial<QuizContent>)?.questions ?? [];
+  const q = questions[questionIdx];
+  const question = q?.text ?? '';
+  const options  = q?.options ?? [];
+  const [timeLeft, setTimeLeft] = useState(timeLimitSec);
+
+  useEffect(() => {
+    setTimeLeft(timeLimitSec);
+  }, [slide.id, questionIdx, timeLimitSec]);
+
+  useEffect(() => {
+    if (!isStarted || answered) return;
+    const start = startedAt ?? Date.now();
+    const end = start + timeLimitSec * 1000;
+
+    const tick = () => {
+      const left = Math.max(0, Math.round((end - Date.now()) / 1000));
+      setTimeLeft(left);
+    };
+    tick();
+    const id = setInterval(tick, 200);
+    return () => clearInterval(id);
+  }, [isStarted, startedAt, timeLimitSec, answered]);
+
+  const handleAnswer = (idx: number) => {
+    if (!isStarted || answered) return;
+    const elapsed = startedAt ? Date.now() - startedAt : 0;
+    onAnswer(idx, elapsed);
+  };
+
+  const fs = Math.max(11, 14 * scale);
+  const fsQ = Math.max(14, 22 * scale);
+  const pad = Math.max(10, 16 * scale);
+  const timerFrac = isStarted ? timeLeft / timeLimitSec : 1;
+  const timerColor = timerFrac > 0.5 ? '#22c55e' : timerFrac > 0.25 ? '#f97316' : '#ef4444';
+
+  return (
+    <div style={{ width: CANVAS_W * scale, height: CANVAS_H * scale, background: '#1e1b4b', display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
+      {/* Прогресс-бар таймера */}
+      <div style={{ height: Math.max(4, 6 * scale), background: '#312e81', flexShrink: 0 }}>
+        <div style={{ height: '100%', width: `${timerFrac * 100}%`, background: timerColor, transition: 'width 0.2s linear, background 0.5s' }} />
+      </div>
+
+      {/* Заголовок с таймером */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${Math.max(6, 8 * scale)}px ${pad}px`, flexShrink: 0 }}>
+        <span style={{ fontSize: Math.max(9, 11 * scale), color: '#a5b4fc', fontWeight: 500 }}>🏆 Вопрос {questionIdx + 1}</span>
+        {isStarted && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: Math.max(4, 6 * scale) }}>
+            <div style={{
+              width: Math.max(32, 42 * scale), height: Math.max(32, 42 * scale),
+              borderRadius: '50%', background: timerColor + '33', border: `2px solid ${timerColor}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: Math.max(11, 14 * scale), fontWeight: 700, color: timerColor,
+            }}>
+              {timeLeft}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Вопрос */}
+      <div style={{ flex: '0 0 auto', padding: `0 ${pad}px ${pad}px`, textAlign: 'center' }}>
+        {!isStarted ? (
+          <div style={{ color: '#a5b4fc', fontSize: fsQ, fontWeight: 600 }}>Ожидайте начала вопроса…</div>
+        ) : (
+          <div style={{ color: 'white', fontSize: fsQ, fontWeight: 700, lineHeight: 1.3 }}>{question}</div>
+        )}
+      </div>
+
+      {/* Варианты */}
+      {isStarted && (
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: options.length <= 2 ? '1fr 1fr' : 'repeat(2, 1fr)', gap: Math.max(6, 8 * scale), padding: `0 ${pad}px ${pad}px`, overflow: 'hidden' }}>
+          {options.map((opt, idx) => {
+            const isSelected = answered?.optionIndex === idx;
+            const color = OPTION_COLORS[idx % OPTION_COLORS.length];
+            return (
+              <button
+                key={idx}
+                disabled={!!answered}
+                onClick={() => handleAnswer(idx)}
+                style={{
+                  background: isSelected ? color : color + 'cc',
+                  border: `2px solid ${isSelected ? 'white' : 'transparent'}`,
+                  borderRadius: Math.max(8, 10 * scale),
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: fs,
+                  cursor: answered ? 'default' : 'pointer',
+                  display: 'flex', alignItems: 'center', gap: Math.max(6, 8 * scale),
+                  padding: `0 ${Math.max(10, 12 * scale)}px`,
+                  opacity: answered && !isSelected ? 0.5 : 1,
+                  transition: 'opacity 0.3s',
+                  minHeight: Math.max(40, 50 * scale),
+                  overflow: 'hidden',
+                }}
+              >
+                <span style={{ flexShrink: 0, width: Math.max(22, 26 * scale), height: Math.max(22, 26 * scale), borderRadius: 4, background: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.max(10, 13 * scale) }}>
+                  {OPTION_LABELS[idx]}
+                </span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* После ответа */}
+      {answered && (
+        <div style={{ padding: `${Math.max(8, 10 * scale)}px ${pad}px`, textAlign: 'center', flexShrink: 0 }}>
+          {answered.isCorrect ? (
+            <div style={{ color: '#4ade80', fontSize: Math.max(12, 16 * scale), fontWeight: 700 }}>
+              ✓ Верно! +{answered.points} очков
+            </div>
+          ) : (
+            <div style={{ color: '#f87171', fontSize: Math.max(12, 16 * scale), fontWeight: 700 }}>
+              ✗ Неверно
+            </div>
+          )}
+          <div style={{ color: '#a5b4fc', fontSize: Math.max(10, 12 * scale), marginTop: 4 }}>Ожидайте результатов…</div>
+        </div>
+      )}
+
+      {/* Время вышло, не ответил */}
+      {isStarted && !answered && timeLeft === 0 && (
+        <div style={{ padding: `${Math.max(8, 10 * scale)}px ${pad}px`, textAlign: 'center', flexShrink: 0, color: '#f87171', fontSize: Math.max(12, 16 * scale), fontWeight: 700 }}>
+          ⏰ Время вышло
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── QuizPresenterView (учитель) ──────────────────────────────────────────────
+
+function QuizPresenterView({
+  slide, scale, questionIdx, totalQuestions, isStarted, answeredCount, timeLimitSec, startedAt, onStart, onShowResults,
+}: {
+  slide: Slide;
+  scale: number;
+  questionIdx: number;
+  totalQuestions: number;
+  isStarted: boolean;
+  answeredCount: number;
+  timeLimitSec: number;
+  startedAt: number | null;
+  onStart: () => void;
+  onShowResults: () => void;
+}) {
+  const questions = (slide.content as Partial<QuizContent>)?.questions ?? [];
+  const q = questions[questionIdx];
+  const question = q?.text ?? '';
+  const options  = q?.options ?? [];
+  const [timeLeft, setTimeLeft] = useState(timeLimitSec);
+
+  useEffect(() => {
+    setTimeLeft(timeLimitSec);
+  }, [slide.id, questionIdx, timeLimitSec]);
+
+  useEffect(() => {
+    if (!isStarted) return;
+    const start = startedAt ?? Date.now();
+    const end = start + timeLimitSec * 1000;
+    const tick = () => setTimeLeft(Math.max(0, Math.round((end - Date.now()) / 1000)));
+    tick();
+    const id = setInterval(tick, 200);
+    return () => clearInterval(id);
+  }, [isStarted, startedAt, timeLimitSec]);
+
+  const fs = Math.max(11, 13 * scale);
+  const fsQ = Math.max(14, 20 * scale);
+  const pad = Math.max(10, 14 * scale);
+  const timerFrac = isStarted ? timeLeft / timeLimitSec : 1;
+  const timerColor = timerFrac > 0.5 ? '#22c55e' : timerFrac > 0.25 ? '#f97316' : '#ef4444';
+
+  return (
+    <div style={{ width: CANVAS_W * scale, height: CANVAS_H * scale, background: '#1e1b4b', display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
+      {/* Прогресс-бар */}
+      <div style={{ height: Math.max(4, 6 * scale), background: '#312e81' }}>
+        <div style={{ height: '100%', width: `${timerFrac * 100}%`, background: timerColor, transition: 'width 0.2s linear, background 0.5s' }} />
+      </div>
+
+      {/* Заголовок */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${Math.max(6, 8 * scale)}px ${pad}px`, flexShrink: 0 }}>
+        <span style={{ fontSize: Math.max(9, 11 * scale), color: '#a5b4fc' }}>🏆 Вопрос {questionIdx + 1} / {totalQuestions}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: Math.max(8, 12 * scale) }}>
+          <span style={{ color: '#c7d2fe', fontSize: fs }}>Ответили: <strong style={{ color: 'white' }}>{answeredCount}</strong></span>
+          {isStarted && (
+            <div style={{ width: Math.max(32, 40 * scale), height: Math.max(32, 40 * scale), borderRadius: '50%', background: timerColor + '33', border: `2px solid ${timerColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.max(11, 14 * scale), fontWeight: 700, color: timerColor }}>
+              {timeLeft}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Вопрос */}
+      <div style={{ padding: `0 ${pad}px ${Math.max(8, 12 * scale)}px`, textAlign: 'center', flexShrink: 0 }}>
+        <div style={{ color: 'white', fontSize: fsQ, fontWeight: 700, lineHeight: 1.3 }}>
+          {question || <span style={{ color: '#6b7280' }}>Вопрос не задан</span>}
+        </div>
+      </div>
+
+      {/* Варианты (показываем только как плашки) */}
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: Math.max(6, 8 * scale), padding: `0 ${pad}px`, overflow: 'hidden', alignContent: 'start' }}>
+        {options.map((opt, idx) => {
+          const color = OPTION_COLORS[idx % OPTION_COLORS.length];
+          return (
+            <div key={idx} style={{ background: color + 'aa', borderRadius: Math.max(8, 10 * scale), color: 'white', fontSize: fs, fontWeight: 600, display: 'flex', alignItems: 'center', gap: Math.max(6, 8 * scale), padding: `${Math.max(6, 8 * scale)}px ${Math.max(10, 12 * scale)}px`, minHeight: Math.max(36, 44 * scale) }}>
+              <span style={{ flexShrink: 0, width: Math.max(20, 24 * scale), height: Math.max(20, 24 * scale), borderRadius: 4, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.max(10, 12 * scale) }}>
+                {OPTION_LABELS[idx]}
+              </span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{opt}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Кнопки управления */}
+      <div style={{ padding: `${Math.max(8, 10 * scale)}px ${pad}px`, display: 'flex', justifyContent: 'center', gap: Math.max(8, 12 * scale), flexShrink: 0 }}>
+        {!isStarted ? (
+          <button
+            onClick={onStart}
+            style={{ padding: `${Math.max(6, 8 * scale)}px ${Math.max(16, 24 * scale)}px`, background: '#22c55e', color: 'white', borderRadius: 8, border: 'none', fontWeight: 700, fontSize: fs, cursor: 'pointer' }}
+          >
+            ▶ Начать вопрос
+          </button>
+        ) : (
+          <button
+            onClick={onShowResults}
+            style={{ padding: `${Math.max(6, 8 * scale)}px ${Math.max(16, 24 * scale)}px`, background: '#f97316', color: 'white', borderRadius: 8, border: 'none', fontWeight: 700, fontSize: fs, cursor: 'pointer' }}
+          >
+            Показать результаты
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── QuizLeaderboardView (после quiz_show_results) ────────────────────────────
+
+function QuizLeaderboardView({
+  slide, scale, data, isPresenter, hasNextQuestion, onNextQuestion,
+}: {
+  slide: Slide;
+  scale: number;
+  data: QuizLeaderboardData;
+  isPresenter: boolean;
+  hasNextQuestion: boolean;
+  onNextQuestion: () => void;
+}) {
+  const questions = (slide.content as Partial<QuizContent>)?.questions ?? [];
+  const q = questions[data.question_idx];
+  const options = q?.options ?? [];
+  const totalAnswers = Object.values(data.answer_stats).reduce((s, n) => s + n, 0);
+
+  const fs = Math.max(11, 13 * scale);
+  const pad = Math.max(10, 14 * scale);
+
+  return (
+    <div style={{ width: CANVAS_W * scale, height: CANVAS_H * scale, background: '#1e1b4b', display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
+      <div style={{ padding: `${Math.max(6, 8 * scale)}px ${pad}px`, textAlign: 'center', flexShrink: 0 }}>
+        <div style={{ color: '#a5b4fc', fontSize: Math.max(10, 12 * scale), marginBottom: Math.max(4, 6 * scale) }}>Правильный ответ:</div>
+        {options[data.correct_index] !== undefined && (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: Math.max(6, 8 * scale), background: '#22c55e', color: 'white', borderRadius: Math.max(6, 8 * scale), padding: `${Math.max(4, 6 * scale)}px ${Math.max(10, 14 * scale)}px`, fontWeight: 700, fontSize: Math.max(12, 16 * scale) }}>
+            <span>{OPTION_LABELS[data.correct_index]}</span>
+            <span>{options[data.correct_index]}</span>
+          </div>
+        )}
+      </div>
+
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: Math.max(6, 8 * scale), padding: `0 ${pad}px`, overflow: 'hidden' }}>
+        {/* Статистика по вариантам */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: Math.max(4, 6 * scale), overflowY: 'auto' }}>
+          <div style={{ color: '#a5b4fc', fontSize: Math.max(9, 11 * scale), fontWeight: 600, marginBottom: 2 }}>Распределение ответов</div>
+          {options.map((opt, idx) => {
+            const count = data.answer_stats[String(idx)] ?? 0;
+            const frac = totalAnswers > 0 ? count / totalAnswers : 0;
+            const color = OPTION_COLORS[idx % OPTION_COLORS.length];
+            const isCorrect = idx === data.correct_index;
+            return (
+              <div key={idx} style={{ background: '#312e81', borderRadius: Math.max(4, 6 * scale), overflow: 'hidden', border: isCorrect ? '2px solid #22c55e' : '2px solid transparent' }}>
+                <div style={{ display: 'flex', alignItems: 'center', padding: `${Math.max(3, 4 * scale)}px ${Math.max(6, 8 * scale)}px`, gap: Math.max(4, 6 * scale) }}>
+                  <span style={{ flexShrink: 0, width: Math.max(18, 22 * scale), height: Math.max(18, 22 * scale), borderRadius: 4, background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.max(9, 11 * scale), color: 'white', fontWeight: 700 }}>{OPTION_LABELS[idx]}</span>
+                  <span style={{ flex: 1, color: 'white', fontSize: Math.max(9, 11 * scale), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt}</span>
+                  <span style={{ color: '#c7d2fe', fontSize: Math.max(9, 11 * scale), flexShrink: 0 }}>{count}</span>
+                </div>
+                <div style={{ height: Math.max(3, 4 * scale), background: '#1e1b4b' }}>
+                  <div style={{ height: '100%', width: `${frac * 100}%`, background: isCorrect ? '#22c55e' : color, transition: 'width 0.5s' }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Рейтинг */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: Math.max(3, 4 * scale), overflowY: 'auto' }}>
+          <div style={{ color: '#a5b4fc', fontSize: Math.max(9, 11 * scale), fontWeight: 600, marginBottom: 2 }}>Текущий рейтинг</div>
+          {data.leaderboard.slice(0, 10).map((entry, i) => (
+            <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: Math.max(4, 6 * scale), background: i < 3 ? '#312e81' : '#27244e', borderRadius: Math.max(4, 6 * scale), padding: `${Math.max(3, 5 * scale)}px ${Math.max(6, 8 * scale)}px`, border: i === 0 ? '1px solid #fbbf24' : 'none' }}>
+              <span style={{ flexShrink: 0, fontSize: Math.max(11, 14 * scale), width: Math.max(20, 24 * scale), textAlign: 'center' }}>{i < 3 ? MEDALS[i] : `${i + 1}.`}</span>
+              <span style={{ flex: 1, color: 'white', fontSize: fs, fontWeight: i < 3 ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.name}</span>
+              <span style={{ flexShrink: 0, color: '#fbbf24', fontWeight: 700, fontSize: fs }}>{entry.points}</span>
+            </div>
+          ))}
+          {data.leaderboard.length === 0 && (
+            <div style={{ color: '#6b7280', fontSize: fs, textAlign: 'center', padding: 16 }}>Никто не ответил</div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ padding: `${Math.max(4, 6 * scale)}px`, textAlign: 'center', flexShrink: 0, color: '#6b7280', fontSize: Math.max(9, 11 * scale) }}>
+        Всего ответов: {totalAnswers}
+      </div>
+
+      {isPresenter && (
+        <div style={{ padding: `${Math.max(4, 8 * scale)}px ${Math.max(10, 14 * scale)}px`, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+          {hasNextQuestion ? (
+            <button
+              onClick={onNextQuestion}
+              style={{ padding: `${Math.max(6, 8 * scale)}px ${Math.max(16, 24 * scale)}px`, background: '#6366f1', color: 'white', borderRadius: 8, border: 'none', fontWeight: 700, fontSize: Math.max(11, 13 * scale), cursor: 'pointer' }}
+            >
+              Следующий вопрос →
+            </button>
+          ) : (
+            <span style={{ color: '#a5b4fc', fontSize: Math.max(10, 12 * scale), fontWeight: 600 }}>🏆 Викторина завершена</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── VideoSlideView ───────────────────────────────────────────────────────────
 
 function VideoSlideView({
@@ -779,6 +1157,8 @@ function SlideView({
   slide, scale, isPresenter, user,
   formResults, onFormSubmit, formSubmitted, formAnswers,
   onVideoControl, videoControl,
+  quizStarted, quizAnswered, quizAnsweredCount, quizLeaderboard, quizCurrentQuestion,
+  onQuizStart, onQuizShowResults, onQuizAnswer, onQuizNextQuestion,
 }: {
   slide: Slide;
   scale: number;
@@ -790,6 +1170,15 @@ function SlideView({
   formAnswers: Record<number, FormAnswerValue[]>;
   onVideoControl: (action: string) => void;
   videoControl: { action: string; ts: number } | null;
+  quizStarted: { slideId: number; questionIdx: number; timeLimitSec: number; startedAt: number } | null;
+  quizAnswered: Record<string, { optionIndex: number; points: number; isCorrect: boolean }>;
+  quizAnsweredCount: Record<string, number>;
+  quizLeaderboard: Record<string, QuizLeaderboardData>;
+  quizCurrentQuestion: Record<number, number>;
+  onQuizStart: (slideId: number, questionIdx: number) => void;
+  onQuizShowResults: (slideId: number, questionIdx: number) => void;
+  onQuizAnswer: (slideId: number, questionIdx: number, optionIndex: number, elapsedMs: number) => void;
+  onQuizNextQuestion: (slideId: number) => void;
 }) {
   if (slide.slide_type === 'content') {
     const blocks: SlideBlock[] = (slide.content as { blocks?: SlideBlock[] })?.blocks ?? [];
@@ -868,6 +1257,83 @@ function SlideView({
         onSubmit={answers => onFormSubmit(slide.id, answers)}
         submitted={formSubmitted[slide.id] ?? false}
         savedAnswers={formAnswers[slide.id] ?? []}
+      />
+    );
+  }
+
+  if (slide.slide_type === 'quiz') {
+    const questions = (slide.content as Partial<QuizContent>)?.questions ?? [];
+    const totalQuestions = questions.length;
+
+    if (isPresenter) {
+      const currentQIdx = quizCurrentQuestion[slide.id] ?? 0;
+      const lbKey = `${slide.id}_${currentQIdx}`;
+      const isCurrentStarted = quizStarted?.slideId === slide.id && quizStarted?.questionIdx === currentQIdx;
+      const defaultTimeLimit = questions[currentQIdx]?.time_limit ?? 30;
+
+      if (quizLeaderboard[lbKey]) {
+        return (
+          <QuizLeaderboardView
+            slide={slide} scale={scale}
+            data={quizLeaderboard[lbKey]}
+            isPresenter={true}
+            hasNextQuestion={currentQIdx + 1 < totalQuestions}
+            onNextQuestion={() => onQuizNextQuestion(slide.id)}
+          />
+        );
+      }
+      return (
+        <QuizPresenterView
+          slide={slide} scale={scale}
+          questionIdx={currentQIdx}
+          totalQuestions={totalQuestions}
+          isStarted={isCurrentStarted}
+          answeredCount={quizAnsweredCount[lbKey] ?? 0}
+          timeLimitSec={isCurrentStarted ? quizStarted!.timeLimitSec : defaultTimeLimit}
+          startedAt={isCurrentStarted ? quizStarted!.startedAt : null}
+          onStart={() => onQuizStart(slide.id, currentQIdx)}
+          onShowResults={() => onQuizShowResults(slide.id, currentQIdx)}
+        />
+      );
+    }
+
+    // Студент
+    const activeQIdx = quizStarted?.slideId === slide.id ? quizStarted.questionIdx : null;
+    if (activeQIdx !== null) {
+      const lbKey = `${slide.id}_${activeQIdx}`;
+      if (quizLeaderboard[lbKey]) {
+        return (
+          <QuizLeaderboardView
+            slide={slide} scale={scale}
+            data={quizLeaderboard[lbKey]}
+            isPresenter={false}
+            hasNextQuestion={false}
+            onNextQuestion={() => {}}
+          />
+        );
+      }
+      return (
+        <QuizAnswerView
+          slide={slide} scale={scale}
+          questionIdx={activeQIdx}
+          isStarted={true}
+          timeLimitSec={quizStarted!.timeLimitSec}
+          startedAt={quizStarted!.startedAt}
+          answered={quizAnswered[lbKey] ?? null}
+          onAnswer={(optIdx, elapsedMs) => onQuizAnswer(slide.id, activeQIdx, optIdx, elapsedMs)}
+        />
+      );
+    }
+    // Ожидание вопроса
+    return (
+      <QuizAnswerView
+        slide={slide} scale={scale}
+        questionIdx={0}
+        isStarted={false}
+        timeLimitSec={questions[0]?.time_limit ?? 30}
+        startedAt={null}
+        answered={null}
+        onAnswer={() => {}}
       />
     );
   }
@@ -954,6 +1420,14 @@ export default function LessonPresenterPage() {
 
   // ── Видео-синк ─────────────────────────────────────────────────────────────
   const [videoControl, setVideoControl] = useState<{ action: string; ts: number } | null>(null);
+
+  // ── Викторина ──────────────────────────────────────────────────────────────
+  const [quizStarted,       setQuizStarted]       = useState<{ slideId: number; questionIdx: number; timeLimitSec: number; startedAt: number } | null>(null);
+  const [quizAnswered,      setQuizAnswered]       = useState<Record<string, { optionIndex: number; points: number; isCorrect: boolean }>>({});
+  const [quizAnsweredCount, setQuizAnsweredCount]  = useState<Record<string, number>>({});
+  const [quizLeaderboard,   setQuizLeaderboard]    = useState<Record<string, QuizLeaderboardData>>({});
+  const [quizCurrentQuestion, setQuizCurrentQuestion] = useState<Record<number, number>>({});
+  const [lastLeaderboard,   setLastLeaderboard]    = useState<QuizLeaderboardEntry[] | null>(null);
 
   const wsRef        = useRef<WebSocket | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1079,6 +1553,25 @@ export default function LessonPresenterPage() {
             setFormResults(prev => ({ ...prev, [data.slide_id]: data.results }));
           } else if (data.type === 'video_control') {
             setVideoControl({ action: data.action as string, ts: Date.now() });
+          } else if (data.type === 'quiz_started') {
+            setQuizStarted({ slideId: data.slide_id, questionIdx: data.question_idx, timeLimitSec: data.time_limit_sec, startedAt: Date.now() });
+          } else if (data.type === 'quiz_answer_received') {
+            const key = `${data.slide_id}_${data.question_idx}`;
+            setQuizAnsweredCount(prev => ({ ...prev, [key]: data.answered_count }));
+          } else if (data.type === 'quiz_answer_confirmed') {
+            const key = `${data.slide_id}_${data.question_idx}`;
+            setQuizAnswered(prev => ({ ...prev, [key]: { optionIndex: data.option_index, points: data.points, isCorrect: data.is_correct } }));
+          } else if (data.type === 'quiz_leaderboard') {
+            const key = `${data.slide_id}_${data.question_idx}`;
+            const lb: QuizLeaderboardData = {
+              slide_id: data.slide_id,
+              question_idx: data.question_idx,
+              correct_index: data.correct_index,
+              leaderboard: data.leaderboard,
+              answer_stats: data.answer_stats,
+            };
+            setQuizLeaderboard(prev => ({ ...prev, [key]: lb }));
+            setLastLeaderboard(data.leaderboard);
           }
         } catch { /* ignore */ }
       };
@@ -1138,6 +1631,23 @@ export default function LessonPresenterPage() {
     sendWs({ type: 'video_control', action });
   };
 
+  // ── Викторина ──────────────────────────────────────────────────────────────
+  const handleQuizStart = (slideId: number, questionIdx: number) => {
+    sendWs({ type: 'quiz_start', slide_id: slideId, question_idx: questionIdx });
+  };
+
+  const handleQuizShowResults = (slideId: number, questionIdx: number) => {
+    sendWs({ type: 'quiz_show_results', slide_id: slideId, question_idx: questionIdx });
+  };
+
+  const handleQuizAnswer = (slideId: number, questionIdx: number, optionIndex: number, elapsedMs: number) => {
+    sendWs({ type: 'quiz_answer', slide_id: slideId, question_idx: questionIdx, option_index: optionIndex, elapsed_ms: elapsedMs });
+  };
+
+  const handleQuizNextQuestion = (slideId: number) => {
+    setQuizCurrentQuestion(prev => ({ ...prev, [slideId]: (prev[slideId] ?? 0) + 1 }));
+  };
+
   // ── Отправка ответов на форму (студент) ────────────────────────────────────
   const handleFormSubmit = (slideId: number, answers: FormAnswerValue[]) => {
     // eslint-disable-next-line no-console
@@ -1171,11 +1681,26 @@ export default function LessonPresenterPage() {
   const currentSlide = slides.find(s => s.id === currentSlideId) ?? slides[0] ?? null;
 
   if (sessionEnded && !isPresenter) {
+    const topPlayers = lastLeaderboard?.slice(0, 3) ?? [];
     return (
-      <div className="fixed inset-0 bg-gray-900 flex flex-col items-center justify-center gap-6 text-white">
+      <div className="fixed inset-0 bg-gray-900 flex flex-col items-center justify-center gap-6 text-white px-4">
         <div className="text-5xl">🏁</div>
         <div className="text-2xl font-semibold">Урок завершён</div>
         <div className="text-gray-400">{session.lesson_title}</div>
+
+        {topPlayers.length > 0 && (
+          <div className="w-full max-w-sm space-y-2">
+            <div className="text-sm text-gray-400 text-center mb-3">Итоговый рейтинг</div>
+            {topPlayers.map((p, i) => (
+              <div key={p.id} className="flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-3">
+                <span className="text-2xl w-8 text-center">{MEDALS[i]}</span>
+                <span className="flex-1 font-medium truncate">{p.name}</span>
+                <span className="text-yellow-400 font-bold">{p.points} оч.</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         <button
           onClick={() => navigate('/lessons')}
           className="mt-4 px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
@@ -1263,6 +1788,15 @@ export default function LessonPresenterPage() {
               formAnswers={formAnswers}
               onVideoControl={handleVideoControl}
               videoControl={videoControl}
+              quizStarted={quizStarted}
+              quizAnswered={quizAnswered}
+              quizAnsweredCount={quizAnsweredCount}
+              quizLeaderboard={quizLeaderboard}
+              quizCurrentQuestion={quizCurrentQuestion}
+              onQuizStart={handleQuizStart}
+              onQuizShowResults={handleQuizShowResults}
+              onQuizAnswer={handleQuizAnswer}
+              onQuizNextQuestion={handleQuizNextQuestion}
             />
           </div>
         ) : (

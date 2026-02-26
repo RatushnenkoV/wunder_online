@@ -155,7 +155,7 @@ WunderOnline/
 - `POST /api/lessons/lessons/:id/duplicate/` — дублировать урок
 - `GET/POST /api/lessons/lessons/:id/slides/` — слайды урока (slide_type: content|form|video|discussion)
 - `POST /api/lessons/lessons/:id/slides/reorder/` — {order: [id, ...]} — переставить слайды
-- `GET/PUT/DELETE /api/lessons/lessons/:id/slides/:sid/` — CRUD слайда
+- `GET/PUT/DELETE /api/lessons/lessons/:id/slides/:sid/` — CRUD слайда (slide_type: content|form|quiz|video|discussion)
 - `POST /api/lessons/lessons/:id/slides/:sid/image/` — загрузить изображение (multipart: image)
 - `POST /api/lessons/lessons/:id/upload/` — загрузить медиафайл для блока (multipart: file) → `{id, url, uploaded_at}`
 - `GET /api/lessons/sessions/active/` — активные сессии (teacher/admin видят все; студент — только своего класса)
@@ -164,6 +164,8 @@ WunderOnline/
 - `GET /api/lessons/sessions/:id/slides/:sid/form-results/` — результаты формы для учителя (только staff)
 - **WebSocket** `ws://…/ws/discussion/<slide_id>/?token=<jwt>` — доска обсуждений (DiscussionConsumer)
 - **WebSocket** `ws://…/ws/session/<session_id>/?token=<jwt>` — синхронизация живой презентации (LessonSessionConsumer)
+  - **Quiz-команды**: `quiz_start {slide_id, question_idx}` (учитель→сервер), `quiz_answer {slide_id, question_idx, option_index, elapsed_ms}` (студент→сервер), `quiz_show_results {slide_id, question_idx}` (учитель→сервер)
+  - **Quiz-события**: `quiz_started {slide_id, question_idx, time_limit_sec}`, `quiz_answer_received {slide_id, question_idx, answered_count}`, `quiz_answer_confirmed {slide_id, question_idx, option_index, points, is_correct}`, `quiz_leaderboard {slide_id, question_idx, correct_index, leaderboard, answer_stats}`
 
 ### КТП (`/api/ktp/`)
 - `GET/POST /api/ktp/ctps/` — список КТП
@@ -471,7 +473,11 @@ TaskFile         # файл, прикреплённый к задаче
 ### Редактор урока (LessonEditorPage.tsx) — Фазы 2-3
 - Страница `/lessons/:id/edit` — двухпанельный интерфейс: шапка + левая панель слайдов + холст
 - **npm-зависимости**: `react-rnd` (drag блоков), `@tiptap/react` + `@tiptap/starter-kit` + `@tiptap/extension-text-style` (rich text, цвет, размер шрифта)
-- **Фаза 3**: SlideTypePicker (4 типа), FormEditor, VideoEditor, DiscussionBoard (WebSocket)
+- **Фаза 3**: SlideTypePicker (5 типов: content/form/quiz/video/discussion), FormEditor, QuizEditor, VideoEditor, DiscussionBoard (WebSocket)
+- **QuizEditor**: редактирование quiz-слайда — список вопросов (QuizQuestion[]), каждый с текстом, 2–6 вариантами (кнопка-буква = правильный), временем (10/15/20/30/45/60с); кнопка "Добавить вопрос"
+- **QuizContent**: `{questions: [{id, text, options, correct, time_limit}]}` — НЕ плоская структура
+- **FormAnswer.answers**: для quiz — dict по `str(question_idx)`: `{"0": {option_index, elapsed_ms, points}, "1": {...}}`
+- **Фикс image-блока**: при перетаскивании пустого image-блока диалог загрузки файла не открывается (отслеживаем mouseDownPos)
 - **WS Discussion** (редактор): URL `${proto}://${window.location.host}/ws/discussion/<slide_id>/?token=<jwt>`
 - **Иконки типов**: 📄 content, 📋 form, 📹 video, 💬 discussion — отображаются в SlideThumb
 
@@ -546,9 +552,12 @@ TaskFile         # файл, прикреплённый к задаче
 #### Роли и поведение
 | | Учитель (`isPresenter`) | Студент |
 |---|---|---|
-| WS-команды | `set_slide`, `end_session`, `video_control` | `form_answer` |
+| WS-команды | `set_slide`, `end_session`, `video_control`, `quiz_start`, `quiz_show_results` | `form_answer`, `quiz_answer` |
 | Форма | `FormResultsView` — статистика ответов | `FormAnswerView` — заполнить и отправить |
 | Видео | Оверлей ▶/⏸, управляет синхронизацией | Получает `video_control` → postMessage в iframe |
+| Викторина | `QuizPresenterView` — "Начать вопрос N/N", счётчик ответов, "Показать результаты" | `QuizAnswerView` — таймер, кнопки вариантов |
+| Рейтинг | `QuizLeaderboardView` — правильный ответ + статистика + рейтинг + "Следующий вопрос →" | То же (без кнопки) |
+| Конец урока | — | Показывает топ-3 из последнего quiz-рейтинга |
 | Навигация | Стрелки ←/→, клавиши ArrowLeft/Right/Space | Нет |
 | Доска | Может редактировать и удалять любые стикеры | Только свои |
 
@@ -590,10 +599,11 @@ TaskFile         # файл, прикреплённый к задаче
 - **Папочная навигация**: иерархические папки, breadcrumbs, переход внутрь по клику
 - **Карточки папок**: название, счётчик вложенных папок и уроков, контекстное меню (переименовать, удалить)
 - **Карточки уроков**: цветная шапка (cover_color), название, автор (в «Все»), кол-во слайдов; меню (открыть, дублировать, удалить)
+- **Drag-and-drop**: папки и уроки перетаскиваются в другие папки (HTML5 DnD). Drop на FolderCard — перемещение внутрь. Drop на breadcrumbs — перемещение вверх по иерархии. Бэкенд: PUT с `{folder: id}` для урока, `{parent: id}` для папки.
+- **Удаление папок**: проверяется рекурсивно — если в папке или подпапках есть уроки, удаление запрещено (400 от бэкенда), ошибка показывается пользователю
 - **Создание папки**: модал с вводом названия
 - **Создание урока**: модал с названием, описанием и выбором цвета → редирект в редактор
 - **Дублирование**: копия урока создаётся в той же папке
-- **Редактор** (`/lessons/:id/edit`): пока заглушка (Фаза 2)
 - Пункт «Уроки» добавлен в сайдбар с иконкой монитора
 
 ### Аккаунт (AccountPage.tsx)
