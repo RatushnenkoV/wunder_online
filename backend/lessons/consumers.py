@@ -1,8 +1,11 @@
 import json
+import logging
 import uuid
 
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+
+logger = logging.getLogger(__name__)
 
 from .models import Slide, LessonSession
 
@@ -302,8 +305,8 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
 
         try:
             await self.channel_layer.group_add(self.room_group_name, self.channel_name)
-        except Exception:
-            # Redis unavailable — still accept so the client sees a proper close
+        except Exception as e:
+            logger.error('LessonSessionConsumer.group_add failed: %s: %s', type(e).__name__, e, exc_info=True)
             await self.accept()
             await self.close(code=1011)
             return
