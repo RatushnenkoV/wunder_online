@@ -43,8 +43,9 @@ WunderOnline/
 │   │   │   ├── PeoplePage.tsx       # Управление персоналом/учениками
 │   │   │   ├── SchoolPage.tsx       # Структура школы (вкладки: Классы, Ученики, Родители)
 │   │   │   ├── SettingsPage.tsx     # Настройки (праздники)
-│   │   │   ├── LessonsPage.tsx      # Уроки: папки + список (Фаза 1)
-│   │   │   └── LessonEditorPage.tsx # Редактор урока (заглушка, Фаза 2)
+│   │   │   ├── LessonsPage.tsx           # Уроки: папки + список (Фаза 1)
+│   │   │   ├── LessonEditorPage.tsx      # Редактор урока (canvas, Фазы 2-3)
+│   │   │   └── LessonPresenterPage.tsx   # Живая презентация (учитель + студент)
 │   │   └── components/
 │   │       ├── Layout.tsx           # Навбар + обёртка
 │   │       ├── StaffTab.tsx         # CRUD сотрудников (+ бейджи куратора, birth_date)
@@ -92,6 +93,7 @@ WunderOnline/
 | `/requests` | RequestsPage | Авторизованные |
 | `/lessons` | LessonsPage | Авторизованные |
 | `/lessons/:id/edit` | LessonEditorPage | Авторизованные |
+| `/lessons/sessions/:id/present` | LessonPresenterPage | Авторизованные |
 
 ---
 
@@ -156,7 +158,12 @@ WunderOnline/
 - `GET/PUT/DELETE /api/lessons/lessons/:id/slides/:sid/` — CRUD слайда
 - `POST /api/lessons/lessons/:id/slides/:sid/image/` — загрузить изображение (multipart: image)
 - `POST /api/lessons/lessons/:id/upload/` — загрузить медиафайл для блока (multipart: file) → `{id, url, uploaded_at}`
+- `GET /api/lessons/sessions/active/` — активные сессии (teacher/admin видят все; студент — только своего класса)
+- `POST /api/lessons/sessions/` — создать сессию `{lesson, school_class?}` (только teacher/admin)
+- `GET/PATCH/DELETE /api/lessons/sessions/:id/` — CRUD сессии; PATCH: `{is_active, current_slide}`
+- `GET /api/lessons/sessions/:id/slides/:sid/form-results/` — результаты формы для учителя (только staff)
 - **WebSocket** `ws://…/ws/discussion/<slide_id>/?token=<jwt>` — доска обсуждений (DiscussionConsumer)
+- **WebSocket** `ws://…/ws/session/<session_id>/?token=<jwt>` — синхронизация живой презентации (LessonSessionConsumer)
 
 ### КТП (`/api/ktp/`)
 - `GET/POST /api/ktp/ctps/` — список КТП
@@ -301,6 +308,23 @@ LessonMedia
   lesson -> Lesson
   file: FileField  # upload_to='lesson_media/%Y/%m/'
   uploaded_at: datetime
+
+LessonSession
+  lesson -> Lesson
+  teacher -> User
+  school_class -> SchoolClass (null)
+  current_slide -> Slide (null)
+  is_active: bool (default True)
+  started_at: datetime (auto)
+  ended_at: datetime (null)
+
+FormAnswer          # ответы студентов на форму-слайд
+  session -> LessonSession
+  slide -> Slide
+  student -> User
+  answers: JSON     # [{question_id, value}, ...]
+  submitted_at: datetime (auto_now)
+  # unique_together: [session, slide, student] → upsert
 ```
 
 ### tasks/
@@ -444,11 +468,11 @@ TaskFile         # файл, прикреплённый к задаче
 - При переключении вкладки: GET `/ktp/topics-by-date/?date=...&student_id={sp.id}`
 - Если детей нет — сообщение "Нет привязанных учеников"
 
-### Редактор урока (LessonEditorPage.tsx) — Фаза 3 (Форма, Видео, Доска)
+### Редактор урока (LessonEditorPage.tsx) — Фазы 2-3
 - Страница `/lessons/:id/edit` — двухпанельный интерфейс: шапка + левая панель слайдов + холст
 - **npm-зависимости**: `react-rnd` (drag блоков), `@tiptap/react` + `@tiptap/starter-kit` + `@tiptap/extension-text-style` (rich text, цвет, размер шрифта)
 - **Фаза 3**: SlideTypePicker (4 типа), FormEditor, VideoEditor, DiscussionBoard (WebSocket)
-- **WS Discussion**: `ws://localhost:8000/ws/discussion/<slide_id>/?token=<jwt>` — синхронизация стикеров и рисований
+- **WS Discussion** (редактор): URL `${proto}://${window.location.host}/ws/discussion/<slide_id>/?token=<jwt>`
 - **Иконки типов**: 📄 content, 📋 form, 📹 video, 💬 discussion — отображаются в SlideThumb
 
 #### Шапка
@@ -506,6 +530,59 @@ TaskFile         # файл, прикреплённый к задаче
 #### Медиафайлы (`LessonMedia`)
 - `POST /api/lessons/lessons/:id/upload/` (multipart: `file`) → `{url}` — используется для блоков `image`
 - Файлы хранятся в `media/lesson_media/%Y/%m/`
+
+#### DiscussionBoard (редактор и презентер — общие паттерны)
+- **Стикеры**: создаются кликом по цветному квадрату в тулбаре (6 пастельных цветов). Drag — только свой стикер. Кнопка `×` — только свой, admin/teacher — любой
+- **Стрелки между стикерами**: при наведении на стикер появляются 4 синие точки (N/S/E/W). Drag от точки рисует пунктирную стрелку; отпустить на другом стикере — создаёт связь. Клик по стрелке (или × в середине) — удаляет. Hover — красная подсветка
+- **Реалтайм перерисовка стрелок**: `onDrag(x,y)` в `StickerItem`/`DiscussionStickerItem` обновляет `dragPositions` в родителе → SVG стрелки используют `dragPositions[id] ?? sticker.x/y` и перерисовываются при каждом `mousemove`. При `onMove` (mouseup) `dragPositions` очищается
+- **WS-протокол** (client→server): `add_sticker`, `update_sticker`, `delete_sticker`, `add_arrow`, `delete_arrow`, `update_topic`
+- **WS-протокол** (server→client): `init`, `sticker_added`, `sticker_updated`, `sticker_deleted`, `arrow_added`, `arrow_deleted`, `topic_updated`
+
+### Живая презентация (LessonPresenterPage.tsx)
+- Страница `/lessons/sessions/:id/present` — fullscreen-режим для учителя и студентов
+- **WS**: `${proto}://${window.location.host}/ws/session/<session_id>/?token=<jwt>` → группа `lesson_session_<id>`
+- **Авто-реконнект**: при обрыве (код ≠ 1000/4001/4403) reconnect через 2с. StrictMode-safe: `if (wsRef.current === ws) wsRef.current = null`
+
+#### Роли и поведение
+| | Учитель (`isPresenter`) | Студент |
+|---|---|---|
+| WS-команды | `set_slide`, `end_session`, `video_control` | `form_answer` |
+| Форма | `FormResultsView` — статистика ответов | `FormAnswerView` — заполнить и отправить |
+| Видео | Оверлей ▶/⏸, управляет синхронизацией | Получает `video_control` → postMessage в iframe |
+| Навигация | Стрелки ←/→, клавиши ArrowLeft/Right/Space | Нет |
+| Доска | Может редактировать и удалять любые стикеры | Только свои |
+
+#### Слайды в презентере (`SlideView`)
+- `content` → рендер блоков только для чтения; `overflow: hidden` — блоки вне 960×540 не видны
+- `form` → `FormResultsView` (учитель) или `FormAnswerView` (студент)
+- `video` → `VideoSlideView` с YouTube postMessage API (`enablejsapi=1`)
+- `discussion` → `DiscussionSlideView` (WS Discussion, те же стикеры/стрелки)
+
+#### FormResultsView (вкладка «Общий план»)
+- Для single/multiple: полосы с кол-вом выборов (A/B/C нейтральные буквы, синие полосы) — правильные ответы **не подсвечиваются**
+- Счётчик `✓ N` в заголовке вопроса показывает кол-во правильных ответов (без раскрытия какой вариант правильный)
+- Для text: только `Ответили: N` — индивидуальные ответы студентов **не показываются**
+- Для scale: среднее значение и распределение по баллам
+- Вкладка «Детально»: таблица студент×вопрос — полные ответы с правильностью (✓/✗)
+
+#### FormAnswerView (студент)
+- Все вопросы на одной странице, `required` блокирует отправку
+- После отправки — зелёное «✓ Ответы отправлены» + ссылка «Изменить»
+- Ответы хранятся локально (`formAnswers[slideId]`) — при смене слайда и возврате форма восстанавливается
+
+#### Видео-синхронизация (VideoSlideView)
+- Учитель: кнопка ▶/⏸ поверх iframe (только YouTube), отправляет WS `video_control {action: play|pause}`
+- Студент: получает `video_control` → `iframe.contentWindow.postMessage({event:'command', func:'playVideo'/'pauseVideo'}, '*')`
+- YouTube URL автоматически получает `?enablejsapi=1` для поддержки postMessage
+
+#### WS-протокол сессии
+- client→server: `set_slide {slide_id}`, `end_session`, `form_answer {slide_id, answers}`, `video_control {action}`
+- server→client: `init {session_id, current_slide_id, is_active}`, `slide_changed {slide_id}`, `session_ended`, `form_results_updated {slide_id, results}`, `video_control {action}`
+- `form_answer` обрабатывается **до** проверки `is_presenter` (студенты могут отправлять); остальные — только presenter/admin
+
+#### Начальная загрузка результатов формы
+- Когда учитель переходит на form-слайд: `GET /lessons/sessions/:id/slides/:sid/form-results/` (если ещё не загружено)
+- Живые обновления: WS `form_results_updated` → `setFormResults(prev => ({...prev, [slide_id]: results}))`
 
 ### Уроки (LessonsPage.tsx) — Фаза 1
 - Страница `/lessons` — интерактивные уроки в стиле Nearpod

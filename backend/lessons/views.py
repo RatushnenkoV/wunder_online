@@ -6,8 +6,9 @@ from rest_framework.response import Response
 
 from django.utils import timezone
 from accounts.permissions import PasswordChanged
-from .models import Lesson, LessonFolder, Slide, LessonMedia, LessonSession
+from .models import Lesson, LessonFolder, Slide, LessonMedia, LessonSession, FormAnswer
 from .serializers import LessonFolderSerializer, LessonSerializer, SlideSerializer, LessonMediaSerializer, LessonSessionSerializer
+from .utils import compute_form_results
 
 
 def _ctx(request):
@@ -348,6 +349,18 @@ def session_detail(request, session_id):
     if request.method == 'DELETE':
         session.delete()
         return Response(status=204)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def session_form_results(request, session_id, slide_id):
+    """GET результаты формы для учителя (первоначальная загрузка)."""
+    session = get_object_or_404(LessonSession, id=session_id)
+    if not _is_staff(request.user):
+        return Response({'error': 'Нет доступа'}, status=403)
+    slide = get_object_or_404(Slide, id=slide_id)
+    fa_qs = FormAnswer.objects.filter(session=session, slide=slide).select_related('student')
+    return Response(compute_form_results(slide, fa_qs))
 
 
 @api_view(['GET'])

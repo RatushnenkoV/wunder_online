@@ -250,6 +250,49 @@ export interface TasksCount {
   total: number;
 }
 
+// ─── Form answers / results ───────────────────────────────────────────────────
+
+export interface FormAnswerValue {
+  question_id: string;
+  value: number | number[] | string | null;
+}
+
+export interface FormQuestionStat {
+  question_id: string;
+  type: FormQuestionType;
+  text: string;
+  answer_count: number;
+  has_correct: boolean;
+  // single / multiple
+  options?: string[];
+  option_counts?: number[];
+  correct_count?: number;
+  // text
+  text_answers?: { student_id: number; student_name: string; value: string; is_correct: boolean | null }[];
+  // scale
+  avg?: number | null;
+  value_counts?: Record<string, number>;
+}
+
+export interface FormStudentDetail {
+  student_id: number;
+  student_name: string;
+  answers: { question_id: string; value: unknown; is_correct: boolean | null }[];
+  correct_count: number;
+  total_with_correct: number;
+}
+
+export interface FormResults {
+  summary: {
+    answered_count: number;
+    total_questions: number;
+    total_correct: number;
+    total_with_correct: number;
+    per_question: FormQuestionStat[];
+  };
+  details: FormStudentDetail[];
+}
+
 // ─── Lessons ─────────────────────────────────────────────────────────────────
 
 export interface LessonFolder {

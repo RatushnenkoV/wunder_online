@@ -5,9 +5,10 @@ import uuid
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-logger = logging.getLogger(__name__)
+from .models import Slide, LessonSession, FormAnswer
+from .utils import compute_form_results
 
-from .models import Slide, LessonSession
+logger = logging.getLogger(__name__)
 
 
 class DiscussionConsumer(AsyncWebsocketConsumer):
@@ -306,7 +307,7 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
         try:
             await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         except Exception as e:
-            logger.error('LessonSessionConsumer.group_add failed: %s: %s', type(e).__name__, e, exc_info=True)
+            logger.error('[LessonSession] group_add failed: %s: %s', type(e).__name__, e, exc_info=True)
             await self.accept()
             await self.close(code=1011)
             return
@@ -319,12 +320,16 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
             'current_slide_id': session.current_slide_id,
             'is_active': session.is_active,
         }))
+        logger.info('[LessonSession] user %s connected to session %s (presenter=%s)',
+                    self.user.id, self.session_id,
+                    session.teacher_id == self.user.id or self.user.is_admin)
 
     async def disconnect(self, close_code):
         if hasattr(self, 'room_group_name'):
             await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     async def receive(self, text_data):
+        logger.info('[LessonSession] receive raw: %s', text_data[:120])
         try:
             data = json.loads(text_data)
         except json.JSONDecodeError:
@@ -332,30 +337,74 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
 
         session = await self.get_session()
         if session is None:
-            return
-
-        # Только учитель/admin управляет сессией
-        is_presenter = session.teacher_id == self.user.id or self.user.is_admin
-        if not is_presenter:
+            logger.warning('[LessonSession] session %s not found in receive', self.session_id)
             return
 
         msg_type = data.get('type')
+
+        # form_answer доступен ВСЕМ аутентифицированным участникам (не только учителю)
+        if msg_type == 'form_answer':
+            slide_id = data.get('slide_id')
+            answers = data.get('answers', [])
+            logger.info('[LessonSession] form_answer received: user=%s slide_id=%s answers_count=%s',
+                        self.user.id, slide_id, len(answers) if isinstance(answers, list) else '?')
+            if slide_id and isinstance(answers, list):
+                await self.save_form_answer(slide_id, answers)
+                try:
+                    results = await self.get_form_results(slide_id)
+                    logger.info('[LessonSession] form_answer broadcast to group %s', self.room_group_name)
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {'type': 'form_results_updated', 'slide_id': slide_id, 'results': results},
+                    )
+                except Exception as e:
+                    logger.error('[LessonSession] form_answer broadcast failed: %s', e)
+            else:
+                logger.warning('[LessonSession] form_answer bad data: slide_id=%s answers type=%s',
+                               slide_id, type(answers).__name__)
+            return
+
+        # Остальные команды — только для учителя/admin
+        is_presenter = session.teacher_id == self.user.id or self.user.is_admin
+        logger.info('[LessonSession] is_presenter=%s  teacher_id=%s  user_id=%s',
+                    is_presenter, session.teacher_id, self.user.id)
+        if not is_presenter:
+            return
 
         if msg_type == 'set_slide':
             slide_id = data.get('slide_id')
             if slide_id:
                 await self.do_set_slide(slide_id)
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {'type': 'slide_changed', 'slide_id': slide_id},
-                )
+                try:
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {'type': 'slide_changed', 'slide_id': slide_id},
+                    )
+                    logger.info('[LessonSession] group_send slide_changed slide_id=%s to %s',
+                                slide_id, self.room_group_name)
+                except Exception as e:
+                    logger.error('[LessonSession] group_send failed: %s', e)
 
         elif msg_type == 'end_session':
             await self.do_end_session()
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {'type': 'session_ended'},
-            )
+            try:
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {'type': 'session_ended'},
+                )
+            except Exception as e:
+                logger.error('[LessonSession] group_send end_session failed: %s', e)
+
+        elif msg_type == 'video_control':
+            action = data.get('action')
+            if action in ('play', 'pause'):
+                try:
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {'type': 'video_control', 'action': action},
+                    )
+                except Exception as e:
+                    logger.error('[LessonSession] video_control broadcast failed: %s', e)
 
     # ── Group message handlers ────────────────────────────────────────────────
 
@@ -367,6 +416,19 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
 
     async def session_ended(self, event):
         await self.send(text_data=json.dumps({'type': 'session_ended'}))
+
+    async def form_results_updated(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'form_results_updated',
+            'slide_id': event['slide_id'],
+            'results': event['results'],
+        }))
+
+    async def video_control(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'video_control',
+            'action': event['action'],
+        }))
 
     # ── DB helpers ────────────────────────────────────────────────────────────
 
@@ -385,6 +447,26 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
             session.save(update_fields=['current_slide'])
         except LessonSession.DoesNotExist:
             pass
+
+    @sync_to_async
+    def save_form_answer(self, slide_id, answers):
+        FormAnswer.objects.update_or_create(
+            session_id=self.session_id,
+            slide_id=slide_id,
+            student=self.user,
+            defaults={'answers': answers},
+        )
+
+    @sync_to_async
+    def get_form_results(self, slide_id):
+        try:
+            slide = Slide.objects.get(id=slide_id)
+            fa_qs = FormAnswer.objects.filter(
+                session_id=self.session_id, slide_id=slide_id,
+            ).select_related('student')
+            return compute_form_results(slide, fa_qs)
+        except Exception:
+            return {'summary': {'answered_count': 0, 'total_questions': 0, 'per_question': []}, 'details': []}
 
     @sync_to_async
     def do_end_session(self):

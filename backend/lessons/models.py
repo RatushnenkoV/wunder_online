@@ -150,6 +150,39 @@ class LessonSession(models.Model):
         return f'Сессия "{self.lesson}" — {self.started_at:%d.%m.%Y %H:%M}'
 
 
+class FormAnswer(models.Model):
+    """Ответы студента на вопросы формы в рамках сессии."""
+    session = models.ForeignKey(
+        LessonSession,
+        on_delete=models.CASCADE,
+        related_name='form_answers',
+        verbose_name='Сессия',
+    )
+    slide = models.ForeignKey(
+        Slide,
+        on_delete=models.CASCADE,
+        related_name='form_answers',
+        verbose_name='Слайд',
+    )
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='form_answers',
+        verbose_name='Ученик',
+    )
+    # [{question_id, value}] — value: int | int[] | str | null
+    answers = models.JSONField(default=list, verbose_name='Ответы')
+    submitted_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['session', 'slide', 'student']
+        verbose_name = 'Ответ на форму'
+        verbose_name_plural = 'Ответы на формы'
+
+    def __str__(self):
+        return f'FormAnswer session={self.session_id} slide={self.slide_id} student={self.student_id}'
+
+
 class LessonMedia(models.Model):
     lesson = models.ForeignKey(
         Lesson,

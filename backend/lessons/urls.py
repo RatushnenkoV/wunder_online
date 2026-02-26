@@ -25,4 +25,5 @@ urlpatterns = [
     path('sessions/', views.session_list_create),
     path('sessions/active/', views.sessions_active),
     path('sessions/<int:session_id>/', views.session_detail),
+    path('sessions/<int:session_id>/slides/<int:slide_id>/form-results/', views.session_form_results),
 ]

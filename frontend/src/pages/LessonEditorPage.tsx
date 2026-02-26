@@ -1565,18 +1565,23 @@ function stickerEdgePoint(s: DiscussionSticker, tx: number, ty: number): [number
   return [cx + dx * t, cy + dy * t];
 }
 
+const STICKER_DOT_R = 7;
+
 interface StickerItemProps {
   sticker: DiscussionSticker;
+  canEdit: boolean;
   canDelete: boolean;
-  connectMode: boolean;
-  isConnectSource: boolean;
+  showDots: boolean;
   onMove: (x: number, y: number) => void;
+  onDrag: (x: number, y: number) => void;
   onTextChange: (text: string) => void;
   onDelete: () => void;
-  onConnectClick: () => void;
+  onHoverIn: () => void;
+  onHoverOut: () => void;
+  onDotMouseDown: (dot: 'n' | 's' | 'e' | 'w', e: React.MouseEvent) => void;
 }
 
-function StickerItem({ sticker, canDelete, connectMode, isConnectSource, onMove, onTextChange, onDelete, onConnectClick }: StickerItemProps) {
+function StickerItem({ sticker, canEdit, canDelete, showDots, onMove, onDrag, onTextChange, onDelete, onHoverIn, onHoverOut, onDotMouseDown }: StickerItemProps) {
   const [localX, setLocalX] = useState(sticker.x);
   const [localY, setLocalY] = useState(sticker.y);
   const dragRef = useRef<{ startMX: number; startMY: number; startX: number; startY: number } | null>(null);
@@ -1584,19 +1589,20 @@ function StickerItem({ sticker, canDelete, connectMode, isConnectSource, onMove,
   useEffect(() => { setLocalX(sticker.x); setLocalY(sticker.y); }, [sticker.x, sticker.y]);
 
   const onMouseDown = (e: React.MouseEvent) => {
-    if (connectMode) return;
+    if (!canEdit) return;
     e.preventDefault();
     dragRef.current = { startMX: e.clientX, startMY: e.clientY, startX: localX, startY: localY };
     const handleMove = (me: MouseEvent) => {
       if (!dragRef.current) return;
-      setLocalX(dragRef.current.startX + me.clientX - dragRef.current.startMX);
-      setLocalY(dragRef.current.startY + me.clientY - dragRef.current.startMY);
+      const nx = dragRef.current.startX + me.clientX - dragRef.current.startMX;
+      const ny = dragRef.current.startY + me.clientY - dragRef.current.startMY;
+      setLocalX(nx);
+      setLocalY(ny);
+      onDrag(nx, ny);
     };
     const handleUp = (me: MouseEvent) => {
       if (!dragRef.current) return;
-      const nx = dragRef.current.startX + me.clientX - dragRef.current.startMX;
-      const ny = dragRef.current.startY + me.clientY - dragRef.current.startMY;
-      onMove(nx, ny);
+      onMove(dragRef.current.startX + me.clientX - dragRef.current.startMX, dragRef.current.startY + me.clientY - dragRef.current.startMY);
       dragRef.current = null;
       document.removeEventListener('mousemove', handleMove);
       document.removeEventListener('mouseup', handleUp);
@@ -1605,28 +1611,40 @@ function StickerItem({ sticker, canDelete, connectMode, isConnectSource, onMove,
     document.addEventListener('mouseup', handleUp);
   };
 
+  const dotStyle = (top: number, left: number): React.CSSProperties => ({
+    position: 'absolute', top, left,
+    width: STICKER_DOT_R * 2, height: STICKER_DOT_R * 2, borderRadius: '50%',
+    background: '#3b82f6', border: '2px solid white',
+    cursor: 'crosshair', zIndex: 30,
+    boxShadow: '0 1px 4px rgba(0,0,0,0.22)',
+  });
+
   return (
     <div
+      onMouseEnter={onHoverIn}
+      onMouseLeave={onHoverOut}
       style={{
         position: 'absolute', left: localX, top: localY,
         width: STICKER_W, height: STICKER_H,
-        backgroundColor: sticker.color,
-        borderRadius: 10,
-        boxShadow: isConnectSource
-          ? '0 0 0 3px #3b82f6, 0 4px 16px rgba(0,0,0,0.18)'
-          : '0 2px 12px rgba(0,0,0,0.13)',
+        backgroundColor: sticker.color, borderRadius: 10,
+        boxShadow: '0 2px 12px rgba(0,0,0,0.13)',
         display: 'flex', flexDirection: 'column',
-        zIndex: 10,
-        cursor: connectMode ? 'pointer' : 'grab',
+        zIndex: 10, cursor: canEdit ? 'grab' : 'default',
         userSelect: 'none',
-        outline: connectMode && !isConnectSource ? '2px dashed #93c5fd' : 'none',
-        transition: 'box-shadow 0.15s, outline 0.15s',
       }}
       onMouseDown={onMouseDown}
-      onClick={() => { if (connectMode) onConnectClick(); }}
     >
+      {/* Точки соединения */}
+      {showDots && (
+        <>
+          <div onMouseDown={e => { e.stopPropagation(); onDotMouseDown('n', e); }} style={dotStyle(-STICKER_DOT_R, STICKER_W / 2 - STICKER_DOT_R)} />
+          <div onMouseDown={e => { e.stopPropagation(); onDotMouseDown('s', e); }} style={dotStyle(STICKER_H - STICKER_DOT_R, STICKER_W / 2 - STICKER_DOT_R)} />
+          <div onMouseDown={e => { e.stopPropagation(); onDotMouseDown('e', e); }} style={dotStyle(STICKER_H / 2 - STICKER_DOT_R, STICKER_W - STICKER_DOT_R)} />
+          <div onMouseDown={e => { e.stopPropagation(); onDotMouseDown('w', e); }} style={dotStyle(STICKER_H / 2 - STICKER_DOT_R, -STICKER_DOT_R)} />
+        </>
+      )}
       <div style={{ height: 26, flexShrink: 0 }} className="flex items-center justify-end px-2 pt-1.5">
-        {canDelete && !connectMode && (
+        {canDelete && (
           <button
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onDelete(); }}
@@ -1636,12 +1654,12 @@ function StickerItem({ sticker, canDelete, connectMode, isConnectSource, onMove,
       </div>
       <textarea
         value={sticker.text}
-        onChange={e => onTextChange(e.target.value)}
-        onMouseDown={e => { if (!connectMode) e.stopPropagation(); }}
-        placeholder="Введите текст..."
-        readOnly={connectMode}
+        onChange={e => { if (canEdit) onTextChange(e.target.value); }}
+        onMouseDown={e => e.stopPropagation()}
+        readOnly={!canEdit}
+        placeholder={canEdit ? 'Введите текст...' : ''}
         className="flex-1 px-2.5 text-sm bg-transparent resize-none border-none outline-none text-gray-800 placeholder:text-gray-400"
-        style={{ cursor: connectMode ? 'pointer' : 'text' }}
+        style={{ cursor: canEdit ? 'text' : 'default' }}
       />
       <div style={{ height: 26, flexShrink: 0 }} className="px-2.5 pb-1.5 text-[10px] text-gray-500 font-medium border-t border-black/10 pt-1 truncate">
         {sticker.author_name}
@@ -1653,27 +1671,31 @@ function StickerItem({ sticker, canDelete, connectMode, isConnectSource, onMove,
 function DiscussionBoard({ slide }: { slide: Slide }) {
   const { user: currentUser } = useAuth();
 
-  const [stickers,     setStickers]     = useState<DiscussionSticker[]>([]);
-  const [arrows,       setArrows]       = useState<DiscussionArrow[]>([]);
-  const [topic,        setTopic]        = useState('');
-  const [topicEdit,    setTopicEdit]    = useState(false);
-  const [topicDraft,   setTopicDraft]   = useState('');
-  const [stickerColor, setStickerColor] = useState(STICKER_COLORS[0]);
-  const [connectMode,  setConnectMode]  = useState(false);
-  const [connectFrom,  setConnectFrom]  = useState<string | null>(null);
-  const [hoveredArrow, setHoveredArrow] = useState<string | null>(null);
-  const [isConnected,  setIsConnected]  = useState(false);
+  const [stickers,       setStickers]       = useState<DiscussionSticker[]>([]);
+  const [arrows,         setArrows]         = useState<DiscussionArrow[]>([]);
+  const [topic,          setTopic]          = useState('');
+  const [topicEdit,      setTopicEdit]      = useState(false);
+  const [topicDraft,     setTopicDraft]     = useState('');
+  const [hoveredArrow,   setHoveredArrow]   = useState<string | null>(null);
+  const [isConnected,    setIsConnected]    = useState(false);
+  const [hoverStickerId, setHoverStickerId] = useState<string | null>(null);
+  const [dragPositions,  setDragPositions]  = useState<Record<string, { x: number; y: number }>>({});
+  const [drawing,        setDrawing]        = useState<{
+    fromId: string; fromDot: 'n' | 's' | 'e' | 'w'; curX: number; curY: number;
+  } | null>(null);
 
-  const wsRef = useRef<WebSocket | null>(null);
+  const wsRef    = useRef<WebSocket | null>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
   const isTeacherOrAdmin = currentUser?.is_admin || currentUser?.is_teacher;
 
   useEffect(() => {
     const token = localStorage.getItem('access_token') ?? '';
-    const ws = new WebSocket(`ws://localhost:8000/ws/discussion/${slide.id}/?token=${token}`);
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${proto}://${window.location.host}/ws/discussion/${slide.id}/?token=${token}`);
     wsRef.current = ws;
 
     ws.onopen  = () => setIsConnected(true);
-    ws.onclose = () => { setIsConnected(false); wsRef.current = null; };
+    ws.onclose = () => { setIsConnected(false); if (wsRef.current === ws) wsRef.current = null; };
     ws.onerror = () => setIsConnected(false);
 
     ws.onmessage = (event) => {
@@ -1715,11 +1737,11 @@ function DiscussionBoard({ slide }: { slide: Slide }) {
     if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify(data));
   };
 
-  const addSticker = () => {
+  const addSticker = (color: string) => {
     sendWs({
       type: 'add_sticker',
-      x: 60 + Math.random() * 400, y: 40 + Math.random() * 220,
-      text: '', color: stickerColor,
+      x: 60 + Math.random() * 600, y: 40 + Math.random() * 320,
+      text: '', color,
       created_at: new Date().toISOString(),
     });
   };
@@ -1737,22 +1759,45 @@ function DiscussionBoard({ slide }: { slide: Slide }) {
   const deleteSticker = (id: string) => sendWs({ type: 'delete_sticker', id });
   const deleteArrow   = (id: string) => sendWs({ type: 'delete_arrow', id });
 
-  const handleStickerConnectClick = (stickerId: string) => {
-    if (!connectMode) return;
-    if (!connectFrom) {
-      setConnectFrom(stickerId);
-    } else if (connectFrom === stickerId) {
-      setConnectFrom(null);
-    } else {
-      sendWs({ type: 'add_arrow', from_id: connectFrom, to_id: stickerId });
-      setConnectFrom(null);
-      setConnectMode(false);
-    }
+  // ── Рисование стрелки по hover-точкам ─────────────────────────────────────
+  const startDraw = (fromId: string, fromDot: 'n' | 's' | 'e' | 'w', clientX: number, clientY: number) => {
+    const rect = boardRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setDrawing({ fromId, fromDot, curX: clientX - rect.left, curY: clientY - rect.top });
   };
 
-  const toggleConnectMode = () => {
-    setConnectMode(prev => !prev);
-    setConnectFrom(null);
+  useEffect(() => {
+    if (!drawing) return;
+    const onMove = (e: MouseEvent) => {
+      const rect = boardRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setDrawing(prev => prev ? { ...prev, curX: e.clientX - rect.left, curY: e.clientY - rect.top } : null);
+    };
+    const onUp = (e: MouseEvent) => {
+      const rect = boardRef.current?.getBoundingClientRect();
+      if (rect && drawing) {
+        const bx = e.clientX - rect.left;
+        const by = e.clientY - rect.top;
+        const target = stickers.find(s =>
+          s.id !== drawing.fromId &&
+          bx >= s.x && bx <= s.x + STICKER_W && by >= s.y && by <= s.y + STICKER_H,
+        );
+        if (target) sendWs({ type: 'add_arrow', from_id: drawing.fromId, to_id: target.id });
+      }
+      setDrawing(null);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+  }, [drawing, stickers]); // eslint-disable-line
+
+  const getDotPos = (s: DiscussionSticker, dot: 'n' | 's' | 'e' | 'w'): [number, number] => {
+    switch (dot) {
+      case 'n': return [s.x + STICKER_W / 2, s.y];
+      case 's': return [s.x + STICKER_W / 2, s.y + STICKER_H];
+      case 'e': return [s.x + STICKER_W, s.y + STICKER_H / 2];
+      case 'w': return [s.x, s.y + STICKER_H / 2];
+    }
   };
 
   const saveTopic = () => {
@@ -1761,8 +1806,8 @@ function DiscussionBoard({ slide }: { slide: Slide }) {
     setTopicEdit(false);
   };
 
-  const canDeleteItem = (authorId: number) =>
-    !!(currentUser && (isTeacherOrAdmin || authorId === currentUser.id));
+  const canEditItem   = (authorId: number) => !!(currentUser && (isTeacherOrAdmin || authorId === currentUser.id));
+  const canDeleteItem = (authorId: number) => !!(currentUser && (isTeacherOrAdmin || authorId === currentUser.id));
 
   return (
     <div className="flex flex-col h-full">
@@ -1798,53 +1843,20 @@ function DiscussionBoard({ slide }: { slide: Slide }) {
         )}
       </div>
 
-      {/* Панель инструментов */}
+      {/* Панель инструментов: цветные квадраты создают стикеры */}
       <div className="flex items-center gap-2 px-3 py-1.5 bg-white border-b border-gray-200 flex-wrap min-h-[44px]">
-        <button
-          onClick={addSticker}
-          disabled={!isConnected || connectMode}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          <span className="text-base leading-none">+</span> Стикер
-        </button>
-
-        <button
-          onClick={toggleConnectMode}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-            connectMode
-              ? 'bg-orange-50 text-orange-700 border-orange-300'
-              : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-          }`}
-          title="Соединить стикеры стрелкой"
-        >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}>
-            <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          {connectMode
-            ? (connectFrom ? 'Выберите второй стикер' : 'Выберите первый стикер')
-            : 'Соединить'}
-        </button>
-
-        {connectMode && (
+        <span className="text-xs text-gray-400">Стикер:</span>
+        {STICKER_COLORS.map(c => (
           <button
-            onClick={() => { setConnectMode(false); setConnectFrom(null); }}
-            className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100"
-          >Отмена</button>
-        )}
-
-        <div className="w-px h-5 bg-gray-200" />
-
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-gray-400 mr-0.5">Цвет</span>
-          {STICKER_COLORS.map(c => (
-            <button
-              key={c} onClick={() => setStickerColor(c)}
-              className={`w-4 h-4 rounded border-2 transition-all ${stickerColor === c ? 'border-blue-500 scale-110' : 'border-transparent hover:border-gray-300'}`}
-              style={{ backgroundColor: c }}
-            />
-          ))}
-        </div>
-
+            key={c}
+            onClick={() => { if (isConnected) addSticker(c); }}
+            disabled={!isConnected}
+            title="Добавить стикер"
+            className="flex-shrink-0 rounded transition-transform hover:scale-110 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ width: 18, height: 18, background: c, border: '2px solid rgba(0,0,0,0.12)', borderRadius: 4, padding: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.15)', cursor: isConnected ? 'pointer' : 'not-allowed' }}
+          />
+        ))}
+        <span className="text-xs text-gray-400 ml-2">Наведите на стикер чтобы соединить</span>
         <div className="ml-auto flex items-center gap-1.5">
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
           <span className={`text-xs ${isConnected ? 'text-green-600' : 'text-red-500'}`}>
@@ -1856,20 +1868,15 @@ function DiscussionBoard({ slide }: { slide: Slide }) {
       {/* Доска */}
       <div className="flex-1 overflow-auto bg-gray-100 flex items-start justify-center py-8">
         <div
+          ref={boardRef}
           style={{
             width: CANVAS_W, height: CANVAS_H, position: 'relative', flexShrink: 0,
             background: 'white', boxShadow: '0 4px 32px rgba(0,0,0,0.15)', borderRadius: 8,
-            overflow: 'hidden',
+            overflow: 'hidden', cursor: drawing ? 'crosshair' : 'default',
           }}
         >
-          {/* SVG-слой стрелок */}
-          <svg
-            style={{
-              position: 'absolute', top: 0, left: 0,
-              width: '100%', height: '100%',
-              zIndex: 5, overflow: 'visible',
-            }}
-          >
+          {/* SVG-слой стрелок + рисуемая линия */}
+          <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 5, overflow: 'visible' }}>
             <defs>
               <marker id="db-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
                 <polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af" />
@@ -1877,53 +1884,42 @@ function DiscussionBoard({ slide }: { slide: Slide }) {
               <marker id="db-arrow-del" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
                 <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444" />
               </marker>
+              <marker id="db-arrow-tmp" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#3b82f6" />
+              </marker>
             </defs>
 
             {arrows.map(arrow => {
               const from = stickers.find(s => s.id === arrow.from_id);
               const to   = stickers.find(s => s.id === arrow.to_id);
               if (!from || !to) return null;
-
-              const toCx  = to.x   + STICKER_W / 2;
-              const toCy  = to.y   + STICKER_H / 2;
-              const fromCx = from.x + STICKER_W / 2;
-              const fromCy = from.y + STICKER_H / 2;
-
-              const [x1, y1] = stickerEdgePoint(from, toCx, toCy);
-              const [x2, y2] = stickerEdgePoint(to, fromCx, fromCy);
-              const mx = (x1 + x2) / 2;
-              const my = (y1 + y2) / 2;
+              const fp = dragPositions[from.id] ?? { x: from.x, y: from.y };
+              const tp = dragPositions[to.id]   ?? { x: to.x,   y: to.y };
+              const fromS = { ...from, ...fp };
+              const toS   = { ...to,   ...tp };
+              const [x1, y1] = stickerEdgePoint(fromS, tp.x + STICKER_W / 2, tp.y + STICKER_H / 2);
+              const [x2, y2] = stickerEdgePoint(toS,   fp.x + STICKER_W / 2, fp.y + STICKER_H / 2);
+              const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
               const isHovered = hoveredArrow === arrow.id;
               const canDel = canDeleteItem(arrow.author_id);
-
               return (
                 <g key={arrow.id}>
-                  {/* Видимая линия */}
-                  <line
-                    x1={x1} y1={y1} x2={x2} y2={y2}
-                    stroke={isHovered ? '#ef4444' : '#9ca3af'}
-                    strokeWidth={isHovered ? 2.5 : 2}
+                  <line x1={x1} y1={y1} x2={x2} y2={y2}
+                    stroke={isHovered ? '#ef4444' : '#9ca3af'} strokeWidth={isHovered ? 2.5 : 2}
                     markerEnd={isHovered ? 'url(#db-arrow-del)' : 'url(#db-arrow)'}
-                    style={{ pointerEvents: 'none' }}
-                  />
-                  {/* Широкая невидимая линия для захвата событий */}
-                  <line
-                    x1={x1} y1={y1} x2={x2} y2={y2}
+                    style={{ pointerEvents: 'none' }} />
+                  <line x1={x1} y1={y1} x2={x2} y2={y2}
                     stroke="transparent" strokeWidth={18}
                     style={{ pointerEvents: 'stroke', cursor: canDel ? 'pointer' : 'default' }}
                     onMouseEnter={() => setHoveredArrow(arrow.id)}
                     onMouseLeave={() => setHoveredArrow(null)}
                     onClick={canDel ? () => deleteArrow(arrow.id) : undefined}
                   />
-                  {/* Кнопка удаления в центре стрелки */}
                   {isHovered && canDel && (
-                    <g
-                      transform={`translate(${mx}, ${my})`}
-                      style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                    <g transform={`translate(${mx},${my})`} style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                       onMouseEnter={() => setHoveredArrow(arrow.id)}
                       onMouseLeave={() => setHoveredArrow(null)}
-                      onClick={() => deleteArrow(arrow.id)}
-                    >
+                      onClick={() => deleteArrow(arrow.id)}>
                       <circle r={10} fill="white" stroke="#fca5a5" strokeWidth={1.5} />
                       <text textAnchor="middle" dominantBaseline="middle" fontSize={14} fill="#ef4444" fontWeight="bold">×</text>
                     </g>
@@ -1931,21 +1927,43 @@ function DiscussionBoard({ slide }: { slide: Slide }) {
                 </g>
               );
             })}
+            {/* Рисуемая стрелка */}
+            {drawing && (() => {
+              const fromS = stickers.find(s => s.id === drawing.fromId);
+              if (!fromS) return null;
+              const [sx, sy] = getDotPos(fromS, drawing.fromDot);
+              return (
+                <line x1={sx} y1={sy} x2={drawing.curX} y2={drawing.curY}
+                  stroke="#3b82f6" strokeWidth={2} strokeDasharray="6,3"
+                  markerEnd="url(#db-arrow-tmp)" style={{ pointerEvents: 'none' }} />
+              );
+            })()}
           </svg>
 
           {/* Стикеры */}
           {stickers.map(s => (
             <StickerItem
               key={s.id} sticker={s}
+              canEdit={canEditItem(s.author_id)}
               canDelete={canDeleteItem(s.author_id)}
-              connectMode={connectMode}
-              isConnectSource={connectFrom === s.id}
-              onMove={(x, y) => moveStickerLocal(s.id, x, y)}
+              showDots={hoverStickerId === s.id || drawing?.fromId === s.id}
+              onDrag={(x, y) => setDragPositions(prev => ({ ...prev, [s.id]: { x, y } }))}
+              onMove={(x, y) => {
+                moveStickerLocal(s.id, x, y);
+                setDragPositions(prev => { const n = { ...prev }; delete n[s.id]; return n; });
+              }}
               onTextChange={text => updateStickerText(s.id, text)}
               onDelete={() => deleteSticker(s.id)}
-              onConnectClick={() => handleStickerConnectClick(s.id)}
+              onHoverIn={() => { if (!drawing) setHoverStickerId(s.id); }}
+              onHoverOut={() => { if (!drawing) setHoverStickerId(prev => prev === s.id ? null : prev); }}
+              onDotMouseDown={(dot, e) => { e.preventDefault(); startDraw(s.id, dot, e.clientX, e.clientY); }}
             />
           ))}
+          {stickers.length === 0 && !drawing && (
+            <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm pointer-events-none">
+              Нажмите на квадратик цвета чтобы добавить стикер
+            </div>
+          )}
         </div>
       </div>
     </div>

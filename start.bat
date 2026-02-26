@@ -32,6 +32,7 @@ set REDIS_STARTED=0
 :: 1. Попытка — redis-server.exe в PATH или стандартных местах
 set REDIS_EXE=
 for %%r in (
+    "D:\Redis\redis-server.exe"
     "%PROGRAMFILES%\Redis\redis-server.exe"
     "%PROGRAMFILES(X86)%\Redis\redis-server.exe"
     "%LOCALAPPDATA%\Redis\redis-server.exe"
