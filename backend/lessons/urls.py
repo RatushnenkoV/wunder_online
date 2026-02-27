@@ -7,6 +7,9 @@ urlpatterns = [
     path('folders/<int:folder_id>/', views.folder_detail),
     path('folders/<int:folder_id>/contents/', views.folder_contents),
 
+    # Импорт
+    path('import/', views.import_presentation),
+
     # Уроки
     path('lessons/', views.lesson_list_create),
     path('lessons/<int:lesson_id>/', views.lesson_detail),

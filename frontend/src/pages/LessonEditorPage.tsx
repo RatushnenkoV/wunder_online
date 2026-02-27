@@ -425,6 +425,38 @@ const ImageBlock = memo(function ImageBlock({ block, lessonId, onSave }: { block
   );
 });
 
+// ─── Кнопка выбора фона слайда ────────────────────────────────────────────────
+
+function BgColorButton({ bg, onChange }: { bg: string; onChange: (color: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isDefault = bg === '#ffffff';
+  return (
+    <div className="flex items-center gap-1.5 pl-2 border-l border-gray-200" title="Фон слайда">
+      <span className="text-xs text-gray-400 select-none">Фон</span>
+      <div
+        className="w-6 h-6 rounded border border-gray-300 cursor-pointer flex-shrink-0"
+        style={{ backgroundColor: bg }}
+        onClick={() => inputRef.current?.click()}
+        title="Цвет фона слайда"
+      />
+      <input
+        ref={inputRef}
+        type="color"
+        value={bg}
+        onChange={e => onChange(e.target.value)}
+        className="w-0 h-0 opacity-0 absolute pointer-events-none"
+      />
+      {!isDefault && (
+        <button
+          onClick={() => onChange('#ffffff')}
+          className="w-5 h-5 rounded border border-gray-200 text-gray-400 hover:bg-gray-50 text-[11px] flex items-center justify-center"
+          title="Сбросить фон"
+        >∅</button>
+      )}
+    </div>
+  );
+}
+
 // ─── Холст слайда ─────────────────────────────────────────────────────────────
 
 function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; lessonId: number; coverColor: string; onSaved: (s: Slide) => void }) {
@@ -436,6 +468,11 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
   const [baseScale,    setBaseScale]    = useState(1);
   const [zoomMul,      setZoomMul]      = useState(1);
   const [showShapePicker, setShowShapePicker] = useState(false);
+  const [background,   setBackground]   = useState<string>((slide.content as Record<string, unknown>)?.background as string ?? '#ffffff');
+  const bgRef = useRef<string>((slide.content as Record<string, unknown>)?.background as string ?? '#ffffff');
+  const blocksRef = useRef<SlideBlock[]>(content.blocks);
+  bgRef.current = background;
+  blocksRef.current = blocks;
 
   const containerRef          = useRef<HTMLDivElement>(null);
   const innerCanvasRef        = useRef<HTMLDivElement>(null);
@@ -459,6 +496,10 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
   useEffect(() => {
     const c = slide.content?.blocks ? slide.content : emptyContent();
     setBlocks(c.blocks);
+    blocksRef.current = c.blocks;
+    const bg = (slide.content as Record<string, unknown>)?.background as string ?? '#ffffff';
+    setBackground(bg);
+    bgRef.current = bg;
     setSelectedIds([]);
     setEditingId(null);
     setActiveEditor(null);
@@ -579,15 +620,38 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
 
   // ── Сохранение ──────────────────────────────────────────────────────────────
 
+  const buildContent = (nextBlocks: SlideBlock[], bg: string) => {
+    const c: Record<string, unknown> = { blocks: nextBlocks };
+    if (bg && bg !== '#ffffff') c.background = bg;
+    return c;
+  };
+
   const saveBlocks = useCallback((next: SlideBlock[]) => {
+    blocksRef.current = next;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
-        const res = await api.put(`/lessons/lessons/${lessonId}/slides/${slide.id}/`, { content: { blocks: next } });
+        const res = await api.put(`/lessons/lessons/${lessonId}/slides/${slide.id}/`, {
+          content: buildContent(next, bgRef.current),
+        });
         onSaved(res.data);
       } catch { /* ignore */ }
     }, 400);
-  }, [lessonId, slide.id, onSaved]);
+  }, [lessonId, slide.id, onSaved]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveBg = useCallback((newBg: string) => {
+    setBackground(newBg);
+    bgRef.current = newBg;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      try {
+        const res = await api.put(`/lessons/lessons/${lessonId}/slides/${slide.id}/`, {
+          content: buildContent(blocksRef.current, newBg),
+        });
+        onSaved(res.data);
+      } catch { /* ignore */ }
+    }, 400);
+  }, [lessonId, slide.id, onSaved]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateBlock = useCallback((id: string, patch: Partial<SlideBlock>) => {
     setBlocks(prev => {
@@ -783,10 +847,19 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
   }, [blocks, scale, updateBlock]);
 
   // ── Контекстный тулбар ──────────────────────────────────────────────────────
-  let toolbar: React.ReactNode;
-  if (editingId && activeEditor)              toolbar = <TiptapToolbar editor={activeEditor} />;
-  else if (selectedBlock?.type === 'shape')   toolbar = <ShapeToolbar block={selectedBlock} onChange={p => updateBlock(selectedBlock.id, p)} />;
-  else                                        toolbar = <div className="h-10 border-b border-gray-200 bg-white" />;
+  let toolbarInner: React.ReactNode;
+  if (editingId && activeEditor)              toolbarInner = <TiptapToolbar editor={activeEditor} />;
+  else if (selectedBlock?.type === 'shape')   toolbarInner = <ShapeToolbar block={selectedBlock} onChange={p => updateBlock(selectedBlock.id, p)} />;
+  else                                        toolbarInner = <div className="flex-1 h-10" />;
+
+  const toolbar = (
+    <div className="flex items-stretch border-b border-gray-200 bg-white">
+      <div className="flex-1 min-w-0">{toolbarInner}</div>
+      <div className="flex items-center pr-3 flex-shrink-0">
+        <BgColorButton bg={background} onChange={saveBg} />
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -809,7 +882,7 @@ function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { slide: Slide; l
                 width: CANVAS_W, height: CANVAS_H,
                 transform: `scale(${scale})`, transformOrigin: 'top left',
                 position: 'absolute', top: 0, left: 0,
-                backgroundColor: 'white',
+                backgroundColor: background,
                 boxShadow: '0 4px 32px rgba(0,0,0,0.15)',
                 borderRadius: 4,
                 overflow: 'visible',

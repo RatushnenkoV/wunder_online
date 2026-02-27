@@ -166,6 +166,618 @@ def lesson_detail(request, lesson_id):
     return Response(status=204)
 
 
+# ─── Импорт презентаций ───────────────────────────────────────────────────────
+
+_IMPORT_W = 960
+_IMPORT_H = 540
+# Имена тем, которые не несут реального имени шрифта
+_THEME_FONT_PLACEHOLDERS = {'+mj-lt', '+mn-lt', '+mj-ea', '+mn-ea', '+mj-cs', '+mn-cs'}
+
+
+def _qn(tag: str) -> str:
+    """Clark-нотация для OOXML-тегов, например 'a:rPr' → '{...ns}rPr'."""
+    from pptx.oxml.ns import qn
+    return qn(tag)
+
+
+# ── XML-помощники для чтения унаследованных свойств ──────────────────────────
+
+def _xml_sz(rPr, pPr, txBody) -> float | None:
+    """Размер шрифта в pt: rPr.sz → pPr.defRPr.sz → lstStyle.lvl1pPr.*"""
+    def _sz_from(el):
+        if el is None:
+            return None
+        sz = el.get('sz')
+        return int(sz) / 100 if sz else None
+
+    v = _sz_from(rPr)
+    if v:
+        return v
+    if pPr is not None:
+        v = _sz_from(pPr.find(_qn('a:defRPr')))
+        if v:
+            return v
+    if txBody is not None:
+        lst = txBody.find(_qn('a:lstStyle'))
+        if lst is not None:
+            for tag in ('a:lvl1pPr', 'a:lvl2pPr'):
+                lvl = lst.find(_qn(tag))
+                if lvl is not None:
+                    v = _sz_from(lvl.find(_qn('a:defRPr'))) or _sz_from(lvl)
+                    if v:
+                        return v
+    return None
+
+
+def _xml_font_name(rPr, pPr, txBody) -> str | None:
+    """Имя шрифта из цепочки rPr → pPr.defRPr → lstStyle."""
+    def _name_from(el):
+        if el is None:
+            return None
+        lat = el.find(_qn('a:latin'))
+        if lat is not None:
+            tf = lat.get('typeface')
+            if tf and tf not in _THEME_FONT_PLACEHOLDERS:
+                return tf
+        return None
+
+    v = _name_from(rPr)
+    if v:
+        return v
+    if pPr is not None:
+        v = _name_from(pPr.find(_qn('a:defRPr')))
+        if v:
+            return v
+    if txBody is not None:
+        lst = txBody.find(_qn('a:lstStyle'))
+        if lst is not None:
+            lvl = lst.find(_qn('a:lvl1pPr'))
+            if lvl is not None:
+                v = _name_from(lvl.find(_qn('a:defRPr')))
+                if v:
+                    return v
+    return None
+
+
+def _xml_color_hex(rPr, pPr) -> str | None:
+    """Цвет из solidFill/srgbClr: rPr → pPr.defRPr."""
+    def _from(el):
+        if el is None:
+            return None
+        sf = el.find(_qn('a:solidFill'))
+        if sf is not None:
+            sc = sf.find(_qn('a:srgbClr'))
+            if sc is not None:
+                val = sc.get('val')
+                if val:
+                    return f'#{val}'
+        return None
+
+    v = _from(rPr)
+    if v:
+        return v
+    if pPr is not None:
+        v = _from(pPr.find(_qn('a:defRPr')))
+        if v:
+            return v
+    return None
+
+
+def _xml_bool(el, attr: str) -> bool | None:
+    """Читает булев атрибут OOXML ('0'/'1'/'true'/'false') из элемента."""
+    if el is None:
+        return None
+    val = el.get(attr)
+    if val is None:
+        return None
+    return val not in ('0', 'false')
+
+
+# ── Конвертация параграфов ────────────────────────────────────────────────────
+
+def _run_to_html(run, para, txBody) -> str:
+    """Фрагмент PPTX → HTML <span> с полными инлайн-стилями (через XML)."""
+    text = run.text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    if not text:
+        return ''
+
+    rPr = run._r.find(_qn('a:rPr'))
+    pPr = para._p.find(_qn('a:pPr'))
+    styles = []
+
+    # Шрифт
+    name = _xml_font_name(rPr, pPr, txBody)
+    if name:
+        safe_name = name.replace("'", "\\'")
+        styles.append(f"font-family: '{safe_name}', sans-serif")
+
+    # Размер (pt ≈ px на стандартном холсте 960px/10")
+    sz = _xml_sz(rPr, pPr, txBody)
+    if sz and sz > 0:
+        styles.append(f'font-size: {round(sz)}px')
+
+    # Цвет
+    color = _xml_color_hex(rPr, pPr)
+    if color:
+        styles.append(f'color: {color}')
+
+    # Начертание
+    if _xml_bool(rPr, 'b'):
+        styles.append('font-weight: bold')
+    if _xml_bool(rPr, 'i'):
+        styles.append('font-style: italic')
+    u = rPr.get('u') if rPr is not None else None
+    if u and u != 'none':
+        styles.append('text-decoration: underline')
+
+    if styles:
+        return f'<span style="{"; ".join(styles)}">{text}</span>'
+    return text
+
+
+def _para_to_html(para, txBody) -> str:
+    """Параграф PPTX → HTML <p> с выравниванием и форматированием."""
+    try:
+        from pptx.enum.text import PP_ALIGN
+    except Exception:
+        PP_ALIGN = None
+
+    inner = ''.join(_run_to_html(r, para, txBody) for r in para.runs)
+    if not inner:
+        raw = para.text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        if not raw.strip():
+            return ''
+        inner = raw
+
+    align_style = ''
+    if PP_ALIGN:
+        try:
+            a = para.alignment
+            if a == PP_ALIGN.CENTER:
+                align_style = 'text-align: center'
+            elif a == PP_ALIGN.RIGHT:
+                align_style = 'text-align: right'
+            elif a == PP_ALIGN.JUSTIFY:
+                align_style = 'text-align: justify'
+        except Exception:
+            pass
+
+    attrs = f' style="{align_style}"' if align_style else ''
+    return f'<p{attrs}>{inner}</p>'
+
+
+# ── Фон слайда ────────────────────────────────────────────────────────────────
+
+def _get_theme_scheme(pptx_slide):
+    """Возвращает элемент <a:clrScheme> из темы мастера слайда."""
+    try:
+        from lxml import etree
+        master_part = pptx_slide.slide_layout.slide_master.part
+        theme_rtype = (
+            'http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme'
+        )
+        for rel in master_part.rels.values():
+            if rel.reltype == theme_rtype:
+                blob = rel._target.blob
+                tree = etree.fromstring(blob)
+                return tree.find('.//' + _qn('a:clrScheme'))
+    except Exception:
+        pass
+    return None
+
+
+def _resolve_scheme_color(scheme_el, val_name: str) -> str | None:
+    """Разрешает имя schemeClr (bg1/acc1/dk1/…) в HEX-строку через <a:clrScheme>."""
+    name_map = {
+        'dk1': 'a:dk1',    'lt1': 'a:lt1',
+        'dk2': 'a:dk2',    'lt2': 'a:lt2',
+        'acc1': 'a:accent1', 'acc2': 'a:accent2',
+        'acc3': 'a:accent3', 'acc4': 'a:accent4',
+        'acc5': 'a:accent5', 'acc6': 'a:accent6',
+        'hlink': 'a:hlink', 'folHlink': 'a:folHlink',
+        # псевдонимы
+        'bg1': 'a:lt1', 'bg2': 'a:lt2',
+        'tx1': 'a:dk1', 'tx2': 'a:dk2',
+        'accent1': 'a:accent1', 'accent2': 'a:accent2',
+        'accent3': 'a:accent3', 'accent4': 'a:accent4',
+        'accent5': 'a:accent5', 'accent6': 'a:accent6',
+    }
+    tag = name_map.get(val_name)
+    if not tag or scheme_el is None:
+        return None
+    slot = scheme_el.find(_qn(tag))
+    if slot is None:
+        return None
+    rgb_el = slot.find(_qn('a:srgbClr'))
+    if rgb_el is not None:
+        return rgb_el.get('val')
+    sys_el = slot.find(_qn('a:sysClr'))
+    if sys_el is not None:
+        return sys_el.get('lastClr')
+    return None
+
+
+def _apply_color_mods(hex_rgb: str, mods_el) -> str:
+    """Применяет OOXML-модификаторы цвета (lumMod/lumOff/shade/tint) к HEX-строке."""
+    import colorsys
+    try:
+        r = int(hex_rgb[0:2], 16) / 255.0
+        g = int(hex_rgb[2:4], 16) / 255.0
+        b = int(hex_rgb[4:6], 16) / 255.0
+
+        def pct(el, attr):
+            v = el.get(attr)
+            return int(v) / 100000.0 if v else None
+
+        for child in mods_el:
+            local = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+            if local == 'lumMod':
+                f = pct(child, 'val')
+                if f is not None:
+                    h, l, s = colorsys.rgb_to_hls(r, g, b)
+                    l = max(0.0, min(1.0, l * f))
+                    r, g, b = colorsys.hls_to_rgb(h, l, s)
+            elif local == 'lumOff':
+                f = pct(child, 'val')
+                if f is not None:
+                    h, l, s = colorsys.rgb_to_hls(r, g, b)
+                    l = max(0.0, min(1.0, l + f))
+                    r, g, b = colorsys.hls_to_rgb(h, l, s)
+            elif local == 'shade':
+                f = pct(child, 'val')
+                if f is not None:
+                    r = max(0.0, min(1.0, r * f))
+                    g = max(0.0, min(1.0, g * f))
+                    b = max(0.0, min(1.0, b * f))
+            elif local == 'tint':
+                f = pct(child, 'val')
+                if f is not None:
+                    r = max(0.0, min(1.0, r * f + (1.0 - f)))
+                    g = max(0.0, min(1.0, g * f + (1.0 - f)))
+                    b = max(0.0, min(1.0, b * f + (1.0 - f)))
+
+        return f'{int(round(r * 255)):02X}{int(round(g * 255)):02X}{int(round(b * 255)):02X}'
+    except Exception:
+        return hex_rgb
+
+
+def _color_from_fill_parent(el, scheme_el) -> str | None:
+    """Извлекает цвет из элемента, содержащего solidFill/gradFill (например, bgPr или bgRef)."""
+    # solidFill
+    sf = el.find(_qn('a:solidFill'))
+    if sf is not None:
+        srgb = sf.find(_qn('a:srgbClr'))
+        if srgb is not None and srgb.get('val'):
+            return f'#{srgb.get("val")}'
+        sch = sf.find(_qn('a:schemeClr'))
+        if sch is not None:
+            base = _resolve_scheme_color(scheme_el, sch.get('val', ''))
+            if base:
+                return f'#{_apply_color_mods(base, sch)}'
+        sys_el = sf.find(_qn('a:sysClr'))
+        if sys_el is not None and sys_el.get('lastClr'):
+            return f'#{sys_el.get("lastClr")}'
+
+    # gradFill: берём первую остановку
+    gf = el.find(_qn('a:gradFill'))
+    if gf is not None:
+        lst = gf.find(_qn('a:gsLst'))
+        if lst is not None:
+            stops = list(lst)
+            if stops:
+                first = stops[0]
+                srgb = first.find(_qn('a:srgbClr'))
+                if srgb is not None and srgb.get('val'):
+                    return f'#{srgb.get("val")}'
+                sch = first.find(_qn('a:schemeClr'))
+                if sch is not None:
+                    base = _resolve_scheme_color(scheme_el, sch.get('val', ''))
+                    if base:
+                        return f'#{_apply_color_mods(base, sch)}'
+                sys_el = first.find(_qn('a:sysClr'))
+                if sys_el is not None and sys_el.get('lastClr'):
+                    return f'#{sys_el.get("lastClr")}'
+
+    # schemeClr / srgbClr непосредственно в el (для bgRef)
+    sch = el.find(_qn('a:schemeClr'))
+    if sch is not None:
+        base = _resolve_scheme_color(scheme_el, sch.get('val', ''))
+        if base:
+            return f'#{_apply_color_mods(base, sch)}'
+    srgb = el.find(_qn('a:srgbClr'))
+    if srgb is not None and srgb.get('val'):
+        return f'#{srgb.get("val")}'
+
+    return None
+
+
+def _bg_from_csld(cSld_el, scheme_el) -> str | None:
+    """Извлекает цвет фона из элемента <p:cSld>."""
+    if cSld_el is None:
+        return None
+    bg = cSld_el.find(_qn('p:bg'))
+    if bg is None:
+        return None
+    bgPr = bg.find(_qn('p:bgPr'))
+    if bgPr is not None:
+        color = _color_from_fill_parent(bgPr, scheme_el)
+        if color:
+            return color
+    bgRef = bg.find(_qn('p:bgRef'))
+    if bgRef is not None:
+        return _color_from_fill_parent(bgRef, scheme_el)
+    return None
+
+
+def _slide_bg_color(pptx_slide) -> str | None:
+    """Цвет фона слайда: slide → layout → master, поддержка schemeClr/srgbClr/gradFill."""
+    try:
+        scheme_el = _get_theme_scheme(pptx_slide)
+
+        # 1. Слайд
+        cSld = pptx_slide._element.find(_qn('p:cSld'))
+        color = _bg_from_csld(cSld, scheme_el)
+        if color:
+            return color
+
+        # 2. Макет (layout)
+        try:
+            layout_cSld = pptx_slide.slide_layout._element.find(_qn('p:cSld'))
+            color = _bg_from_csld(layout_cSld, scheme_el)
+            if color:
+                return color
+        except Exception:
+            pass
+
+        # 3. Мастер — возвращаем только нестандартные цвета (не белый)
+        try:
+            master_cSld = pptx_slide.slide_layout.slide_master._element.find(_qn('p:cSld'))
+            color = _bg_from_csld(master_cSld, scheme_el)
+            if color and color.upper() not in ('#FFFFFF', '#FFF'):
+                return color
+        except Exception:
+            pass
+    except Exception:
+        pass
+    return None
+
+
+# ── Цвет/тип авто-фигур ───────────────────────────────────────────────────────
+
+def _shape_fill_stroke(shape):
+    """Возвращает (fill_color, stroke_color, stroke_width_px)."""
+    fill_color = 'transparent'
+    stroke_color = 'transparent'
+    stroke_width = 3
+
+    try:
+        ft = shape.fill.type
+        if ft is not None:
+            try:
+                fill_color = f'#{shape.fill.fore_color.rgb}'
+            except Exception:
+                fill_color = '#6366f1'
+    except Exception:
+        pass
+
+    try:
+        line = shape.line
+        try:
+            if line.color.type is not None:
+                stroke_color = f'#{line.color.rgb}'
+        except Exception:
+            pass
+        if stroke_color == 'transparent':
+            try:
+                if line.width and line.width > 0:
+                    stroke_color = '#374151'
+            except Exception:
+                pass
+        try:
+            if line.width:
+                stroke_width = max(1, round(line.width / 12700))
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+    return fill_color, stroke_color, stroke_width
+
+
+def _canvas_shape(shape) -> str:
+    """Тип нашего canvas-блока: rect/circle/triangle/diamond/star/line."""
+    try:
+        s = str(shape.auto_shape_type).upper()
+        if any(k in s for k in ('OVAL', 'ELLIPSE', 'CIRCLE')):
+            return 'circle'
+        if any(k in s for k in ('TRIANGLE', 'ISOSCELES', 'RIGHT_TRIANGLE')):
+            return 'triangle'
+        if 'DIAMOND' in s:
+            return 'diamond'
+        if 'STAR' in s:
+            return 'star'
+    except Exception:
+        pass
+    try:
+        from pptx.enum.shapes import MSO_SHAPE_TYPE
+        if shape.shape_type == MSO_SHAPE_TYPE.LINE:
+            return 'line'
+    except Exception:
+        pass
+    return 'rect'
+
+
+# ── PDF ───────────────────────────────────────────────────────────────────────
+
+def _import_pdf(request, lesson, file_obj):
+    """Импорт PDF: каждая страница → content-слайд с блоком-изображением на весь холст."""
+    import fitz  # pymupdf
+    from django.core.files.base import ContentFile
+
+    data = file_obj.read()
+    doc = fitz.open(stream=data, filetype='pdf')
+    try:
+        for i, page in enumerate(doc):
+            mat = fitz.Matrix(2, 2)  # 2× для чёткости
+            pix = page.get_pixmap(matrix=mat)
+            img_bytes = pix.tobytes('png')
+
+            media = LessonMedia(lesson=lesson)
+            media.file.save(f'page_{i + 1}.png', ContentFile(img_bytes), save=True)
+            img_url = request.build_absolute_uri(media.file.url)
+
+            Slide.objects.create(
+                lesson=lesson,
+                order=i,
+                slide_type=Slide.TYPE_CONTENT,
+                content={
+                    'blocks': [{
+                        'id': f'b{i}_1',
+                        'type': 'image',
+                        'x': 0, 'y': 0,
+                        'w': _IMPORT_W, 'h': _IMPORT_H,
+                        'zIndex': 1,
+                        'rotation': 0,
+                        'src': img_url,
+                        'alt': f'Страница {i + 1}',
+                    }],
+                },
+            )
+    finally:
+        doc.close()
+
+
+# ── PPTX ──────────────────────────────────────────────────────────────────────
+
+def _import_pptx(request, lesson, file_obj):
+    """
+    Импорт PPTX: каждый слайд → content-слайд.
+    Поддерживает: текст (шрифт/размер/цвет/начертание/выравнивание),
+    изображения, авто-фигуры (rect/circle/triangle/diamond/star/line),
+    цвет фона слайда, угол поворота объектов.
+    """
+    from pptx import Presentation
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
+    from django.core.files.base import ContentFile
+
+    AUTO_SHAPE_TYPES = (MSO_SHAPE_TYPE.AUTO_SHAPE, MSO_SHAPE_TYPE.FREEFORM)
+
+    prs = Presentation(file_obj)
+    slide_w = prs.slide_width or 1
+    slide_h = prs.slide_height or 1
+
+    for i, pptx_slide in enumerate(prs.slides):
+        blocks = []
+        idx = 1
+        bg_color = _slide_bg_color(pptx_slide)
+
+        for shape in pptx_slide.shapes:
+            try:
+                x = int(shape.left / slide_w * _IMPORT_W)
+                y = int(shape.top  / slide_h * _IMPORT_H)
+                w = max(50, int(shape.width  / slide_w * _IMPORT_W))
+                h = max(20, int(shape.height / slide_h * _IMPORT_H))
+                rotation = float(getattr(shape, 'rotation', 0) or 0)
+                stype = getattr(shape, 'shape_type', None)
+
+                # ── Изображение ──────────────────────────────────────────────
+                if stype == MSO_SHAPE_TYPE.PICTURE:
+                    img_data = shape.image.blob
+                    img_ext = (shape.image.ext or 'png').lstrip('.')
+                    media = LessonMedia(lesson=lesson)
+                    media.file.save(f'slide_{i}_{idx}.{img_ext}', ContentFile(img_data), save=True)
+                    blocks.append({
+                        'id': f'b{i}_{idx}', 'type': 'image',
+                        'x': max(0, x), 'y': max(0, y),
+                        'w': min(w, _IMPORT_W), 'h': min(h, _IMPORT_H),
+                        'zIndex': idx, 'rotation': rotation,
+                        'src': request.build_absolute_uri(media.file.url), 'alt': '',
+                    })
+                    idx += 1
+                    continue
+
+                # ── Авто-фигура (без текста или с заливкой) ──────────────────
+                if stype in AUTO_SHAPE_TYPES or stype == MSO_SHAPE_TYPE.LINE:
+                    fc, sc, sw = _shape_fill_stroke(shape)
+                    if fc != 'transparent' or sc != 'transparent':
+                        blocks.append({
+                            'id': f'b{i}_{idx}', 'type': 'shape',
+                            'shape': _canvas_shape(shape),
+                            'x': max(0, x), 'y': max(0, y),
+                            'w': min(w, _IMPORT_W), 'h': min(h, _IMPORT_H),
+                            'zIndex': idx, 'rotation': rotation,
+                            'fillColor': fc, 'strokeColor': sc, 'strokeWidth': sw,
+                        })
+                        idx += 1
+
+                # ── Текст (присутствует на любом типе фигуры) ─────────────────
+                if shape.has_text_frame:
+                    txBody = shape.text_frame._txBody
+                    parts = [_para_to_html(p, txBody) for p in shape.text_frame.paragraphs]
+                    html = ''.join(p for p in parts if p)
+                    if html:
+                        blocks.append({
+                            'id': f'b{i}_{idx}', 'type': 'text',
+                            'x': max(0, x), 'y': max(0, y),
+                            'w': min(w, _IMPORT_W), 'h': min(h, _IMPORT_H),
+                            'zIndex': idx, 'rotation': rotation,
+                            'html': html,
+                        })
+                        idx += 1
+
+            except Exception:
+                continue
+
+        content: dict = {'blocks': blocks}
+        if bg_color:
+            content['background'] = bg_color
+
+        Slide.objects.create(
+            lesson=lesson,
+            order=i,
+            slide_type=Slide.TYPE_CONTENT,
+            content=content,
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def import_presentation(request):
+    """POST /lessons/import/ — создать урок из файла PDF или PPTX."""
+    if not _is_staff(request.user):
+        return Response({'error': 'Только учителя могут создавать уроки'}, status=403)
+
+    file = request.FILES.get('file')
+    if not file:
+        return Response({'error': 'Файл не указан'}, status=400)
+
+    ext = file.name.rsplit('.', 1)[-1].lower() if '.' in file.name else ''
+    if ext not in ('pdf', 'pptx', 'ppt'):
+        return Response({'error': 'Поддерживаются только файлы PDF и PPTX'}, status=400)
+
+    title = (request.data.get('title') or file.name.rsplit('.', 1)[0])[:300]
+    folder_id = request.data.get('folder') or None
+    cover_color = request.data.get('cover_color', '#6366f1')
+
+    lesson = Lesson.objects.create(
+        title=title,
+        owner=request.user,
+        folder_id=folder_id,
+        cover_color=cover_color,
+    )
+
+    try:
+        if ext == 'pdf':
+            _import_pdf(request, lesson, file)
+        else:
+            _import_pptx(request, lesson, file)
+    except Exception as e:
+        lesson.delete()
+        return Response({'error': f'Ошибка импорта: {str(e)}'}, status=500)
+
+    return Response(LessonSerializer(lesson, context=_ctx(request)).data, status=201)
+
+
 # ─── Слайды ───────────────────────────────────────────────────────────────────
 
 def _can_edit_lesson(lesson, user):

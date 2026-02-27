@@ -1,13 +1,60 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import type { User } from '../types';
+
+// Bitrix24 forms are Vue-powered — setting input.value directly doesn't update the model.
+// We must use the native HTMLInputElement setter + dispatch an 'input' event.
+function fillBitrixInput(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+  if (setter) setter.call(input, value);
+  else input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// applyFill receives current inputs and user; returns true when done (observer disconnects).
+type FillFn = (inputs: NodeListOf<HTMLInputElement>, user: User) => boolean;
+
+function useBitrixAutoFill(containerId: string, applyFill: FillFn) {
+  const { user } = useAuth();
+  const userRef = useRef(user);
+  userRef.current = user;
+  const fillRef = useRef(applyFill);
+  fillRef.current = applyFill;
+
+  useEffect(() => {
+    const target = document.getElementById(containerId);
+    if (!target) return;
+
+    let filled = false;
+    const observer = new MutationObserver(() => {
+      if (filled) return;
+      const u = userRef.current;
+      if (!u) return;
+      const inputs = target.querySelectorAll<HTMLInputElement>('input.b24-form-control');
+      if (fillRef.current(inputs, u)) {
+        filled = true;
+        observer.disconnect();
+      }
+    });
+
+    observer.observe(target, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [containerId]);
+}
 
 
 // ─── АХО форма ───────────────────────────────────────────────────────────────
 
-
-
 function AhoTab() {
+  useBitrixAutoFill('bx24_form_aho', (inputs, u) => {
+    if (inputs.length < 4) return false;
+    const fullName = `${u.first_name} ${u.last_name}`.trim();
+    if (fullName && !inputs[0].value) fillBitrixInput(inputs[0], fullName);
+    if (u.phone && !inputs[3].value) fillBitrixInput(inputs[3], u.phone);
+    return true;
+  });
+
   useEffect(() => {
-    // insert bitrix24 form script into the div
     const script = document.createElement('script');
     script.setAttribute('data-b24-form', 'inline/48/1o9nvq');
     script.setAttribute('data-skip-moving', 'true');
@@ -18,7 +65,6 @@ function AhoTab() {
 
     const target = document.getElementById('bx24_form_aho');
     if (target) {
-      // clear any previous content (in case of remount)
       target.innerHTML = '';
       target.appendChild(script);
     }
@@ -34,9 +80,17 @@ function AhoTab() {
   );
 }
 
-// ─── ИТ-отдел (заглушка) ─────────────────────────────────────────────────────
+// ─── ИТ-отдел ─────────────────────────────────────────────────────
 
 function ItTab() {
+  useBitrixAutoFill('bx24_form_IT', (inputs, u) => {
+    if (inputs.length < 3) return false;
+    if (u.first_name && !inputs[0].value) fillBitrixInput(inputs[0], u.first_name);
+    if (u.last_name && !inputs[1].value) fillBitrixInput(inputs[1], u.last_name);
+    if (u.phone && !inputs[2].value) fillBitrixInput(inputs[2], u.phone);
+    return true;
+  });
+
   useEffect(() => {
     const script = document.createElement('script');
     script.setAttribute('data-b24-form', 'inline/36/ky1p38');

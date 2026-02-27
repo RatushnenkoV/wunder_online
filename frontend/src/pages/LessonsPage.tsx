@@ -498,6 +498,10 @@ export default function LessonsPage() {
   // Ошибка
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Импорт презентации
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+
   // Drag-and-drop
   const [dragItem, setDragItem] = useState<DragItem | null>(null);
   const [dropTargetFolderId, setDropTargetFolderId] = useState<number | null>(null);
@@ -591,6 +595,30 @@ export default function LessonsPage() {
   const handleLessonCreated = (lesson: Lesson) => {
     setShowLessonModal(false);
     navigate(`/lessons/${lesson.id}/edit`);
+  };
+
+  // Импорт презентации (PDF / PPTX)
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setImporting(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('title', file.name.replace(/\.[^.]+$/, ''));
+      if (currentFolder) fd.append('folder', String(currentFolder.id));
+      const res = await api.post('/lessons/import/', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      navigate(`/lessons/${res.data.id}/edit`);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+        ?? 'Не удалось импортировать файл';
+      setErrorMsg(msg);
+    } finally {
+      setImporting(false);
+    }
   };
 
   // Дублирование урока
@@ -701,6 +729,24 @@ export default function LessonsPage() {
               <IconPlus />
               Папка
             </button>
+            <button
+              onClick={() => importFileRef.current?.click()}
+              disabled={importing}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              title="Импорт PDF или PPTX"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+              </svg>
+              {importing ? 'Импорт...' : 'Импорт'}
+            </button>
+            <input
+              ref={importFileRef}
+              type="file"
+              accept=".pdf,.pptx,.ppt"
+              className="hidden"
+              onChange={handleImportFile}
+            />
             <button
               onClick={() => setShowLessonModal(true)}
               className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -867,6 +913,20 @@ export default function LessonsPage() {
           lessonTitle={startingLesson.title}
           onClose={() => setStartingLesson(null)}
         />
+      )}
+
+      {/* Оверлей импорта */}
+      {importing && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-xl shadow-xl px-8 py-6 flex flex-col items-center gap-3">
+            <svg className="w-8 h-8 text-blue-600 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+            <p className="text-sm font-medium text-gray-700">Импорт презентации...</p>
+            <p className="text-xs text-gray-400">Это может занять несколько секунд</p>
+          </div>
+        </div>
       )}
     </div>
   );
