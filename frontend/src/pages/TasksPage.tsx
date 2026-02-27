@@ -412,7 +412,7 @@ function GroupsTab({ groups, staffList, isAdmin, onGroupsChange }: {
 
 function TaskCard({ task, onStatusChange, onDelete, onReassign, onTaskUpdate, onDragStart, onHide }: {
   task: Task;
-  onStatusChange: (task: Task, to: TaskStatus) => void;
+  onStatusChange: (task: Task, to: TaskStatus, comment?: string) => void;
   onDelete: (task: Task) => void;
   onReassign: (task: Task) => void;
   onTaskUpdate: (task: Task) => void;
@@ -421,6 +421,8 @@ function TaskCard({ task, onStatusChange, onDelete, onReassign, onTaskUpdate, on
 }) {
   const [expanded, setExpanded] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [sendBackMode, setSendBackMode] = useState(false);
+  const [sendBackComment, setSendBackComment] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const transitions = getTransitions(task);
 
@@ -498,6 +500,9 @@ function TaskCard({ task, onStatusChange, onDelete, onReassign, onTaskUpdate, on
               взял: {task.taken_by_name}
             </span>
           )}
+          {task.status === 'in_progress' && task.review_comment && (
+            <span className="text-xs text-orange-700 bg-orange-50 rounded-full px-2 py-0.5">на доработке</span>
+          )}
           {task.files.length > 0 && (
             <span className="text-xs text-gray-400 flex items-center gap-1">
               <FileIcon /> {task.files.length}
@@ -509,6 +514,14 @@ function TaskCard({ task, onStatusChange, onDelete, onReassign, onTaskUpdate, on
       {/* Раскрытая часть */}
       {expanded && (
         <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
+          {/* Комментарий к доработке */}
+          {task.status === 'in_progress' && task.review_comment && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-sm text-orange-800">
+              <span className="font-medium">Комментарий к доработке: </span>
+              {task.review_comment}
+            </div>
+          )}
+
           {/* Описание с активными ссылками */}
           {task.description && (
             <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
@@ -556,19 +569,48 @@ function TaskCard({ task, onStatusChange, onDelete, onReassign, onTaskUpdate, on
 
           {/* Кнопки переходов */}
           {transitions.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {transitions.map(t => (
-                <button key={t.to} onClick={() => onStatusChange(task, t.to)}
-                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                    t.to === 'done'
-                      ? 'bg-green-600 text-white hover:bg-green-700'
-                      : t.to === 'in_progress' && task.status === 'review'
-                      ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}>
-                  {t.label}
-                </button>
-              ))}
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {transitions
+                  .filter(t => !(t.to === 'in_progress' && task.status === 'review'))
+                  .map(t => (
+                    <button key={t.to} onClick={() => onStatusChange(task, t.to)}
+                      className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                        t.to === 'done' ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}>
+                      {t.label}
+                    </button>
+                  ))}
+                {transitions.some(t => t.to === 'in_progress' && task.status === 'review') && !sendBackMode && (
+                  <button onClick={() => setSendBackMode(true)}
+                    className="text-xs px-3 py-1.5 rounded-lg font-medium bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors">
+                    Вернуть на доработку
+                  </button>
+                )}
+              </div>
+              {sendBackMode && (
+                <div className="space-y-2">
+                  <textarea
+                    value={sendBackComment}
+                    onChange={e => setSendBackComment(e.target.value)}
+                    placeholder="Комментарий к доработке..."
+                    rows={2}
+                    className="w-full border border-orange-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { onStatusChange(task, 'in_progress', sendBackComment); setSendBackMode(false); setSendBackComment(''); }}
+                      className="text-xs px-3 py-1.5 rounded-lg font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors">
+                      Отправить
+                    </button>
+                    <button
+                      onClick={() => { setSendBackMode(false); setSendBackComment(''); }}
+                      className="text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -902,9 +944,11 @@ export default function TasksPage() {
     localStorage.removeItem('hiddenDoneTasks');
   };
 
-  const handleStatusChange = async (task: Task, to: TaskStatus) => {
+  const handleStatusChange = async (task: Task, to: TaskStatus, comment?: string) => {
     try {
-      const res = await api.post(`/tasks/tasks/${task.id}/status/`, { status: to });
+      const payload: Record<string, unknown> = { status: to };
+      if (comment) payload.comment = comment;
+      const res = await api.post(`/tasks/tasks/${task.id}/status/`, payload);
       updateTask(res.data);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };

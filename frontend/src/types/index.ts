@@ -238,6 +238,7 @@ export interface Task {
   due_date: string | null;
   is_assignee: boolean;
   can_reassign: boolean;
+  review_comment: string;
   files: TaskFile[];
   created_at: string;
   updated_at: string;
@@ -566,4 +567,103 @@ export interface ScheduleLesson {
   room_name: string | null;
   group: number | null;
   group_name: string | null;
+}
+
+// ─── Projects ─────────────────────────────────────────────────────────────────
+
+export interface ProjectUser {
+  id: number;
+  first_name: string;
+  last_name: string;
+  display_name: string;
+  is_admin: boolean;
+  is_teacher: boolean;
+  is_student: boolean;
+}
+
+export interface ProjectMember {
+  id: number;
+  user: ProjectUser;
+  role: 'teacher' | 'student';
+  joined_at: string;
+}
+
+export interface PostAttachment {
+  id: number;
+  original_name: string;
+  file_url: string;
+  file_size: number;
+  mime_type: string;
+}
+
+export interface ProjectPost {
+  id: number;
+  project: number;
+  author: ProjectUser | null;
+  text: string;
+  attachments: PostAttachment[];
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AssignmentAttachment {
+  id: number;
+  original_name: string;
+  file_url: string;
+  file_size: number;
+  mime_type: string;
+}
+
+export interface SubmissionFile {
+  id: number;
+  original_name: string;
+  file_url: string;
+  file_size: number;
+  mime_type: string;
+}
+
+export interface AssignmentSubmission {
+  id: number;
+  assignment: number;
+  student: ProjectUser;
+  text: string;
+  files: SubmissionFile[];
+  submitted_at: string;
+  grade: string | null;
+  graded_by: ProjectUser | null;
+  graded_at: string | null;
+  task_id: number | null;
+  task_status: TaskStatus | null;
+  review_comment: string;
+}
+
+export interface ProjectAssignment {
+  id: number;
+  project: number;
+  title: string;
+  description: string;
+  due_date: string | null;
+  created_by: ProjectUser | null;
+  attachments: AssignmentAttachment[];
+  submissions_count: number;
+  my_submission: AssignmentSubmission | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Project {
+  id: number;
+  name: string;
+  description: string;
+  cover_color: string;
+  created_by: ProjectUser | null;
+  members_count: number;
+  my_role: 'teacher' | 'student' | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectDetail extends Project {
+  members: ProjectMember[];
 }

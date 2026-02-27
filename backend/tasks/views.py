@@ -220,10 +220,16 @@ def task_status_change(request, task_id):
     if not allowed[new_status]:
         return Response({'error': 'Недостаточно прав для этого перехода'}, status=403)
 
+    old_status = task.status
     task.status = new_status
     # Фиксируем кто взял в работу
     if new_status == Task.STATUS_IN_PROGRESS and task.taken_by is None:
         task.taken_by = request.user
+    # Комментарий при отправке на доработку (review→in_progress); сбрасываем иначе
+    if new_status == Task.STATUS_IN_PROGRESS and old_status == Task.STATUS_REVIEW:
+        task.review_comment = request.data.get('comment', '')
+    else:
+        task.review_comment = ''
     # Фиксируем дату выполнения
     if new_status == Task.STATUS_DONE:
         task.completed_at = timezone.now()

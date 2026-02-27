@@ -11,6 +11,7 @@ urlpatterns = [
     path('api/tasks/', include('tasks.urls')),
     path('api/lessons/', include('lessons.urls')),
     path('api/chat/', include('groups.urls')),
+    path('api/projects/', include('projects.urls')),
 ]
 
 if settings.DEBUG:

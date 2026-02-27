@@ -85,6 +85,14 @@ function IconGroups() {
   );
 }
 
+function IconProjects() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+    </svg>
+  );
+}
+
 function IconLogout() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -233,6 +241,7 @@ export default function Layout() {
         }]
       : []),
     { to: '/lessons', label: 'Уроки', icon: <IconPresentation />, end: false, badge: null, live: user?.is_student && activeLessonsCount > 0 },
+    { to: '/projects', label: 'Проекты', icon: <IconProjects />, end: false, badge: null },
     ...(isStaff
       ? [{ to: '/requests', label: 'Заявки', icon: <IconWrench />, end: false, badge: null }]
       : []),
@@ -249,8 +258,10 @@ export default function Layout() {
       : []),
   ];
 
+  const isFullHeight = location.pathname === '/chats' || /^\/projects\/\d+/.test(location.pathname);
+
   return (
-    <div className={`${location.pathname === '/chats' ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'} bg-gray-50 flex`}>
+    <div className={`${isFullHeight ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'} bg-gray-50 flex`}>
 
       {/* Затемнение при открытом сайдбаре на мобильных */}
       {sidebarOpen && (
@@ -361,7 +372,7 @@ export default function Layout() {
         </header>
 
         <main className={
-          location.pathname === '/chats'
+          isFullHeight
             ? 'flex-1 overflow-hidden flex flex-col min-h-0'
             : 'flex-1 py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full'
         }>

@@ -79,6 +79,7 @@ class Task(models.Model):
     )
     due_date = models.DateField(null=True, blank=True, verbose_name='Срок')
     completed_at = models.DateTimeField(null=True, blank=True, verbose_name='Дата выполнения')
+    review_comment = models.TextField(blank=True, default='', verbose_name='Комментарий к доработке')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

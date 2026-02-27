@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'tasks',
     'lessons',
     'groups',
+    'projects',
 ]
 
 MIDDLEWARE = [

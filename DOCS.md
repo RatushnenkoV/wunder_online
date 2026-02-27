@@ -46,7 +46,9 @@ WunderOnline/
 │   │   │   ├── SettingsPage.tsx     # Настройки (праздники)
 │   │   │   ├── LessonsPage.tsx           # Уроки: папки + список (Фаза 1)
 │   │   │   ├── LessonEditorPage.tsx      # Редактор урока (canvas, Фазы 2-3)
-│   │   │   └── LessonPresenterPage.tsx   # Живая презентация (учитель + студент)
+│   │   │   ├── LessonPresenterPage.tsx   # Живая презентация (учитель + студент)
+│   │   │   ├── ProjectsPage.tsx          # Список проектов
+│   │   │   └── ProjectDetailPage.tsx     # Детали проекта (лента + задания)
 │   │   └── components/
 │   │       ├── Layout.tsx           # Навбар + обёртка
 │   │       ├── StaffTab.tsx         # CRUD сотрудников (+ бейджи куратора, birth_date)
@@ -59,7 +61,10 @@ WunderOnline/
 │   │       │   ├── SubstitutionsTab.tsx      # Вкладка замен
 │   │       │   ├── SubstitutionsGrid.tsx     # Сетка замен с датами
 │   │       │   └── SubstitutionEditor.tsx    # Редактор замены (модал)
-│   │       └── school/
+│   │       ├── projects/
+│       │   ├── ProjectFeed.tsx         # Лента проекта (WebSocket чат)
+│       │   └── ProjectAssignments.tsx  # Задания (список + модалы)
+│       └── school/
 │   │           ├── ClassesGrid.tsx   # Список классов
 │   │           ├── ClassDetail.tsx   # Детали класса (вкладки)
 │   │           ├── ClassGroups.tsx   # Управление группами класса
@@ -71,7 +76,8 @@ WunderOnline/
     ├── school/                      # Классы, предметы, кабинеты, расписание
     │   └── schedule_import.py       # Парсер Excel для импорта расписания
     ├── ktp/                         # КТП, темы, файлы, праздники
-    └── lessons/                     # Интерактивные уроки (Nearpod-аналог)
+    ├── lessons/                     # Интерактивные уроки (Nearpod-аналог)
+    └── projects/                    # Проекты (Google Classroom-аналог)
 ```
 
 ---
@@ -96,6 +102,8 @@ WunderOnline/
 | `/lessons/:id/edit` | LessonEditorPage | Авторизованные |
 | `/lessons/sessions/:id/present` | LessonPresenterPage | Авторизованные |
 | `/chats` | ChatsPage | Авторизованные |
+| `/projects` | ProjectsPage | Авторизованные |
+| `/projects/:id` | ProjectDetailPage | Авторизованные (только участники) |
 
 ---
 
@@ -192,6 +200,27 @@ WunderOnline/
 - **WebSocket** `ws://.../ws/chat/<room_id>/?token=<jwt>` — ChatConsumer
   - client→server: `send_message {text, reply_to?}`, `mark_read`, `typing`
   - server→client: `message_new {message}`, `message_deleted {message_id}`, `user_typing {user_id, display_name}`, `room_read {user_id, last_read_at}`
+
+### Проекты (`/api/projects/`)
+- `GET/POST /api/projects/` — список моих проектов / создать (только is_teacher/is_admin)
+- `GET/PUT/DELETE /api/projects/:id/` — детали / редактировать / удалить (только teacher проекта)
+- `GET /api/projects/users/?q=&project_id=` — поиск пользователей для приглашения
+- `GET/POST /api/projects/:id/members/` — участники / добавить участника `{user_id, role}`
+- `DELETE /api/projects/:id/members/:uid/` — удалить участника
+- `GET/POST /api/projects/:id/posts/?before=` — лента / отправить пост `{text}`
+- `DELETE /api/projects/:id/posts/:pid/` — soft-delete поста
+- `POST /api/projects/:id/posts/:pid/files/` — загрузить файл к посту
+- `GET/POST /api/projects/:id/assignments/` — задания / создать (только teacher)
+- `GET/PUT/DELETE /api/projects/:id/assignments/:aid/` — задание
+- `POST /api/projects/:id/assignments/:aid/files/` — файл к заданию
+- `GET/POST /api/projects/:id/assignments/:aid/submissions/` — сдачи / сдать работу (upsert, переводит Task → review)
+- `PATCH /api/projects/:id/assignments/:aid/submissions/:sid/` — выставить оценку `{grade}` (опционально, только teacher)
+- `POST /api/projects/:id/assignments/:aid/submissions/:sid/accept/` — принять работу (Task → done)
+- `POST /api/projects/:id/assignments/:aid/submissions/:sid/send-back/` — вернуть на доработку `{comment}` (Task → in_progress + review_comment)
+- `POST /api/projects/:id/assignments/:aid/submissions/:sid/files/` — файл к сдаче (переводит Task → review)
+- **WebSocket** `ws://.../ws/project/<project_id>/?token=<jwt>` — ProjectConsumer
+  - client→server: `send_post {text}`, `typing`
+  - server→client: `post_new {post}`, `post_deleted {post_id}`, `post_updated {post}`, `user_typing {user_id, display_name}`
 
 ### КТП (`/api/ktp/`)
 - `GET/POST /api/ktp/ctps/` — список КТП
@@ -355,6 +384,63 @@ FormAnswer          # ответы студентов на форму-слайд
   # unique_together: [session, slide, student] → upsert
 ```
 
+### projects/
+```python
+Project
+  name: str
+  description: str
+  cover_color: str (default '#6366f1')
+  created_by -> User (null, SET_NULL)
+  created_at, updated_at: datetime
+
+ProjectMember
+  project -> Project
+  user -> User
+  role: 'teacher' | 'student'
+  joined_at: datetime
+  unique_together: [project, user]
+
+ProjectPost  # сообщение в ленте
+  project -> Project
+  author -> User (null, SET_NULL)
+  text: str
+  is_deleted: bool (soft delete)
+  created_at, updated_at: datetime
+
+PostAttachment
+  post -> ProjectPost
+  file: FileField (upload_to='project_posts/%Y/%m/')
+  original_name, file_size, mime_type
+
+ProjectAssignment  # задание
+  project -> Project
+  title: str
+  description: str
+  due_date: date (null)
+  created_by -> User (null, SET_NULL)
+  created_at, updated_at: datetime
+
+AssignmentAttachment
+  assignment -> ProjectAssignment
+  file: FileField (upload_to='project_assignments/%Y/%m/')
+  original_name, file_size, mime_type
+
+AssignmentSubmission  # сдача работы студентом
+  assignment -> ProjectAssignment
+  student -> User
+  text: str (blank)
+  submitted_at: datetime (auto_now)
+  grade: str (null, blank)
+  graded_by -> User (null, SET_NULL)
+  graded_at: datetime (null)
+  unique_together: [assignment, student]  # upsert
+
+SubmissionFile
+  submission -> AssignmentSubmission
+  file: FileField (upload_to='project_submissions/%Y/%m/')
+  original_name, file_size, mime_type
+```
+
 ### chat (groups app)/
 ```python
 ChatRoom
@@ -497,6 +583,23 @@ TaskFile         # файл, прикреплённый к задаче
 - **Скрытие задач в колонке "Выполнено"**: кнопка `×` на карточке скрывает задачу из канбана; список скрытых ID сохраняется в `localStorage`; внизу колонки показывается счётчик скрытых со ссылкой "показать"; вкладка "Выполненные" всегда показывает все задачи независимо от скрытия
 - **Вкладка "Выполненные"** — таблица с колонками: Задача, Постановщик, Поставлена, Исполнитель, Выполнена; каждая колонка сортируется; фильтры по постановщику и исполнителю; клик на строку разворачивает описание и файлы
 - **Счётчик** в сайдбаре — синий бейдж рядом с "Задачи": `new` задачи мне + `review` задачи от меня; обновляется при каждом переходе по маршрутам
+
+### Проекты (ProjectsPage + ProjectDetailPage) — Google Classroom-аналог
+- Страницы `/projects` (список) и `/projects/:id` (детали)
+- **Создание**: только педагог или admin → цвет, название, описание
+- **Участники**: teacher приглашает любых учеников и педагогов (поиск по имени/фамилии)
+- **Роли**: `teacher` (педагог, создаёт задания, оценивает) и `student` (ученик, сдаёт работы)
+- **Лента** (`ProjectFeed.tsx`): WebSocket-чат в реальном времени, все участники пишут, поддержка файловых вложений, soft-delete, typing indicator, авто-реконнект
+- **Задания** (`ProjectAssignments.tsx`) — интегрированы с Tasks:
+  - При создании задания → автоматически создаётся Task (статус `new`) для каждого студента проекта
+  - При добавлении нового студента → создаются Tasks для всех существующих заданий
+  - Ученик видит статус: "Не сдано" (new) / "На проверке" (review) / "На доработке" (in_progress) / "Принято" (done)
+  - Ученик сдаёт текст + файлы → Task переходит в `review`; при наличии `review_comment` (от учителя) показывается оранжевый блок
+  - Учитель видит все сдачи: кнопки "Принять" (Task → done) и "На доработку" (вводит комментарий → Task → in_progress + review_comment)
+  - `review_comment` виден и в `/tasks` (оранжевый блок в карточке TasksPage) и в проектах
+  - Задачи проектов видны в TasksPage в канбан-колонках; teacher может вернуть на доработку прямо оттуда
+- **WS**: `ws://.../ws/project/<id>/?token=<jwt>` — ProjectConsumer, group `project_<id>`
+- **Сайдбар**: пункт "Проекты" (папка) между "Уроки" и "Заявки"
 
 ### Навигация (Layout.tsx)
 - Фиксированный левый сайдбар (256px) на экранах ≥ 1024px

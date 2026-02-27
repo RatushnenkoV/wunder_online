@@ -76,6 +76,7 @@ class TaskSerializer(serializers.ModelSerializer):
             'status', 'due_date',
             'is_assignee', 'can_reassign',
             'files',
+            'review_comment',
             'created_at', 'updated_at', 'completed_at',
         ]
         read_only_fields = ['created_by', 'status', 'taken_by', 'created_at', 'updated_at', 'completed_at']

@@ -17,6 +17,8 @@ import LessonsPage from './pages/LessonsPage';
 import LessonEditorPage from './pages/LessonEditorPage';
 import ChatsPage from './pages/ChatsPage';
 import LessonPresenterPage from './pages/LessonPresenterPage';
+import ProjectsPage from './pages/ProjectsPage';
+import ProjectDetailPage from './pages/ProjectDetailPage';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children, adminOnly = false, staffOnly = false }: { children: ReactNode; adminOnly?: boolean; staffOnly?: boolean }) {
@@ -74,6 +76,8 @@ function App() {
             <Route path="/requests" element={<ProtectedRoute staffOnly><RequestsPage /></ProtectedRoute>} />
             <Route path="/lessons" element={<LessonsPage />} />
             <Route path="/lessons/:id/edit" element={<LessonEditorPage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/projects/:id" element={<ProjectDetailPage />} />
           </Route>
 
           <Route path="/lessons/session/:id" element={<ProtectedRoute><LessonPresenterPage /></ProtectedRoute>} />
