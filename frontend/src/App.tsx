@@ -15,7 +15,7 @@ import TasksPage from './pages/TasksPage';
 import RequestsPage from './pages/RequestsPage';
 import LessonsPage from './pages/LessonsPage';
 import LessonEditorPage from './pages/LessonEditorPage';
-import GroupsPage from './pages/GroupsPage';
+import ChatsPage from './pages/ChatsPage';
 import LessonPresenterPage from './pages/LessonPresenterPage';
 import type { ReactNode } from 'react';
 
@@ -64,7 +64,7 @@ function App() {
             <Route path="/ktp" element={<KTPListPage />} />
             <Route path="/ktp/:id" element={<KTPDetailPage />} />
             <Route path="/schedule" element={<SchedulePage />} />
-            <Route path="/groups" element={<GroupsPage />} />
+            <Route path="/chats" element={<ChatsPage />} />
             <Route path="/people" element={<PeoplePage />} />
             <Route path="/admin/people" element={<ProtectedRoute adminOnly><PeoplePage /></ProtectedRoute>} />
             <Route path="/admin/school" element={<ProtectedRoute adminOnly><SchoolPage /></ProtectedRoute>} />

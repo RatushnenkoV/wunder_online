@@ -1,95 +1,131 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from .models import Group, GroupMessage, MessageFile, GroupTask
+from .models import ChatRoom, ChatMember, ChatMessage, MessageAttachment
 
 User = get_user_model()
 
 
-class GroupMemberSerializer(serializers.ModelSerializer):
+class ChatUserSerializer(serializers.ModelSerializer):
+    display_name = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'is_admin', 'is_teacher']
+        fields = ['id', 'first_name', 'last_name', 'display_name',
+                  'is_admin', 'is_teacher', 'is_student', 'is_parent']
+
+    def get_display_name(self, obj):
+        return f'{obj.last_name} {obj.first_name}'.strip()
 
 
-class MessageFileSerializer(serializers.ModelSerializer):
+class MessageAttachmentSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
 
     class Meta:
-        model = MessageFile
-        fields = ['id', 'original_filename', 'file_url', 'file_size']
+        model = MessageAttachment
+        fields = ['id', 'original_name', 'file_url', 'file_size', 'mime_type']
 
     def get_file_url(self, obj):
-        request = self.context.get('request')
-        if request:
-            return request.build_absolute_uri(obj.file.url)
-        return obj.file.url
+        return obj.file.url  # relative URL — proxied by Vite on all devices
 
 
-class GroupTaskSerializer(serializers.ModelSerializer):
-    assignees = GroupMemberSerializer(many=True, read_only=True)
-    assignee_ids = serializers.PrimaryKeyRelatedField(
-        many=True,
-        write_only=True,
-        source='assignees',
-        required=False,
-        queryset=User.objects.all(),
-    )
-    created_by_name = serializers.SerializerMethodField()
+class ChatMessageSerializer(serializers.ModelSerializer):
+    sender = ChatUserSerializer(read_only=True)
+    attachments = MessageAttachmentSerializer(many=True, read_only=True)
+    reply_to_preview = serializers.SerializerMethodField()
 
     class Meta:
-        model = GroupTask
-        fields = [
-            'id', 'title', 'description', 'assignees', 'assignee_ids',
-            'deadline', 'is_completed', 'created_by', 'created_by_name',
-            'created_at', 'message',
-        ]
-        read_only_fields = ['created_by', 'created_at', 'message']
+        model = ChatMessage
+        fields = ['id', 'room', 'sender', 'text', 'reply_to', 'reply_to_preview',
+                  'attachments', 'created_at', 'updated_at', 'is_deleted']
 
-    def get_created_by_name(self, obj):
-        if obj.created_by:
-            return f'{obj.created_by.last_name} {obj.created_by.first_name}'
-        return ''
+    def get_reply_to_preview(self, obj):
+        if not obj.reply_to_id:
+            return None
+        r = obj.reply_to
+        if r.is_deleted:
+            return {'id': r.id, 'text': '[удалено]', 'sender_name': ''}
+        sender_name = f'{r.sender.last_name} {r.sender.first_name}'.strip() if r.sender else ''
+        text = r.text or ('[файл]' if r.attachments.exists() else '')
+        return {'id': r.id, 'text': text[:100], 'sender_name': sender_name}
 
 
-class GroupMessageSerializer(serializers.ModelSerializer):
-    sender_name = serializers.SerializerMethodField()
-    file = MessageFileSerializer(read_only=True)
-    task = GroupTaskSerializer(read_only=True)
+class ChatMemberSerializer(serializers.ModelSerializer):
+    user = ChatUserSerializer(read_only=True)
 
     class Meta:
-        model = GroupMessage
-        fields = ['id', 'sender', 'sender_name', 'content', 'message_type', 'created_at', 'file', 'task']
-        read_only_fields = ['sender', 'created_at']
-
-    def get_sender_name(self, obj):
-        if obj.sender:
-            return f'{obj.sender.last_name} {obj.sender.first_name}'
-        return 'Удалённый пользователь'
+        model = ChatMember
+        fields = ['id', 'user', 'role', 'joined_at']
 
 
-class GroupSerializer(serializers.ModelSerializer):
+class ChatRoomSerializer(serializers.ModelSerializer):
+    last_message = serializers.SerializerMethodField()
+    unread_count = serializers.SerializerMethodField()
+    other_user = serializers.SerializerMethodField()
     members_count = serializers.SerializerMethodField()
 
     class Meta:
-        model = Group
-        fields = ['id', 'name', 'description', 'created_by', 'members_count', 'created_at']
-        read_only_fields = ['created_by', 'created_at']
+        model = ChatRoom
+        fields = ['id', 'room_type', 'name', 'created_by', 'is_archived', 'created_at',
+                  'last_message', 'unread_count', 'other_user', 'members_count']
+
+    def get_last_message(self, obj):
+        msg = obj.messages.filter(is_deleted=False).last()
+        if not msg:
+            return None
+        if msg.is_deleted:
+            text = '[удалено]'
+        elif msg.text:
+            text = msg.text
+        elif msg.attachments.exists():
+            text = '[файл]'
+        else:
+            text = ''
+        sender_name = ''
+        if msg.sender:
+            sender_name = f'{msg.sender.last_name} {msg.sender.first_name[0]}.' if msg.sender.first_name else msg.sender.last_name
+        return {
+            'id': msg.id,
+            'text': text,
+            'sender_id': msg.sender_id,
+            'sender_name': sender_name,
+            'created_at': msg.created_at.isoformat(),
+        }
+
+    def get_unread_count(self, obj):
+        request = self.context.get('request')
+        if not request:
+            return 0
+        member = obj.members_rel.filter(user=request.user).first()
+        qs = obj.messages.filter(is_deleted=False).exclude(sender=request.user)
+        if member and member.last_read_at:
+            qs = qs.filter(created_at__gt=member.last_read_at)
+        return qs.count()
+
+    def get_other_user(self, obj):
+        request = self.context.get('request')
+        if not request or obj.room_type != ChatRoom.TYPE_DIRECT:
+            return None
+        member = obj.members_rel.exclude(user=request.user).select_related('user').first()
+        if not member:
+            return None
+        u = member.user
+        return {
+            'id': u.id,
+            'first_name': u.first_name,
+            'last_name': u.last_name,
+            'display_name': f'{u.last_name} {u.first_name}'.strip(),
+            'is_admin': u.is_admin,
+            'is_teacher': u.is_teacher,
+            'is_student': u.is_student,
+        }
 
     def get_members_count(self, obj):
-        return obj.members.count()
+        return obj.members_rel.count()
 
 
-class GroupDetailSerializer(serializers.ModelSerializer):
-    members = GroupMemberSerializer(many=True, read_only=True)
-    created_by_name = serializers.SerializerMethodField()
+class ChatRoomDetailSerializer(ChatRoomSerializer):
+    members = ChatMemberSerializer(source='members_rel', many=True, read_only=True)
 
-    class Meta:
-        model = Group
-        fields = ['id', 'name', 'description', 'created_by', 'created_by_name', 'members', 'created_at']
-        read_only_fields = ['created_by', 'created_at']
-
-    def get_created_by_name(self, obj):
-        if obj.created_by:
-            return f'{obj.created_by.last_name} {obj.created_by.first_name}'
-        return ''
+    class Meta(ChatRoomSerializer.Meta):
+        fields = ChatRoomSerializer.Meta.fields + ['members']

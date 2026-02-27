@@ -2,53 +2,83 @@ from django.conf import settings
 from django.db import models
 
 
-class Group(models.Model):
-    name = models.CharField('Название', max_length=200)
-    description = models.TextField('Описание', blank=True, default='')
+class ChatRoom(models.Model):
+    TYPE_GROUP = 'group'
+    TYPE_DIRECT = 'direct'
+    ROOM_TYPES = [
+        (TYPE_GROUP, 'Группа'),
+        (TYPE_DIRECT, 'Личные сообщения'),
+    ]
+
+    room_type = models.CharField(max_length=10, choices=ROOM_TYPES, default=TYPE_GROUP)
+    name = models.CharField('Название', max_length=200, blank=True, default='')
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        related_name='created_groups',
+        blank=True,
+        related_name='created_chat_rooms',
         verbose_name='Создатель',
     )
-    members = models.ManyToManyField(
-        settings.AUTH_USER_MODEL,
-        related_name='group_memberships',
-        blank=True,
-        verbose_name='Участники',
-    )
+    is_archived = models.BooleanField('Архив', default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = 'Группа'
-        verbose_name_plural = 'Группы'
-        ordering = ['name']
+        verbose_name = 'Чат'
+        verbose_name_plural = 'Чаты'
+        ordering = ['-created_at']
 
     def __str__(self):
-        return self.name
+        return self.name or f'DM #{self.pk}'
 
 
-class GroupMessage(models.Model):
-    TYPE_TEXT = 'text'
-    TYPE_FILE = 'file'
-    TYPE_TASK = 'task'
-    MESSAGE_TYPES = [
-        (TYPE_TEXT, 'Текст'),
-        (TYPE_FILE, 'Файл'),
-        (TYPE_TASK, 'Задача'),
+class ChatMember(models.Model):
+    ROLE_ADMIN = 'admin'
+    ROLE_MEMBER = 'member'
+    ROLES = [
+        (ROLE_ADMIN, 'Администратор'),
+        (ROLE_MEMBER, 'Участник'),
     ]
 
-    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='messages')
+    room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='members_rel')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='chat_memberships',
+    )
+    role = models.CharField(max_length=10, choices=ROLES, default=ROLE_MEMBER)
+    last_read_at = models.DateTimeField(null=True, blank=True)
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Участник чата'
+        verbose_name_plural = 'Участники чатов'
+        unique_together = [['room', 'user']]
+
+    def __str__(self):
+        return f'{self.user} в {self.room}'
+
+
+class ChatMessage(models.Model):
+    room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        related_name='group_messages',
+        blank=True,
+        related_name='sent_chat_messages',
     )
-    content = models.TextField('Текст', blank=True, default='')
-    message_type = models.CharField(max_length=10, choices=MESSAGE_TYPES, default=TYPE_TEXT)
+    text = models.TextField('Текст', blank=True, default='')
+    reply_to = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='replies',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = 'Сообщение'
@@ -56,48 +86,19 @@ class GroupMessage(models.Model):
         ordering = ['created_at']
 
     def __str__(self):
-        return f'{self.sender} → {self.group}: {self.content[:50]}'
+        return f'{self.sender} → {self.room}: {self.text[:50]}'
 
 
-class MessageFile(models.Model):
-    message = models.OneToOneField(GroupMessage, on_delete=models.CASCADE, related_name='file')
-    file = models.FileField('Файл', upload_to='group_files/%Y/%m/')
-    original_filename = models.CharField('Имя файла', max_length=255)
-    file_size = models.IntegerField('Размер файла', default=0)
-
-    class Meta:
-        verbose_name = 'Файл сообщения'
-        verbose_name_plural = 'Файлы сообщений'
-
-    def __str__(self):
-        return self.original_filename
-
-
-class GroupTask(models.Model):
-    message = models.OneToOneField(GroupMessage, on_delete=models.CASCADE, related_name='task')
-    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='tasks')
-    title = models.CharField('Название', max_length=300)
-    description = models.TextField('Описание', blank=True, default='')
-    assignees = models.ManyToManyField(
-        settings.AUTH_USER_MODEL,
-        related_name='group_chat_assignee_tasks',
-        blank=True,
-        verbose_name='Исполнители',
-    )
-    deadline = models.DateField('Дедлайн', null=True, blank=True)
-    is_completed = models.BooleanField('Выполнено', default=False)
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='group_chat_created_tasks',
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
+class MessageAttachment(models.Model):
+    message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField('Файл', upload_to='chat_files/%Y/%m/')
+    original_name = models.CharField('Имя файла', max_length=255)
+    file_size = models.IntegerField('Размер', default=0)
+    mime_type = models.CharField('MIME-тип', max_length=100, blank=True, default='')
 
     class Meta:
-        verbose_name = 'Задача'
-        verbose_name_plural = 'Задачи'
-        ordering = ['-created_at']
+        verbose_name = 'Вложение'
+        verbose_name_plural = 'Вложения'
 
     def __str__(self):
-        return self.title
+        return self.original_name

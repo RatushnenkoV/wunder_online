@@ -12,8 +12,9 @@
 | Backend | Django 5.1, Django REST Framework, simplejwt |
 | БД | SQLite (dev), PostgreSQL готов (psycopg2) |
 | Запуск | `start.bat` — поднимает оба сервера |
+| HTTPS | `@vitejs/plugin-basic-ssl` — самоподписанный сертификат для dev |
 
-Порты: frontend `:5173`, backend `:8000`. Vite проксирует `/api` и `/media` на Django.
+Порты: frontend `:5173` (HTTPS), backend `:8000` (HTTP). Vite проксирует `/api`, `/media`, `/ws` на Django.
 
 ---
 
@@ -94,6 +95,7 @@ WunderOnline/
 | `/lessons` | LessonsPage | Авторизованные |
 | `/lessons/:id/edit` | LessonEditorPage | Авторизованные |
 | `/lessons/sessions/:id/present` | LessonPresenterPage | Авторизованные |
+| `/chats` | ChatsPage | Авторизованные |
 
 ---
 
@@ -166,6 +168,30 @@ WunderOnline/
 - **WebSocket** `ws://…/ws/session/<session_id>/?token=<jwt>` — синхронизация живой презентации (LessonSessionConsumer)
   - **Quiz-команды**: `quiz_start {slide_id, question_idx}` (учитель→сервер), `quiz_answer {slide_id, question_idx, option_index, elapsed_ms}` (студент→сервер), `quiz_show_results {slide_id, question_idx}` (учитель→сервер)
   - **Quiz-события**: `quiz_started {slide_id, question_idx, time_limit_sec}`, `quiz_answer_received {slide_id, question_idx, answered_count}`, `quiz_answer_confirmed {slide_id, question_idx, option_index, points, is_correct}`, `quiz_leaderboard {slide_id, question_idx, correct_index, leaderboard, answer_stats}`
+
+### Чаты (`/api/chat/`)
+
+**Модель прав:** Admin — всё. Teacher — группы (самовступление) + DM учителям/студентам/admin. Student — только назначенные группы + DM своим учителям и куратору. Parent — только DM куратору(ам) детей.
+
+**Файлы вложений**: `MessageAttachmentSerializer.get_file_url()` возвращает **относительный URL** (`/media/chat_files/...`) — Vite-прокси пробрасывает его на Django, работает с любого устройства в сети.
+
+**Уведомления**: браузерные уведомления (`Notification` API) требуют HTTPS и разрешения пользователя. ChatsPage показывает баннер с диагностикой: отсутствие HTTPS (`window.isSecureContext === false`), заблокированное разрешение или неподдерживаемый браузер. AudioContext разблокируется при первом клике/тапе на странице (iOS Safari требует воспроизведения тихого буфера синхронно в жесте).
+
+- `GET /api/chat/rooms/` — мои чаты (с `last_message`, `unread_count`, `other_user`)
+- `POST /api/chat/rooms/` — создать группу `{name, member_ids[]}` (только admin)
+- `GET/PATCH/DELETE /api/chat/rooms/<id>/` — детали / переименовать / удалить
+- `GET /api/chat/rooms/<id>/members/` — список участников
+- `POST /api/chat/rooms/<id>/members/` — добавить участника (admin: `{user_id}`, teacher: себя)
+- `DELETE /api/chat/rooms/<id>/members/<uid>/` — удалить участника
+- `GET /api/chat/rooms/<id>/messages/?before=<id>&limit=50` — история (cursor pagination)
+- `DELETE /api/chat/rooms/<id>/messages/<msg_id>/` — soft-delete сообщения
+- `POST /api/chat/rooms/<id>/files/` — загрузить файл → создаёт сообщение + вложение
+- `POST /api/chat/rooms/<id>/read/` — отметить прочитанным
+- `GET /api/chat/users/?q=` — доступные для DM пользователи (фильтруется по правам)
+- `POST /api/chat/direct/` — открыть/найти DM `{user_id}` → idempotent, возвращает ChatRoom
+- **WebSocket** `ws://.../ws/chat/<room_id>/?token=<jwt>` — ChatConsumer
+  - client→server: `send_message {text, reply_to?}`, `mark_read`, `typing`
+  - server→client: `message_new {message}`, `message_deleted {message_id}`, `user_typing {user_id, display_name}`, `room_read {user_id, last_read_at}`
 
 ### КТП (`/api/ktp/`)
 - `GET/POST /api/ktp/ctps/` — список КТП
@@ -327,6 +353,36 @@ FormAnswer          # ответы студентов на форму-слайд
   answers: JSON     # [{question_id, value}, ...]
   submitted_at: datetime (auto_now)
   # unique_together: [session, slide, student] → upsert
+```
+
+### chat (groups app)/
+```python
+ChatRoom
+  room_type: 'group' | 'direct'
+  name: str (blank для direct)
+  created_by -> User (null для direct)
+  is_archived: bool
+
+ChatMember
+  room -> ChatRoom
+  user -> User
+  role: 'admin' | 'member'
+  last_read_at: datetime (null)
+  # unique_together: [room, user]
+
+ChatMessage
+  room -> ChatRoom
+  sender -> User (null = удалён)
+  text: str
+  reply_to -> ChatMessage (null, self-ref)
+  is_deleted: bool (soft delete)
+
+MessageAttachment
+  message -> ChatMessage
+  file: FileField  # upload_to='chat_files/%Y/%m/'
+  original_name: str
+  file_size: int
+  mime_type: str
 ```
 
 ### tasks/
@@ -647,7 +703,9 @@ start.bat
 3. Запускает Vite на `0.0.0.0:5173`
 4. Определяет IP в локальной сети и выводит URL
 
-Доступ: `http://localhost:5173` или `http://<local-ip>:5173`
+Доступ: `https://localhost:5173` или `https://<local-ip>:5173`
+
+**Примечание про HTTPS**: Vite запускается с самоподписанным сертификатом (`@vitejs/plugin-basic-ssl`). При первом заходе с телефона браузер покажет предупреждение «Ненадёжный сертификат» — нажать «Дополнительно» → «Перейти». Это нужно один раз. HTTPS обязателен для работы браузерных уведомлений и ряда других API.
 
 ---
 

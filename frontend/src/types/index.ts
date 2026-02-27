@@ -468,64 +468,86 @@ export interface FolderContents {
   lessons: Lesson[];
 }
 
-// ─── Groups / Chat ───────────────────────────────────────────────────────────
+// ─── Chat ─────────────────────────────────────────────────────────────────────
 
-export interface GroupMember {
+export interface ChatUser {
   id: number;
   first_name: string;
   last_name: string;
+  display_name: string;
   is_admin: boolean;
   is_teacher: boolean;
+  is_student: boolean;
+  is_parent: boolean;
 }
 
-export interface GroupSummary {
+export interface ChatAttachment {
   id: number;
-  name: string;
-  description: string;
-  created_by: number;
-  members_count: number;
-  created_at: string;
-}
-
-export interface GroupDetail {
-  id: number;
-  name: string;
-  description: string;
-  created_by: number;
-  created_by_name: string;
-  members: GroupMember[];
-  created_at: string;
-}
-
-export interface MessageFile {
-  id: number;
-  original_filename: string;
+  original_name: string;
   file_url: string;
   file_size: number;
+  mime_type: string;
 }
 
-export interface GroupTask {
+export interface ChatReplyPreview {
   id: number;
-  title: string;
-  description: string;
-  assignees: GroupMember[];
-  deadline: string | null;
-  is_completed: boolean;
-  created_by: number;
-  created_by_name: string;
-  created_at: string;
-  message: number;
-}
-
-export interface GroupMessage {
-  id: number;
-  sender: number;
+  text: string;
   sender_name: string;
-  content: string;
-  message_type: 'text' | 'file' | 'task';
+}
+
+export interface ChatMessage {
+  id: number;
+  room: number;
+  sender: ChatUser | null;
+  text: string;
+  reply_to: number | null;
+  reply_to_preview: ChatReplyPreview | null;
+  attachments: ChatAttachment[];
   created_at: string;
-  file?: MessageFile;
-  task?: GroupTask;
+  updated_at: string;
+  is_deleted: boolean;
+}
+
+export interface ChatLastMessage {
+  id: number;
+  text: string;
+  sender_id: number | null;
+  sender_name: string;
+  created_at: string;
+}
+
+export interface ChatOtherUser {
+  id: number;
+  first_name: string;
+  last_name: string;
+  display_name: string;
+  is_admin: boolean;
+  is_teacher: boolean;
+  is_student: boolean;
+}
+
+export interface ChatMember {
+  id: number;
+  user: ChatUser;
+  role: 'admin' | 'member';
+  joined_at: string;
+}
+
+export interface ChatRoom {
+  id: number;
+  room_type: 'group' | 'direct';
+  name: string;
+  created_by: number | null;
+  is_archived: boolean;
+  created_at: string;
+  last_message: ChatLastMessage | null;
+  unread_count: number;
+  other_user: ChatOtherUser | null;
+  members_count: number;
+}
+
+export interface ChatRoomDetail extends ChatRoom {
+  members: ChatMember[];
 }
 
 // ─── ScheduleLesson ───────────────────────────────────────────────────────────

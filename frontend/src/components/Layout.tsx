@@ -108,6 +108,7 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tasksCount, setTasksCount] = useState<TasksCount | null>(null);
   const [activeLessonsCount, setActiveLessonsCount] = useState(0);
+  const [chatsUnread, setChatsUnread] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
@@ -121,10 +122,31 @@ export default function Layout() {
     }
   }, [user]);
 
-  // Обновлять счётчик при смене роута
+  const loadChatsUnread = useCallback(async () => {
+    if (!user || user.must_change_password) return;
+    try {
+      const res = await api.get('/chat/rooms/');
+      const total = (res.data as { unread_count: number }[]).reduce((s, r) => s + r.unread_count, 0);
+      setChatsUnread(total);
+    } catch {
+      // ignore
+    }
+  }, [user]);
+
+  // Обновлять счётчики при смене роута
   useEffect(() => {
     loadTasksCount();
-  }, [location.pathname, loadTasksCount]);
+    loadChatsUnread();
+  }, [location.pathname, loadTasksCount, loadChatsUnread]);
+
+  // Слушаем реалтайм-обновления счётчика из ChatsPage
+  useEffect(() => {
+    const handler = (e: Event) => {
+      setChatsUnread((e as CustomEvent<number>).detail);
+    };
+    window.addEventListener('chat:unread:update', handler);
+    return () => window.removeEventListener('chat:unread:update', handler);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -214,9 +236,7 @@ export default function Layout() {
     ...(isStaff
       ? [{ to: '/requests', label: 'Заявки', icon: <IconWrench />, end: false, badge: null }]
       : []),
-    ...(isStaff
-      ? [{ to: '/groups', label: 'Группы', icon: <IconGroups />, end: false, badge: null }]
-      : []),
+    { to: '/chats', label: 'Чаты', icon: <IconGroups />, end: false, badge: chatsUnread > 0 ? chatsUnread : null },
     ...(user?.is_teacher && !user?.is_admin
       ? [{ to: '/people', label: 'Сотрудники', icon: <IconPeople />, end: false, badge: null }]
       : []),
@@ -230,7 +250,7 @@ export default function Layout() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className={`${location.pathname === '/chats' ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'} bg-gray-50 flex`}>
 
       {/* Затемнение при открытом сайдбаре на мобильных */}
       {sidebarOpen && (
@@ -340,7 +360,11 @@ export default function Layout() {
           <span className="text-lg font-bold text-blue-600">WunderOnline</span>
         </header>
 
-        <main className="flex-1 py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+        <main className={
+          location.pathname === '/chats'
+            ? 'flex-1 overflow-hidden flex flex-col min-h-0'
+            : 'flex-1 py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full'
+        }>
           <Outlet />
         </main>
       </div>

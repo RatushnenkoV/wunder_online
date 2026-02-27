@@ -1,259 +1,336 @@
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
-from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.permissions import IsAdminOrTeacher, IsAdmin, PasswordChanged
-from .models import Group, GroupMessage, MessageFile, GroupTask
+from accounts.permissions import PasswordChanged
+from .models import ChatRoom, ChatMember, ChatMessage, MessageAttachment
+from .permissions import can_start_direct, get_available_dm_users
 from .serializers import (
-    GroupSerializer, GroupDetailSerializer,
-    GroupMessageSerializer, GroupTaskSerializer, GroupMemberSerializer,
+    ChatRoomSerializer, ChatRoomDetailSerializer,
+    ChatMessageSerializer, ChatMemberSerializer, ChatUserSerializer,
 )
 
 User = get_user_model()
 
 
-def broadcast_message(group_id, message_data):
-    """Отправить сообщение всем WebSocket-клиентам в группе."""
+def broadcast(room_id, event):
+    """Отправить событие всем WebSocket-клиентам комнаты."""
     channel_layer = get_channel_layer()
-    async_to_sync(channel_layer.group_send)(
-        f'chat_{group_id}',
-        {
-            'type': 'chat_message',
-            'message': message_data,
-        }
-    )
+    async_to_sync(channel_layer.group_send)(f'chat_{room_id}', event)
 
 
-class GroupListView(APIView):
-    permission_classes = [IsAdminOrTeacher, PasswordChanged]
+def _is_room_member(room, user):
+    return user.is_admin or room.members_rel.filter(user=user).exists()
+
+
+# ─── Rooms ────────────────────────────────────────────────────────────────────
+
+class ChatRoomListView(APIView):
+    permission_classes = [PasswordChanged]
 
     def get(self, request):
         if request.user.is_admin:
-            groups = Group.objects.all()
+            rooms = ChatRoom.objects.filter(is_archived=False)
         else:
-            groups = request.user.group_memberships.all()
-        serializer = GroupSerializer(groups, many=True)
+            room_ids = ChatMember.objects.filter(user=request.user).values_list('room_id', flat=True)
+            rooms = ChatRoom.objects.filter(id__in=room_ids, is_archived=False)
+
+        # Сортируем: комнаты с сообщениями — по последнему сообщению, без сообщений — в конец
+        rooms = rooms.prefetch_related('messages', 'members_rel__user')
+        rooms_list = sorted(
+            rooms,
+            key=lambda r: r.messages.filter(is_deleted=False).last().created_at
+            if r.messages.filter(is_deleted=False).exists() else r.created_at,
+            reverse=True,
+        )
+        serializer = ChatRoomSerializer(rooms_list, many=True, context={'request': request})
         return Response(serializer.data)
 
     def post(self, request):
+        # Только admin может создавать групповые чаты
         if not request.user.is_admin:
             return Response({'detail': 'Только администраторы могут создавать группы.'}, status=403)
-        serializer = GroupSerializer(data=request.data)
-        if serializer.is_valid():
-            group = serializer.save(created_by=request.user)
-            # Добавить создателя в группу
-            group.members.add(request.user)
-            return Response(GroupDetailSerializer(group, context={'request': request}).data, status=201)
-        return Response(serializer.errors, status=400)
+
+        name = request.data.get('name', '').strip()
+        if not name:
+            return Response({'detail': 'Название обязательно.'}, status=400)
+
+        room = ChatRoom.objects.create(
+            room_type=ChatRoom.TYPE_GROUP,
+            name=name,
+            created_by=request.user,
+        )
+        ChatMember.objects.create(room=room, user=request.user, role=ChatMember.ROLE_ADMIN)
+
+        # Добавить участников из запроса
+        member_ids = request.data.get('member_ids', [])
+        for uid in member_ids:
+            try:
+                u = User.objects.get(pk=uid)
+                if u.id != request.user.id:
+                    ChatMember.objects.get_or_create(room=room, user=u)
+            except User.DoesNotExist:
+                pass
+
+        serializer = ChatRoomDetailSerializer(room, context={'request': request})
+        return Response(serializer.data, status=201)
 
 
-class GroupDetailView(APIView):
-    permission_classes = [IsAdminOrTeacher, PasswordChanged]
+class ChatRoomDetailView(APIView):
+    permission_classes = [PasswordChanged]
 
-    def get_group(self, pk, user):
+    def _get_room(self, pk, user):
         try:
-            group = Group.objects.get(pk=pk)
-        except Group.DoesNotExist:
-            return None, Response({'detail': 'Группа не найдена.'}, status=404)
-        if not user.is_admin and not group.members.filter(id=user.id).exists():
+            room = ChatRoom.objects.get(pk=pk)
+        except ChatRoom.DoesNotExist:
+            return None, Response({'detail': 'Чат не найден.'}, status=404)
+        if not _is_room_member(room, user):
             return None, Response({'detail': 'Нет доступа.'}, status=403)
-        return group, None
+        return room, None
 
     def get(self, request, pk):
-        group, err = self.get_group(pk, request.user)
+        room, err = self._get_room(pk, request.user)
         if err:
             return err
-        serializer = GroupDetailSerializer(group, context={'request': request})
-        return Response(serializer.data)
+        return Response(ChatRoomDetailSerializer(room, context={'request': request}).data)
 
-    def put(self, request, pk):
-        if not request.user.is_admin:
-            return Response({'detail': 'Только администраторы могут редактировать группы.'}, status=403)
-        group, err = self.get_group(pk, request.user)
+    def patch(self, request, pk):
+        room, err = self._get_room(pk, request.user)
         if err:
             return err
-        serializer = GroupSerializer(group, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(GroupDetailSerializer(group, context={'request': request}).data)
-        return Response(serializer.errors, status=400)
+        # Только admin системы или admin чата
+        is_room_admin = room.members_rel.filter(user=request.user, role=ChatMember.ROLE_ADMIN).exists()
+        if not request.user.is_admin and not is_room_admin:
+            return Response({'detail': 'Нет прав.'}, status=403)
+        if 'name' in request.data:
+            room.name = request.data['name'].strip()
+        room.save()
+        return Response(ChatRoomDetailSerializer(room, context={'request': request}).data)
 
     def delete(self, request, pk):
         if not request.user.is_admin:
-            return Response({'detail': 'Только администраторы могут удалять группы.'}, status=403)
-        group, err = self.get_group(pk, request.user)
+            return Response({'detail': 'Только администраторы могут удалять чаты.'}, status=403)
+        room, err = self._get_room(pk, request.user)
         if err:
             return err
-        group.delete()
+        room.delete()
         return Response(status=204)
 
 
-class GroupMembersView(APIView):
-    permission_classes = [IsAdmin, PasswordChanged]
+# ─── Members ──────────────────────────────────────────────────────────────────
 
-    def get_group(self, pk):
+class ChatMembersView(APIView):
+    permission_classes = [PasswordChanged]
+
+    def _get_room(self, pk, user):
         try:
-            return Group.objects.get(pk=pk), None
-        except Group.DoesNotExist:
-            return None, Response({'detail': 'Группа не найдена.'}, status=404)
-
-    def post(self, request, pk):
-        group, err = self.get_group(pk)
-        if err:
-            return err
-        user_id = request.data.get('user_id')
-        if not user_id:
-            return Response({'detail': 'Требуется user_id.'}, status=400)
-        try:
-            user = User.objects.get(pk=user_id)
-        except User.DoesNotExist:
-            return Response({'detail': 'Пользователь не найден.'}, status=404)
-        if not (user.is_teacher or user.is_admin):
-            return Response({'detail': 'Добавлять можно только учителей и администраторов.'}, status=400)
-        group.members.add(user)
-        return Response(GroupDetailSerializer(group, context={'request': request}).data)
-
-    def delete(self, request, pk, user_pk):
-        group, err = self.get_group(pk)
-        if err:
-            return err
-        try:
-            user = User.objects.get(pk=user_pk)
-        except User.DoesNotExist:
-            return Response({'detail': 'Пользователь не найден.'}, status=404)
-        group.members.remove(user)
-        return Response(GroupDetailSerializer(group, context={'request': request}).data)
-
-
-class GroupMessagesView(APIView):
-    permission_classes = [IsAdminOrTeacher, PasswordChanged]
-
-    def get_group(self, pk, user):
-        try:
-            group = Group.objects.get(pk=pk)
-        except Group.DoesNotExist:
-            return None, Response({'detail': 'Группа не найдена.'}, status=404)
-        if not user.is_admin and not group.members.filter(id=user.id).exists():
+            room = ChatRoom.objects.get(pk=pk)
+        except ChatRoom.DoesNotExist:
+            return None, Response({'detail': 'Чат не найден.'}, status=404)
+        if not _is_room_member(room, user):
             return None, Response({'detail': 'Нет доступа.'}, status=403)
-        return group, None
+        return room, None
 
     def get(self, request, pk):
-        group, err = self.get_group(pk, request.user)
+        room, err = self._get_room(pk, request.user)
         if err:
             return err
-        messages = group.messages.select_related('sender', 'file', 'task').prefetch_related('task__assignees').order_by('created_at')
-        serializer = GroupMessageSerializer(messages, many=True, context={'request': request})
-        return Response(serializer.data)
+        members = room.members_rel.select_related('user').order_by('joined_at')
+        return Response(ChatMemberSerializer(members, many=True).data)
+
+    def post(self, request, pk):
+        """Добавить участника. Admin — кого угодно. Teacher — только себя."""
+        room, err = self._get_room(pk, request.user)
+        if err:
+            return err
+        if room.room_type == ChatRoom.TYPE_DIRECT:
+            return Response({'detail': 'Нельзя добавлять участников в личный чат.'}, status=400)
+
+        if request.user.is_admin:
+            user_id = request.data.get('user_id')
+            if not user_id:
+                return Response({'detail': 'Требуется user_id.'}, status=400)
+            try:
+                user = User.objects.get(pk=user_id)
+            except User.DoesNotExist:
+                return Response({'detail': 'Пользователь не найден.'}, status=404)
+        elif request.user.is_teacher:
+            # Учитель может добавить только себя
+            user = request.user
+        else:
+            return Response({'detail': 'Нет прав добавлять участников.'}, status=403)
+
+        ChatMember.objects.get_or_create(room=room, user=user)
+        return Response(ChatRoomDetailSerializer(room, context={'request': request}).data)
+
+    def delete(self, request, pk, user_pk=None):
+        """Удалить участника. Admin — кого угодно. Остальные — только себя."""
+        room, err = self._get_room(pk, request.user)
+        if err:
+            return err
+        if room.room_type == ChatRoom.TYPE_DIRECT:
+            return Response({'detail': 'Нельзя удалять участников из личного чата.'}, status=400)
+
+        target_id = user_pk or request.user.id
+        if not request.user.is_admin and target_id != request.user.id:
+            return Response({'detail': 'Нет прав.'}, status=403)
+
+        ChatMember.objects.filter(room=room, user_id=target_id).delete()
+        return Response(status=204)
 
 
-class GroupFileUploadView(APIView):
-    permission_classes = [IsAdminOrTeacher, PasswordChanged]
+# ─── Messages ─────────────────────────────────────────────────────────────────
+
+class ChatMessagesView(APIView):
+    permission_classes = [PasswordChanged]
+
+    def _get_room(self, pk, user):
+        try:
+            room = ChatRoom.objects.get(pk=pk)
+        except ChatRoom.DoesNotExist:
+            return None, Response({'detail': 'Чат не найден.'}, status=404)
+        if not _is_room_member(room, user):
+            return None, Response({'detail': 'Нет доступа.'}, status=403)
+        return room, None
+
+    def get(self, request, pk):
+        room, err = self._get_room(pk, request.user)
+        if err:
+            return err
+
+        qs = room.messages.select_related('sender', 'reply_to__sender').prefetch_related('attachments')
+        before_id = request.query_params.get('before')
+        if before_id:
+            qs = qs.filter(id__lt=before_id)
+
+        limit = min(int(request.query_params.get('limit', 50)), 100)
+        messages = list(qs.order_by('-created_at')[:limit])
+        messages.reverse()
+
+        serializer = ChatMessageSerializer(messages, many=True, context={'request': request})
+        return Response({
+            'results': serializer.data,
+            'has_more': qs.filter(id__lt=messages[0].id).exists() if messages else False,
+        })
+
+    def delete(self, request, pk, msg_id):
+        room, err = self._get_room(pk, request.user)
+        if err:
+            return err
+        try:
+            msg = ChatMessage.objects.get(pk=msg_id, room=room)
+        except ChatMessage.DoesNotExist:
+            return Response({'detail': 'Сообщение не найдено.'}, status=404)
+
+        if not request.user.is_admin and msg.sender_id != request.user.id:
+            return Response({'detail': 'Нет прав.'}, status=403)
+
+        msg.is_deleted = True
+        msg.text = ''
+        msg.save(update_fields=['is_deleted', 'text'])
+
+        broadcast(pk, {'type': 'chat_message_deleted', 'message_id': msg_id})
+        return Response(status=204)
+
+
+# ─── File upload ──────────────────────────────────────────────────────────────
+
+class ChatFileUploadView(APIView):
+    permission_classes = [PasswordChanged]
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request, pk):
         try:
-            group = Group.objects.get(pk=pk)
-        except Group.DoesNotExist:
-            return Response({'detail': 'Группа не найдена.'}, status=404)
-        if not request.user.is_admin and not group.members.filter(id=request.user.id).exists():
+            room = ChatRoom.objects.get(pk=pk)
+        except ChatRoom.DoesNotExist:
+            return Response({'detail': 'Чат не найден.'}, status=404)
+        if not _is_room_member(room, request.user):
             return Response({'detail': 'Нет доступа.'}, status=403)
 
-        uploaded_file = request.FILES.get('file')
-        if not uploaded_file:
+        uploaded = request.FILES.get('file')
+        if not uploaded:
             return Response({'detail': 'Файл не прикреплён.'}, status=400)
 
-        message = GroupMessage.objects.create(
-            group=group,
-            sender=request.user,
-            content='',
-            message_type=GroupMessage.TYPE_FILE,
+        msg = ChatMessage.objects.create(room=room, sender=request.user, text='')
+        MessageAttachment.objects.create(
+            message=msg,
+            file=uploaded,
+            original_name=uploaded.name,
+            file_size=uploaded.size,
+            mime_type=uploaded.content_type or '',
         )
-        MessageFile.objects.create(
-            message=message,
-            file=uploaded_file,
-            original_filename=uploaded_file.name,
-            file_size=uploaded_file.size,
-        )
-
-        # Перезагрузить с file
-        message.refresh_from_db()
-        serializer = GroupMessageSerializer(message, context={'request': request})
-        broadcast_message(pk, serializer.data)
-        return Response(serializer.data, status=201)
+        msg.refresh_from_db()
+        serialized = ChatMessageSerializer(msg, context={'request': request}).data
+        broadcast(pk, {'type': 'chat_message_new', 'message': serialized})
+        return Response(serialized, status=201)
 
 
-class GroupTaskCreateView(APIView):
-    permission_classes = [IsAdminOrTeacher, PasswordChanged]
+# ─── Mark read ────────────────────────────────────────────────────────────────
+
+class ChatReadView(APIView):
+    permission_classes = [PasswordChanged]
 
     def post(self, request, pk):
-        try:
-            group = Group.objects.get(pk=pk)
-        except Group.DoesNotExist:
-            return Response({'detail': 'Группа не найдена.'}, status=404)
-        if not request.user.is_admin and not group.members.filter(id=request.user.id).exists():
-            return Response({'detail': 'Нет доступа.'}, status=403)
-
-        title = request.data.get('title', '').strip()
-        if not title:
-            return Response({'detail': 'Название задачи обязательно.'}, status=400)
-
-        message = GroupMessage.objects.create(
-            group=group,
-            sender=request.user,
-            content='',
-            message_type=GroupMessage.TYPE_TASK,
-        )
-        task = GroupTask.objects.create(
-            message=message,
-            group=group,
-            title=title,
-            description=request.data.get('description', ''),
-            deadline=request.data.get('deadline') or None,
-            created_by=request.user,
-        )
-        assignee_ids = request.data.get('assignee_ids', [])
-        if assignee_ids:
-            task.assignees.set(User.objects.filter(id__in=assignee_ids))
-
-        message.refresh_from_db()
-        serializer = GroupMessageSerializer(message, context={'request': request})
-        broadcast_message(pk, serializer.data)
-        return Response(serializer.data, status=201)
+        from django.utils import timezone
+        updated = ChatMember.objects.filter(
+            room_id=pk, user=request.user,
+        ).update(last_read_at=timezone.now())
+        if not updated:
+            return Response({'detail': 'Вы не участник этого чата.'}, status=403)
+        return Response({'ok': True})
 
 
-class GroupTaskUpdateView(APIView):
-    permission_classes = [IsAdminOrTeacher, PasswordChanged]
+# ─── Available DM users ───────────────────────────────────────────────────────
 
-    def patch(self, request, pk, task_pk):
-        try:
-            group = Group.objects.get(pk=pk)
-        except Group.DoesNotExist:
-            return Response({'detail': 'Группа не найдена.'}, status=404)
-        if not request.user.is_admin and not group.members.filter(id=request.user.id).exists():
-            return Response({'detail': 'Нет доступа.'}, status=403)
+class ChatUsersView(APIView):
+    permission_classes = [PasswordChanged]
 
-        try:
-            task = GroupTask.objects.get(pk=task_pk, group=group)
-        except GroupTask.DoesNotExist:
-            return Response({'detail': 'Задача не найдена.'}, status=404)
-
-        if 'is_completed' in request.data:
-            task.is_completed = request.data['is_completed']
-        if 'title' in request.data:
-            task.title = request.data['title']
-        if 'description' in request.data:
-            task.description = request.data['description']
-        if 'deadline' in request.data:
-            task.deadline = request.data['deadline'] or None
-        if 'assignee_ids' in request.data:
-            task.assignees.set(User.objects.filter(id__in=request.data['assignee_ids']))
-        task.save()
-
-        message = task.message
-        serializer = GroupMessageSerializer(message, context={'request': request})
-        broadcast_message(pk, serializer.data)
+    def get(self, request):
+        q = request.query_params.get('q', '').strip()
+        users = get_available_dm_users(request.user)
+        if q:
+            from django.db.models import Q as DQ
+            users = users.filter(
+                DQ(first_name__icontains=q) | DQ(last_name__icontains=q)
+            )
+        serializer = ChatUserSerializer(users[:50], many=True)
         return Response(serializer.data)
+
+
+# ─── Open / find Direct chat ──────────────────────────────────────────────────
+
+class ChatDirectView(APIView):
+    permission_classes = [PasswordChanged]
+
+    def post(self, request):
+        other_id = request.data.get('user_id')
+        if not other_id:
+            return Response({'detail': 'Требуется user_id.'}, status=400)
+        try:
+            other = User.objects.get(pk=other_id)
+        except User.DoesNotExist:
+            return Response({'detail': 'Пользователь не найден.'}, status=404)
+
+        if not can_start_direct(request.user, other):
+            return Response({'detail': 'Вам нельзя писать этому пользователю.'}, status=403)
+
+        # Найти существующий DM
+        my_rooms = ChatMember.objects.filter(user=request.user).values_list('room_id', flat=True)
+        other_rooms = ChatMember.objects.filter(user=other).values_list('room_id', flat=True)
+        common = ChatRoom.objects.filter(
+            id__in=set(my_rooms) & set(other_rooms),
+            room_type=ChatRoom.TYPE_DIRECT,
+        ).first()
+
+        if common:
+            return Response(ChatRoomSerializer(common, context={'request': request}).data)
+
+        # Создать новый DM
+        room = ChatRoom.objects.create(room_type=ChatRoom.TYPE_DIRECT, created_by=request.user)
+        ChatMember.objects.create(room=room, user=request.user)
+        ChatMember.objects.create(room=room, user=other)
+
+        return Response(ChatRoomSerializer(room, context={'request': request}).data, status=201)

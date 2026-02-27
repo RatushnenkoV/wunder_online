@@ -10,7 +10,7 @@ urlpatterns = [
     path('api/ktp/', include('ktp.urls')),
     path('api/tasks/', include('tasks.urls')),
     path('api/lessons/', include('lessons.urls')),
-    path('api/groups/', include('groups.urls')),
+    path('api/chat/', include('groups.urls')),
 ]
 
 if settings.DEBUG:
