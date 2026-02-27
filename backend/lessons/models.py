@@ -67,6 +67,7 @@ class Slide(models.Model):
     TYPE_VIDEO = 'video'
     TYPE_FORM = 'form'
     TYPE_DISCUSSION = 'discussion'
+    TYPE_VOCAB = 'vocab'
 
     TYPE_CHOICES = [
         (TYPE_CONTENT, 'Контент'),
@@ -77,6 +78,7 @@ class Slide(models.Model):
         (TYPE_VIDEO, 'Видео'),
         (TYPE_FORM, 'Форма'),
         (TYPE_DISCUSSION, 'Доска обсуждений'),
+        (TYPE_VOCAB, 'Словарь'),
     ]
 
     lesson = models.ForeignKey(
@@ -200,3 +202,38 @@ class LessonMedia(models.Model):
 
     def __str__(self):
         return f'Media for lesson {self.lesson_id}'
+
+
+class VocabProgress(models.Model):
+    """Прогресс ученика по словарному слайду (по каждому слову)."""
+    session = models.ForeignKey(
+        LessonSession,
+        on_delete=models.CASCADE,
+        related_name='vocab_progress',
+        verbose_name='Сессия',
+    )
+    slide = models.ForeignKey(
+        Slide,
+        on_delete=models.CASCADE,
+        related_name='vocab_progress',
+        verbose_name='Слайд',
+    )
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='vocab_progress',
+        verbose_name='Ученик',
+    )
+    word_id = models.CharField(max_length=100, verbose_name='ID слова')
+    attempts = models.IntegerField(default=0, verbose_name='Всего попыток')
+    correct = models.IntegerField(default=0, verbose_name='Правильных ответов')
+    learned = models.BooleanField(default=False, verbose_name='Выучено')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['session', 'slide', 'student', 'word_id']
+        verbose_name = 'Прогресс по слову'
+        verbose_name_plural = 'Прогресс по словам'
+
+    def __str__(self):
+        return f'VocabProgress session={self.session_id} slide={self.slide_id} student={self.student_id} word={self.word_id}'

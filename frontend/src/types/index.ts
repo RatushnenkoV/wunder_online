@@ -336,7 +336,7 @@ export interface LessonSession {
   ended_at: string | null;
 }
 
-export type SlideType = 'content' | 'image' | 'poll' | 'quiz' | 'open_question' | 'video' | 'form' | 'discussion';
+export type SlideType = 'content' | 'image' | 'poll' | 'quiz' | 'open_question' | 'video' | 'form' | 'discussion' | 'vocab';
 
 export type FormQuestionType = 'single' | 'multiple' | 'text' | 'scale';
 
@@ -379,6 +379,43 @@ export interface DiscussionArrow {
   to_id: string;
   author_id: number;
   author_name: string;
+}
+
+// ─── Vocab slide ─────────────────────────────────────────────────────────────
+
+export interface VocabWord {
+  id: string;
+  ru: string;
+  target: string;
+  imageUrl?: string;  // Pixabay (stub for now)
+}
+
+export interface VocabTasks {
+  ruToTargetChoice: boolean;
+  ruToTargetInput: boolean;
+  targetToRuChoice: boolean;
+  targetToRuInput: boolean;
+  audioToTargetChoice: boolean;
+  audioToTargetInput: boolean;
+  imageToTargetChoice: boolean;
+  imageToTargetInput: boolean;
+}
+
+export interface VocabContent {
+  targetLang: 'en' | 'kk';
+  words: VocabWord[];
+  tasks: VocabTasks;
+  repetitions: number | 'until_correct';
+}
+
+export interface VocabProgressRecord {
+  student_id: number;
+  student_name: string;
+  word_id: string;
+  attempts: number;
+  correct: number;
+  learned: boolean;
+  updated_at: string;
 }
 
 export interface DiscussionStroke {

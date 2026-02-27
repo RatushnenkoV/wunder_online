@@ -7,7 +7,7 @@ import { TextStyle, Color, FontSize, FontFamily } from '@tiptap/extension-text-s
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import StartSessionDialog from '../components/StartSessionDialog';
-import type { Lesson, Slide, SlideBlock, ShapeType, SlideType, FormQuestion, FormQuestionType, VideoContent, DiscussionSticker, DiscussionArrow } from '../types';
+import type { Lesson, Slide, SlideBlock, ShapeType, SlideType, FormQuestion, FormQuestionType, VideoContent, DiscussionSticker, DiscussionArrow, VocabWord, VocabContent } from '../types';
 
 // ─── Константы ────────────────────────────────────────────────────────────────
 
@@ -1147,7 +1147,7 @@ interface SlideThumbProps {
 }
 
 const SLIDE_TYPE_ICONS: Partial<Record<SlideType, string>> = {
-  content: '📄', form: '📋', video: '📹', discussion: '💬', quiz: '🏆',
+  content: '📄', form: '📋', video: '📹', discussion: '💬', quiz: '🏆', vocab: '📚',
 };
 
 function SlideThumb({ slide, index, isSelected, isDragOver, onClick, onDelete, onDragStart, onDragOver, onDragLeave, onDrop }: SlideThumbProps) {
@@ -1164,6 +1164,9 @@ function SlideThumb({ slide, index, isSelected, isDragOver, onClick, onDelete, o
     label = (slide.content as { url?: string }).url ? 'Видео' : 'Видео';
   } else if (slide.slide_type === 'discussion') {
     label = 'Доска';
+  } else if (slide.slide_type === 'vocab') {
+    const ws = (slide.content as { words?: unknown[] }).words;
+    label = ws && ws.length > 0 ? `${ws.length} сл.` : 'Словарь';
   } else {
     const blocks = slide.content?.blocks ?? [];
     const firstText = blocks.find(b => b.type === 'text');
@@ -1196,6 +1199,7 @@ function SlideTypePicker({ onSelect, onClose }: { onSelect: (type: SlideType) =>
     { type: 'quiz',       icon: '🏆', label: 'Викторина',  desc: 'Вопрос с таймером' },
     { type: 'video',      icon: '📹', label: 'Видео',      desc: 'YouTube и другие' },
     { type: 'discussion', icon: '💬', label: 'Доска',      desc: 'Стикеры + стрелки' },
+    { type: 'vocab',      icon: '📚', label: 'Словарь',    desc: 'Заучивание слов' },
   ];
 
   return (
@@ -1762,6 +1766,454 @@ function QuizEditor({ slide, lessonId, onSaved }: { slide: Slide; lessonId: numb
 
           <div className="text-xs text-gray-500 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
             💡 Правильный ответ выделен зелёным. Баллы получают только те, кто ответил правильно — чем быстрее, тем больше (макс. 1000, мин. 100 очков).
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── VocabEditor ──────────────────────────────────────────────────────────────
+
+const PIXABAY_KEY = '54818244-3641622ef32cd383da65cf948';
+
+function newVocabWord(): VocabWord {
+  return { id: `w${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, ru: '', target: '', imageUrl: '' };
+}
+
+function defaultVocabContent(): VocabContent {
+  return {
+    targetLang: 'en',
+    words: [newVocabWord()],
+    tasks: {
+      ruToTargetChoice: true,  ruToTargetInput: false,
+      targetToRuChoice: true,  targetToRuInput: false,
+      audioToTargetChoice: false, audioToTargetInput: false,
+      imageToTargetChoice: false, imageToTargetInput: false,
+    },
+    repetitions: 1,
+  };
+}
+
+const LANG_LABELS: Record<'en' | 'kk', string> = { en: 'Английский', kk: 'Казахский' };
+const LANG_BCP47: Record<'en' | 'kk', string>  = { en: 'en-US',      kk: 'kk-KZ'    };
+
+function speak(text: string, lang: 'en' | 'kk') {
+  if (!text.trim()) return;
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = LANG_BCP47[lang];
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utt);
+}
+
+async function translateWord(ru: string, lang: 'en' | 'kk'): Promise<string[]> {
+  if (!ru.trim()) return [];
+  try {
+    const res = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(ru)}&langpair=ru|${lang}`
+    );
+    const json = await res.json();
+    const results: string[] = [];
+    const top = (json?.responseData?.translatedText ?? '').trim();
+    if (top && top.toLowerCase() !== 'no translation') results.push(top);
+    const matches: { translation: string }[] = json?.matches ?? [];
+    for (const m of matches) {
+      const t = m.translation?.trim();
+      if (t && !results.includes(t) && t.toLowerCase() !== 'no translation' && results.length < 4) {
+        results.push(t);
+      }
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+interface PixabayHit { previewURL: string; webformatURL: string; }
+
+async function searchPixabay(query: string): Promise<PixabayHit[]> {
+  if (!query.trim()) return [];
+  try {
+    const res = await fetch(
+      `https://pixabay.com/api/?key=${PIXABAY_KEY}&q=${encodeURIComponent(query)}&image_type=illustration&per_page=3&safesearch=true`
+    );
+    const json = await res.json();
+    return (json?.hits ?? []).slice(0, 3).map((h: PixabayHit) => ({
+      previewURL: h.previewURL,
+      webformatURL: h.webformatURL,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function VocabWordCard({
+  word, lang, lessonId, onChange, onDelete, canDelete,
+}: {
+  word: VocabWord;
+  lang: 'en' | 'kk';
+  lessonId: number;
+  onChange: (w: VocabWord) => void;
+  onDelete: () => void;
+  canDelete: boolean;
+}) {
+  const [suggestions, setSuggestions]       = useState<string[]>([]);
+  const [translating, setTranslating]       = useState(false);
+  const [pixImages, setPixImages]           = useState<PixabayHit[]>([]);
+  const [searchingImg, setSearchingImg]     = useState(false);
+  const [uploading, setUploading]           = useState(false);
+  const translateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const imageTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fileInputRef   = useRef<HTMLInputElement>(null);
+
+  // Auto-translate when ru changes (700ms debounce)
+  useEffect(() => {
+    if (translateTimer.current) clearTimeout(translateTimer.current);
+    if (!word.ru.trim()) { setSuggestions([]); return; }
+    translateTimer.current = setTimeout(async () => {
+      setTranslating(true);
+      const s = await translateWord(word.ru, lang);
+      setSuggestions(s);
+      // Auto-fill target if empty
+      if (s.length > 0 && !word.target.trim()) onChange({ ...word, target: s[0] });
+      setTranslating(false);
+    }, 700);
+    return () => { if (translateTimer.current) clearTimeout(translateTimer.current); };
+  }, [word.ru, lang]); // eslint-disable-line
+
+  // Auto-search Pixabay when target changes (700ms debounce)
+  useEffect(() => {
+    if (imageTimer.current) clearTimeout(imageTimer.current);
+    if (!word.target.trim()) { setPixImages([]); return; }
+    imageTimer.current = setTimeout(async () => {
+      setSearchingImg(true);
+      const imgs = await searchPixabay(word.target);
+      setPixImages(imgs);
+      setSearchingImg(false);
+    }, 700);
+    return () => { if (imageTimer.current) clearTimeout(imageTimer.current); };
+  }, [word.target]); // eslint-disable-line
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.post(`/lessons/lessons/${lessonId}/upload/`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      onChange({ ...word, imageUrl: res.data.url });
+    } catch { /* ignore */ }
+    setUploading(false);
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3">
+      {/* Строка: русское слово + перевод + кнопка удалить */}
+      <div className="flex items-start gap-2">
+        {/* Русское слово */}
+        <div className="flex-1 min-w-0">
+          <label className="text-xs text-gray-400 mb-1 block">Русское слово</label>
+          <input
+            type="text"
+            value={word.ru}
+            onChange={e => onChange({ ...word, ru: e.target.value })}
+            placeholder="Введите слово на русском..."
+            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-400"
+          />
+          {translating && <span className="text-xs text-gray-400 mt-0.5 block">Переводим...</span>}
+        </div>
+
+        {/* Перевод */}
+        <div className="flex-1 min-w-0">
+          <label className="text-xs text-gray-400 mb-1 block">{LANG_LABELS[lang]}</label>
+          <div className="flex gap-1">
+            <input
+              type="text"
+              value={word.target}
+              onChange={e => onChange({ ...word, target: e.target.value })}
+              placeholder="Перевод..."
+              className="flex-1 min-w-0 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-400"
+            />
+            <button
+              onClick={() => speak(word.target, lang)}
+              disabled={!word.target.trim()}
+              title="Озвучить"
+              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 transition-colors"
+            >
+              🔊
+            </button>
+          </div>
+          {/* Варианты перевода */}
+          {suggestions.length > 1 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {suggestions.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => onChange({ ...word, target: s })}
+                  className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${word.target === s ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-blue-300'}`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Кнопка удалить */}
+        {canDelete && (
+          <button
+            onClick={onDelete}
+            className="flex-shrink-0 mt-6 text-gray-300 hover:text-red-500 transition-colors text-xl leading-none"
+            title="Удалить слово"
+          >×</button>
+        )}
+      </div>
+
+      {/* Картинки */}
+      <div>
+        <label className="text-xs text-gray-400 mb-1.5 block">Картинка (иллюстрация)</label>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Выбранная картинка */}
+          {word.imageUrl && (
+            <div className="relative flex-shrink-0">
+              <img src={word.imageUrl} alt="" className="w-16 h-12 object-cover rounded-lg border-2 border-blue-400" />
+              <button
+                onClick={() => onChange({ ...word, imageUrl: '' })}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs leading-none flex items-center justify-center"
+              >×</button>
+            </div>
+          )}
+
+          {/* Thumbnails из Pixabay */}
+          {searchingImg ? (
+            <span className="text-xs text-gray-400">Ищем картинки...</span>
+          ) : (
+            pixImages.map((img, i) => (
+              <button
+                key={i}
+                onClick={() => onChange({ ...word, imageUrl: img.webformatURL })}
+                className={`flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${word.imageUrl === img.webformatURL ? 'border-blue-500' : 'border-gray-200 hover:border-blue-300'}`}
+                title="Выбрать картинку"
+              >
+                <img src={img.previewURL} alt="" className="w-full h-full object-cover" />
+              </button>
+            ))
+          )}
+
+          {/* Загрузить свою */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            title="Загрузить свою картинку"
+            className="flex-shrink-0 w-16 h-12 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center text-gray-400 hover:text-blue-500 transition-colors text-xl disabled:opacity-50"
+          >
+            {uploading ? '⏳' : '📁'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }}
+          />
+        </div>
+        {pixImages.length === 0 && !searchingImg && word.target.trim() && (
+          <span className="text-xs text-gray-400 mt-1 block">Нет иллюстраций на Pixabay — загрузите свою</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VocabEditor({ slide, lessonId, onSaved }: { slide: Slide; lessonId: number; onSaved: (s: Slide) => void }) {
+  const getContent = (): VocabContent => {
+    const c = slide.content as Partial<VocabContent>;
+    if (c?.words) return c as VocabContent;
+    return defaultVocabContent();
+  };
+
+  const [content, setContent] = useState<VocabContent>(getContent);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => { setContent(getContent()); }, [slide.id]); // eslint-disable-line
+
+  const doSave = useCallback((c: VocabContent) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      try {
+        const res = await api.put(`/lessons/lessons/${lessonId}/slides/${slide.id}/`, { content: c });
+        onSaved(res.data);
+      } catch { /* ignore */ }
+    }, 400);
+  }, [lessonId, slide.id, onSaved]);
+
+  const update = (c: VocabContent) => { setContent(c); doSave(c); };
+
+  const updateWord = (idx: number, w: VocabWord) => {
+    const words = content.words.map((old, i) => i === idx ? w : old);
+    update({ ...content, words });
+  };
+
+  const addWord = () => update({ ...content, words: [...content.words, newVocabWord()] });
+
+  const deleteWord = (idx: number) => {
+    if (content.words.length <= 1) return;
+    update({ ...content, words: content.words.filter((_, i) => i !== idx) });
+  };
+
+  const setLang = (lang: 'en' | 'kk') => update({ ...content, targetLang: lang });
+
+  const setTask = (key: keyof VocabContent['tasks'], val: boolean) =>
+    update({ ...content, tasks: { ...content.tasks, [key]: val } });
+
+  const setReps = (v: number | 'until_correct') => update({ ...content, repetitions: v });
+
+  const activeTasks = Object.values(content.tasks).filter(Boolean).length;
+
+  const taskRows: { label: string; choiceKey: keyof VocabContent['tasks']; inputKey: keyof VocabContent['tasks'] }[] = [
+    {
+      label:     `Перевести с русского на ${LANG_LABELS[content.targetLang].toLowerCase()}`,
+      choiceKey: 'ruToTargetChoice',
+      inputKey:  'ruToTargetInput',
+    },
+    {
+      label:     `Перевести с ${LANG_LABELS[content.targetLang].toLowerCase()} на русский`,
+      choiceKey: 'targetToRuChoice',
+      inputKey:  'targetToRuInput',
+    },
+    {
+      label:     `Аудио → текст (${LANG_LABELS[content.targetLang]})`,
+      choiceKey: 'audioToTargetChoice',
+      inputKey:  'audioToTargetInput',
+    },
+    {
+      label:     `Картинка → текст (${LANG_LABELS[content.targetLang]})`,
+      choiceKey: 'imageToTargetChoice',
+      inputKey:  'imageToTargetInput',
+    },
+  ];
+
+  const repsValue = content.repetitions !== 'until_correct' ? (content.repetitions as number) : 1;
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="h-10 border-b border-gray-200 bg-white flex items-center px-4 gap-3">
+        <span className="text-sm text-gray-500">📚 Редактор словаря</span>
+        <span className="text-xs text-gray-400">{content.words.length} слов</span>
+      </div>
+      <div className="flex-1 overflow-y-auto bg-gray-50">
+        <div className="max-w-3xl mx-auto p-6 space-y-6">
+
+          {/* Язык */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Язык перевода</h3>
+            <div className="flex gap-3">
+              {(['en', 'kk'] as const).map(l => (
+                <label key={l} className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name={`lang_${slide.id}`} checked={content.targetLang === l}
+                    onChange={() => setLang(l)} className="accent-blue-600" />
+                  <span className="text-sm text-gray-700">{LANG_LABELS[l]}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Слова */}
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Слова</h3>
+            <div className="space-y-3">
+              {content.words.map((w, idx) => (
+                <VocabWordCard
+                  key={w.id}
+                  word={w}
+                  lang={content.targetLang}
+                  lessonId={lessonId}
+                  onChange={updated => updateWord(idx, updated)}
+                  onDelete={() => deleteWord(idx)}
+                  canDelete={content.words.length > 1}
+                />
+              ))}
+              <button
+                onClick={addWord}
+                className="w-full py-3 text-sm text-blue-500 hover:text-blue-700 border-2 border-dashed border-blue-200 hover:border-blue-400 rounded-xl transition-colors font-medium"
+              >
+                + Добавить слово
+              </button>
+            </div>
+          </div>
+
+          {/* Типы заданий */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Типы заданий</h3>
+              <div className="flex gap-4 text-xs text-gray-400 font-medium">
+                <span>Выбор</span>
+                <span>Ввод</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {taskRows.map(({ label, choiceKey, inputKey }) => (
+                <div key={choiceKey} className="flex items-center justify-between gap-2">
+                  <span className="text-sm text-gray-700 flex-1">{label}</span>
+                  <div className="flex gap-6 flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={!!content.tasks[choiceKey]}
+                      onChange={e => setTask(choiceKey, e.target.checked)}
+                      disabled={content.tasks[choiceKey] && activeTasks === 1}
+                      className="w-4 h-4 accent-blue-600 cursor-pointer"
+                    />
+                    <input
+                      type="checkbox"
+                      checked={!!content.tasks[inputKey]}
+                      onChange={e => setTask(inputKey, e.target.checked)}
+                      disabled={content.tasks[inputKey] && activeTasks === 1}
+                      className="w-4 h-4 accent-blue-600 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            {activeTasks === 0 && (
+              <p className="text-xs text-red-500 mt-2">Выберите хотя бы один тип задания</p>
+            )}
+          </div>
+
+          {/* Повторения */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Повторения</h3>
+            <div className="flex items-center gap-4 flex-wrap">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={content.repetitions === 'until_correct'}
+                  onChange={e => setReps(e.target.checked ? 'until_correct' : 1)}
+                  className="w-4 h-4 accent-blue-600"
+                />
+                <span className="text-sm text-gray-700">Повторять до безошибочного</span>
+              </label>
+              {content.repetitions !== 'until_correct' && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setReps(Math.max(1, repsValue - 1))}
+                    disabled={repsValue <= 1}
+                    className="w-8 h-8 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors font-bold text-lg leading-none flex items-center justify-center"
+                  >−</button>
+                  <span className="w-8 text-center text-sm font-semibold text-gray-800">{repsValue}</span>
+                  <button
+                    onClick={() => setReps(Math.min(10, repsValue + 1))}
+                    disabled={repsValue >= 10}
+                    className="w-8 h-8 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors font-bold text-lg leading-none flex items-center justify-center"
+                  >+</button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="text-xs text-gray-500 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+            💡 Слово считается выученным, когда все активные типы заданий выполнены без ошибок. Картинки ищутся автоматически на Pixabay при вводе перевода.
           </div>
 
         </div>
@@ -2360,7 +2812,7 @@ export default function LessonEditorPage() {
         <main className="flex-1 flex flex-col min-w-0 min-h-0">
           {selectedSlide ? (
             <>
-              {(selectedSlide.slide_type === 'content' || !['form', 'quiz', 'video', 'discussion'].includes(selectedSlide.slide_type)) && (
+              {(selectedSlide.slide_type === 'content' || !['form', 'quiz', 'video', 'discussion', 'vocab'].includes(selectedSlide.slide_type)) && (
                 <SlideCanvas key={selectedSlide.id} slide={selectedSlide} lessonId={lessonId} coverColor={lesson.cover_color} onSaved={handleSlideUpdated} />
               )}
               {selectedSlide.slide_type === 'form' && (
@@ -2374,6 +2826,9 @@ export default function LessonEditorPage() {
               )}
               {selectedSlide.slide_type === 'discussion' && (
                 <DiscussionBoard key={selectedSlide.id} slide={selectedSlide} />
+              )}
+              {selectedSlide.slide_type === 'vocab' && (
+                <VocabEditor key={selectedSlide.id} slide={selectedSlide} lessonId={lessonId} onSaved={handleSlideUpdated} />
               )}
             </>
           ) : (

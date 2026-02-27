@@ -6,7 +6,7 @@ from rest_framework.response import Response
 
 from django.utils import timezone
 from accounts.permissions import PasswordChanged
-from .models import Lesson, LessonFolder, Slide, LessonMedia, LessonSession, FormAnswer
+from .models import Lesson, LessonFolder, Slide, LessonMedia, LessonSession, FormAnswer, VocabProgress
 from .serializers import LessonFolderSerializer, LessonSerializer, SlideSerializer, LessonMediaSerializer, LessonSessionSerializer
 from .utils import compute_form_results
 
@@ -402,3 +402,61 @@ def sessions_active(request):
         sessions = LessonSession.objects.none()
 
     return Response(LessonSessionSerializer(sessions, many=True, context=_ctx(request)).data)
+
+
+# ─── Словарный прогресс ────────────────────────────────────────────────────────
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def vocab_progress(request, session_id, slide_id):
+    """
+    GET  — прогресс всего класса (только для учителей/admin).
+    POST — сохранить/обновить прогресс ученика по слову.
+    """
+    session = get_object_or_404(LessonSession, id=session_id)
+    slide = get_object_or_404(Slide, id=slide_id)
+
+    if request.method == 'GET':
+        if not _is_staff(request.user):
+            return Response({'error': 'Нет доступа'}, status=403)
+        rows = VocabProgress.objects.filter(
+            session=session, slide=slide,
+        ).select_related('student')
+        data = [
+            {
+                'student_id': r.student_id,
+                'student_name': f'{r.student.first_name} {r.student.last_name}'.strip(),
+                'word_id': r.word_id,
+                'attempts': r.attempts,
+                'correct': r.correct,
+                'learned': r.learned,
+                'updated_at': r.updated_at,
+            }
+            for r in rows
+        ]
+        return Response(data)
+
+    # POST — ученик сохраняет прогресс
+    word_id = request.data.get('word_id')
+    if not word_id:
+        return Response({'error': 'word_id обязателен'}, status=400)
+
+    attempts = int(request.data.get('attempts', 0))
+    correct = int(request.data.get('correct', 0))
+    learned = bool(request.data.get('learned', False))
+
+    obj, _ = VocabProgress.objects.update_or_create(
+        session=session,
+        slide=slide,
+        student=request.user,
+        word_id=word_id,
+        defaults={'attempts': attempts, 'correct': correct, 'learned': learned},
+    )
+    return Response({
+        'student_id': obj.student_id,
+        'word_id': obj.word_id,
+        'attempts': obj.attempts,
+        'correct': obj.correct,
+        'learned': obj.learned,
+        'updated_at': obj.updated_at,
+    }, status=201)

@@ -26,4 +26,5 @@ urlpatterns = [
     path('sessions/active/', views.sessions_active),
     path('sessions/<int:session_id>/', views.session_detail),
     path('sessions/<int:session_id>/slides/<int:slide_id>/form-results/', views.session_form_results),
+    path('sessions/<int:session_id>/slides/<int:slide_id>/vocab-progress/', views.vocab_progress),
 ]
