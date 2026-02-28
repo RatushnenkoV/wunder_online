@@ -76,6 +76,13 @@ class ChatMessage(models.Model):
         blank=True,
         related_name='replies',
     )
+    task = models.ForeignKey(
+        'tasks.Task',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='chat_messages',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
@@ -102,3 +109,65 @@ class MessageAttachment(models.Model):
 
     def __str__(self):
         return self.original_name
+
+
+class ChatPoll(models.Model):
+    message = models.OneToOneField(ChatMessage, on_delete=models.CASCADE, related_name='poll')
+    question = models.TextField('Вопрос')
+    is_multiple = models.BooleanField('Мультивыбор', default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Опрос'
+        verbose_name_plural = 'Опросы'
+
+    def __str__(self):
+        return self.question[:50]
+
+
+class ChatPollOption(models.Model):
+    poll = models.ForeignKey(ChatPoll, on_delete=models.CASCADE, related_name='options')
+    text = models.CharField('Текст варианта', max_length=500)
+    order = models.PositiveSmallIntegerField('Порядок', default=0)
+
+    class Meta:
+        verbose_name = 'Вариант опроса'
+        verbose_name_plural = 'Варианты опросов'
+        ordering = ['order']
+
+    def __str__(self):
+        return self.text[:50]
+
+
+class ChatPollVote(models.Model):
+    option = models.ForeignKey(ChatPollOption, on_delete=models.CASCADE, related_name='votes')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name = 'Голос'
+        verbose_name_plural = 'Голоса'
+        unique_together = [['option', 'user']]
+
+    def __str__(self):
+        return f'{self.user} → {self.option}'
+
+
+class ChatTaskTake(models.Model):
+    """Фиксирует, кто взял задачу из чата. Каждый участник получает личную копию задачи."""
+    message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE, related_name='task_takes')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    task = models.ForeignKey(
+        'tasks.Task',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='chat_task_takes',
+    )
+    taken_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Взятая задача'
+        verbose_name_plural = 'Взятые задачи'
+        unique_together = [['message', 'user']]
+
+    def __str__(self):
+        return f'{self.user} → {self.message_id}'

@@ -103,6 +103,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'message_id': event['message_id'],
         }))
 
+    async def chat_poll_updated(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'poll_updated',
+            'poll_id': event['poll_id'],
+            'options': event['options'],
+            'total_votes': event['total_votes'],
+        }))
+
+    async def chat_task_taken(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'chat_task_taken',
+            'task_id': event['task_id'],
+            'takers': event['takers'],
+        }))
+
     # ─── DB helpers ────────────────────────────────────────────────────────────
 
     @sync_to_async

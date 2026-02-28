@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from .models import ChatRoom, ChatMember, ChatMessage, MessageAttachment
+from .models import ChatRoom, ChatMember, ChatMessage, MessageAttachment, ChatPoll, ChatPollOption
 
 User = get_user_model()
 
@@ -29,15 +29,55 @@ class MessageAttachmentSerializer(serializers.ModelSerializer):
         return obj.file.url  # relative URL — proxied by Vite on all devices
 
 
+class ChatPollOptionSerializer(serializers.ModelSerializer):
+    vote_count = serializers.SerializerMethodField()
+    user_voted = serializers.SerializerMethodField()
+    voters = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ChatPollOption
+        fields = ['id', 'text', 'order', 'vote_count', 'user_voted', 'voters']
+
+    def get_vote_count(self, obj):
+        return obj.votes.count()
+
+    def get_user_voted(self, obj):
+        request = self.context.get('request')
+        if not request:
+            return False
+        return obj.votes.filter(user=request.user).exists()
+
+    def get_voters(self, obj):
+        return [
+            {'id': v.user_id, 'name': f'{v.user.last_name} {v.user.first_name}'.strip()}
+            for v in obj.votes.select_related('user').all()
+        ]
+
+
+class ChatPollSerializer(serializers.ModelSerializer):
+    options = ChatPollOptionSerializer(many=True, read_only=True)
+    total_votes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ChatPoll
+        fields = ['id', 'question', 'is_multiple', 'options', 'total_votes']
+
+    def get_total_votes(self, obj):
+        from .models import ChatPollVote
+        return ChatPollVote.objects.filter(option__poll=obj).values('user').distinct().count()
+
+
 class ChatMessageSerializer(serializers.ModelSerializer):
     sender = ChatUserSerializer(read_only=True)
     attachments = MessageAttachmentSerializer(many=True, read_only=True)
     reply_to_preview = serializers.SerializerMethodField()
+    poll = serializers.SerializerMethodField()
+    task_preview = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatMessage
         fields = ['id', 'room', 'sender', 'text', 'reply_to', 'reply_to_preview',
-                  'attachments', 'created_at', 'updated_at', 'is_deleted']
+                  'attachments', 'poll', 'task_preview', 'created_at', 'updated_at', 'is_deleted']
 
     def get_reply_to_preview(self, obj):
         if not obj.reply_to_id:
@@ -48,6 +88,37 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         sender_name = f'{r.sender.last_name} {r.sender.first_name}'.strip() if r.sender else ''
         text = r.text or ('[файл]' if r.attachments.exists() else '')
         return {'id': r.id, 'text': text[:100], 'sender_name': sender_name}
+
+    def get_poll(self, obj):
+        try:
+            poll = obj.poll
+        except Exception:
+            return None
+        return ChatPollSerializer(poll, context=self.context).data
+
+    def get_task_preview(self, obj):
+        if not obj.task_id:
+            return None
+        task = obj.task
+        created_by_name = ''
+        if task.created_by:
+            created_by_name = f'{task.created_by.last_name} {task.created_by.first_name}'.strip()
+        takes = obj.task_takes.select_related('user').all()
+        takers = [
+            {'id': t.user_id, 'name': f'{t.user.last_name} {t.user.first_name}'.strip()}
+            for t in takes
+        ]
+        request = self.context.get('request')
+        user_took = bool(request and takes.filter(user=request.user).exists())
+        return {
+            'id': task.id,
+            'title': task.title,
+            'description': task.description,
+            'due_date': task.due_date.isoformat() if task.due_date else None,
+            'created_by_name': created_by_name,
+            'takers': takers,
+            'user_took': user_took,
+        }
 
 
 class ChatMemberSerializer(serializers.ModelSerializer):
@@ -79,8 +150,14 @@ class ChatRoomSerializer(serializers.ModelSerializer):
             text = msg.text
         elif msg.attachments.exists():
             text = '[файл]'
+        elif msg.task_id:
+            text = '[задача]'
         else:
-            text = ''
+            try:
+                _ = msg.poll
+                text = '[опрос]'
+            except Exception:
+                text = ''
         sender_name = ''
         if msg.sender:
             sender_name = f'{msg.sender.last_name} {msg.sender.first_name[0]}.' if msg.sender.first_name else msg.sender.last_name

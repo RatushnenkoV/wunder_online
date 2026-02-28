@@ -6,11 +6,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import PasswordChanged
-from .models import ChatRoom, ChatMember, ChatMessage, MessageAttachment
+from .models import ChatRoom, ChatMember, ChatMessage, MessageAttachment, ChatPoll, ChatPollOption, ChatPollVote, ChatTaskTake
 from .permissions import can_start_direct, get_available_dm_users
 from .serializers import (
     ChatRoomSerializer, ChatRoomDetailSerializer,
     ChatMessageSerializer, ChatMemberSerializer, ChatUserSerializer,
+    ChatPollSerializer,
 )
 
 User = get_user_model()
@@ -334,3 +335,164 @@ class ChatDirectView(APIView):
         ChatMember.objects.create(room=room, user=other)
 
         return Response(ChatRoomSerializer(room, context={'request': request}).data, status=201)
+
+
+# ─── Poll ──────────────────────────────────────────────────────────────────────
+
+class ChatPollCreateView(APIView):
+    permission_classes = [PasswordChanged]
+
+    def post(self, request, room_id):
+        try:
+            room = ChatRoom.objects.get(pk=room_id)
+        except ChatRoom.DoesNotExist:
+            return Response({'detail': 'Чат не найден.'}, status=404)
+        if not _is_room_member(room, request.user):
+            return Response({'detail': 'Нет доступа.'}, status=403)
+
+        question = request.data.get('question', '').strip()
+        options_data = request.data.get('options', [])
+        is_multiple = bool(request.data.get('is_multiple', False))
+
+        if not question:
+            return Response({'detail': 'Вопрос обязателен.'}, status=400)
+        if len(options_data) < 2:
+            return Response({'detail': 'Нужно минимум 2 варианта.'}, status=400)
+
+        msg = ChatMessage.objects.create(room=room, sender=request.user, text='')
+        poll = ChatPoll.objects.create(message=msg, question=question, is_multiple=is_multiple)
+        for i, text in enumerate(options_data[:10]):
+            text = str(text).strip()
+            if text:
+                ChatPollOption.objects.create(poll=poll, text=text, order=i)
+
+        msg.refresh_from_db()
+        serialized = ChatMessageSerializer(msg, context={'request': request}).data
+        broadcast(room_id, {'type': 'chat_message_new', 'message': serialized})
+        return Response(serialized, status=201)
+
+
+class ChatPollVoteView(APIView):
+    permission_classes = [PasswordChanged]
+
+    def post(self, request, poll_id):
+        try:
+            poll = ChatPoll.objects.get(pk=poll_id)
+        except ChatPoll.DoesNotExist:
+            return Response({'detail': 'Опрос не найден.'}, status=404)
+
+        room = poll.message.room
+        if not _is_room_member(room, request.user):
+            return Response({'detail': 'Нет доступа.'}, status=403)
+
+        option_id = request.data.get('option_id')
+        if not option_id:
+            return Response({'detail': 'Требуется option_id.'}, status=400)
+
+        try:
+            option = ChatPollOption.objects.get(pk=option_id, poll=poll)
+        except ChatPollOption.DoesNotExist:
+            return Response({'detail': 'Вариант не найден.'}, status=404)
+
+        if not poll.is_multiple:
+            # Удалить старые голоса в этом опросе
+            ChatPollVote.objects.filter(option__poll=poll, user=request.user).delete()
+
+        ChatPollVote.objects.get_or_create(option=option, user=request.user)
+
+        # Broadcast обновление опроса
+        poll_data = ChatPollSerializer(poll, context={'request': request}).data
+        broadcast(room.id, {
+            'type': 'chat_poll_updated',
+            'poll_id': poll.id,
+            'options': poll_data['options'],
+            'total_votes': poll_data['total_votes'],
+        })
+        return Response(poll_data)
+
+
+# ─── Chat Tasks ────────────────────────────────────────────────────────────────
+
+class ChatTaskCreateView(APIView):
+    permission_classes = [PasswordChanged]
+
+    def post(self, request, room_id):
+        if not (request.user.is_admin or request.user.is_teacher):
+            return Response({'detail': 'Только преподаватели могут создавать задачи в чате.'}, status=403)
+
+        try:
+            room = ChatRoom.objects.get(pk=room_id)
+        except ChatRoom.DoesNotExist:
+            return Response({'detail': 'Чат не найден.'}, status=404)
+        if not _is_room_member(room, request.user):
+            return Response({'detail': 'Нет доступа.'}, status=403)
+
+        from tasks.models import Task
+        title = request.data.get('title', '').strip()
+        if not title:
+            return Response({'detail': 'Название задачи обязательно.'}, status=400)
+
+        description = request.data.get('description', '').strip()
+        due_date = request.data.get('due_date') or None
+
+        task = Task.objects.create(
+            title=title,
+            description=description,
+            due_date=due_date,
+            created_by=request.user,
+            status='new',
+        )
+        msg = ChatMessage.objects.create(room=room, sender=request.user, text='', task=task)
+        msg.refresh_from_db()
+        serialized = ChatMessageSerializer(msg, context={'request': request}).data
+        broadcast(room_id, {'type': 'chat_message_new', 'message': serialized})
+        return Response(serialized, status=201)
+
+
+class ChatTaskTakeView(APIView):
+    permission_classes = [PasswordChanged]
+
+    def post(self, request, room_id, task_id):
+        try:
+            room = ChatRoom.objects.get(pk=room_id)
+        except ChatRoom.DoesNotExist:
+            return Response({'detail': 'Чат не найден.'}, status=404)
+        if not _is_room_member(room, request.user):
+            return Response({'detail': 'Нет доступа.'}, status=403)
+
+        # Найти сообщение с этой шаблонной задачей
+        try:
+            msg = ChatMessage.objects.get(task_id=task_id, room=room)
+        except ChatMessage.DoesNotExist:
+            return Response({'detail': 'Задача не найдена в этом чате.'}, status=404)
+
+        # Проверить — не брал ли уже
+        if ChatTaskTake.objects.filter(message=msg, user=request.user).exists():
+            return Response({'detail': 'Вы уже взяли эту задачу.'}, status=400)
+
+        from tasks.models import Task
+        template = msg.task
+
+        # Создать личную копию задачи для этого пользователя
+        task_copy = Task.objects.create(
+            title=template.title,
+            description=template.description,
+            due_date=template.due_date,
+            created_by=template.created_by,
+            assigned_to=request.user,
+            taken_by=request.user,
+            status='in_progress',
+        )
+        ChatTaskTake.objects.create(message=msg, user=request.user, task=task_copy)
+
+        # Актуальный список взявших
+        takers = [
+            {'id': t.user_id, 'name': f'{t.user.last_name} {t.user.first_name}'.strip()}
+            for t in msg.task_takes.select_related('user').all()
+        ]
+        broadcast(room_id, {
+            'type': 'chat_task_taken',
+            'task_id': task_id,
+            'takers': takers,
+        })
+        return Response({'ok': True, 'takers': takers})

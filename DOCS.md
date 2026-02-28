@@ -96,7 +96,7 @@ WunderOnline/
 | `/admin/school` | SchoolPage | Только admin |
 | `/admin/settings` | SettingsPage | Только admin |
 | `/account` | AccountPage | Авторизованные |
-| `/tasks` | TasksPage | Авторизованные |
+| `/tasks` | TasksPage | Авторизованные (включая студентов — видят только свои задачи) |
 | `/requests` | RequestsPage | Авторизованные |
 | `/lessons` | LessonsPage | Авторизованные |
 | `/lessons/:id/edit` | LessonEditorPage | Авторизованные |
@@ -195,11 +195,15 @@ WunderOnline/
 - `DELETE /api/chat/rooms/<id>/messages/<msg_id>/` — soft-delete сообщения
 - `POST /api/chat/rooms/<id>/files/` — загрузить файл → создаёт сообщение + вложение
 - `POST /api/chat/rooms/<id>/read/` — отметить прочитанным
+- `POST /api/chat/rooms/<id>/polls/` — создать опрос `{question, options[], is_multiple}` → создаёт ChatMessage + ChatPoll + ChatPollOption[]
+- `POST /api/chat/polls/<poll_id>/vote/` — проголосовать `{option_id}` (single: удаляет старые голоса)
+- `POST /api/chat/rooms/<id>/chat-tasks/` — создать задачу в чате `{title, description?, due_date?}` (только teacher/admin) → создаёт Task + ChatMessage
+- `POST /api/chat/rooms/<id>/chat-tasks/<task_id>/take/` — взять задачу → создаёт личную копию Task для пользователя + ChatTaskTake запись; несколько участников могут взять одну задачу; повторное нажатие возвращает 400
 - `GET /api/chat/users/?q=` — доступные для DM пользователи (фильтруется по правам)
 - `POST /api/chat/direct/` — открыть/найти DM `{user_id}` → idempotent, возвращает ChatRoom
 - **WebSocket** `ws://.../ws/chat/<room_id>/?token=<jwt>` — ChatConsumer
   - client→server: `send_message {text, reply_to?}`, `mark_read`, `typing`
-  - server→client: `message_new {message}`, `message_deleted {message_id}`, `user_typing {user_id, display_name}`, `room_read {user_id, last_read_at}`
+  - server→client: `message_new {message}`, `message_deleted {message_id}`, `user_typing {user_id, display_name}`, `room_read {user_id, last_read_at}`, `poll_updated {poll_id, options, total_votes}`, `chat_task_taken {task_id, taken_by_id, taken_by_name}`
 
 ### Проекты (`/api/projects/`)
 - `GET/POST /api/projects/` — список моих проектов / создать (только is_teacher/is_admin)
@@ -461,6 +465,7 @@ ChatMessage
   sender -> User (null = удалён)
   text: str
   reply_to -> ChatMessage (null, self-ref)
+  task -> Task (null, FK — задача из чата)
   is_deleted: bool (soft delete)
 
 MessageAttachment
@@ -469,6 +474,28 @@ MessageAttachment
   original_name: str
   file_size: int
   mime_type: str
+
+ChatPoll
+  message -> ChatMessage (OneToOne)
+  question: TextField
+  is_multiple: bool
+
+ChatPollOption
+  poll -> ChatPoll
+  text: str (max 500)
+  order: PositiveSmallIntegerField
+
+ChatPollVote
+  option -> ChatPollOption
+  user -> User
+  unique_together: [option, user]
+
+ChatTaskTake  # фиксирует взятие задачи из чата; каждый участник получает личную копию
+  message -> ChatMessage
+  user -> User
+  task -> Task (null, SET_NULL — личная копия задачи)
+  taken_at: datetime (auto)
+  unique_together: [message, user]
 ```
 
 ### tasks/
@@ -568,6 +595,7 @@ TaskFile         # файл, прикреплённый к задаче
 - Учитель/Админ: быстрые ссылки на КТП и разделы
 
 ### Таск-менеджер (TasksPage.tsx)
+- **Доступ**: все авторизованные (включая студентов). Студенты видят только свои задачи (`assigned_to=user` или `assigned_group__members=user`). Кнопка "Создать задачу" скрыта для non-staff.
 - **Три вкладки**: "Задачи" (канбан), "Выполненные" (таблица), "Группы"
 - **Канбан** из 4 колонок: Поставленные / В работе / На проверке / Выполнено
 - **Drag & Drop** между колонками (кроме "Выполнено" — только через кнопку "Принять")
@@ -600,6 +628,29 @@ TaskFile         # файл, прикреплённый к задаче
   - Задачи проектов видны в TasksPage в канбан-колонках; teacher может вернуть на доработку прямо оттуда
 - **WS**: `ws://.../ws/project/<id>/?token=<jwt>` — ProjectConsumer, group `project_<id>`
 - **Сайдбар**: пункт "Проекты" (папка) между "Уроки" и "Заявки"
+
+### Чат (ChatWindow.tsx + ChatMessageBubble.tsx)
+
+#### Опросы в чате
+- Кнопка-скрепка заменена меню **"Прикрепить"**: Файл / Опрос / Задача
+- **Создание опроса** (`PollCreatorModal`): вопрос, варианты (2–10), чекбокс мультивыбора
+- **Карточка опроса**: все варианты серые, прогресс-бар синий (виден на любом варианте); выбранный вариант — галочка слева + синий текст, проценты справа
+- **Голосование**: до голосования — клик на вариант; после — кнопки заблокированы, проценты показаны
+- **Переголосовать**: ПКМ по карточке опроса → контекстное меню → "Переголосовать" (сбрасывает локальное состояние, разрешает выбор снова; бэкенд для single удаляет старый голос)
+- **Результаты**: кнопка "Результаты" внизу карточки → модал с прогресс-барами и списком проголосовавших по каждому варианту
+
+#### Задачи из чата
+- **Создание** (`TaskCreatorModal`, только teacher/admin): название, описание, срок → создаётся Task-шаблон + ChatMessage
+- **Карточка задачи**: заголовок, описание, срок, разделитель, кнопка «Взять задачу» + секция «Ещё никто не взял» / «Взяли (N): [бейджи]»
+- **Взятие задачи**: любой участник чата нажимает «Взять задачу» → создаётся **личная копия Task** для него (assigned_to=user, status=in_progress) + запись ChatTaskTake; повторное нажатие заблокировано
+- **Несколько исполнителей**: разные люди берут задачу независимо — каждый получает свою копию в `/tasks`
+- **Твой бейдж** — синий с галочкой, остальные — белые с синей рамкой
+- **WS**: `chat_task_taken` → обновляет список `takers` у всех в комнате в реальном времени
+
+#### Доступ к /tasks
+- Маршрут `/tasks` открыт всем авторизованным (включая студентов)
+- Студенты видят только задачи, где `assigned_to=user` или `assigned_group__members=user`
+- Пункт «Задачи» показывается в сайдбаре всем
 
 ### Навигация (Layout.tsx)
 - Фиксированный левый сайдбар (256px) на экранах ≥ 1024px

@@ -72,7 +72,7 @@ function App() {
             <Route path="/admin/school" element={<ProtectedRoute adminOnly><SchoolPage /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute adminOnly><SettingsPage /></ProtectedRoute>} />
             <Route path="/account" element={<AccountPage />} />
-            <Route path="/tasks" element={<ProtectedRoute staffOnly><TasksPage /></ProtectedRoute>} />
+            <Route path="/tasks" element={<TasksPage />} />
             <Route path="/requests" element={<ProtectedRoute staffOnly><RequestsPage /></ProtectedRoute>} />
             <Route path="/lessons" element={<LessonsPage />} />
             <Route path="/lessons/:id/edit" element={<LessonEditorPage />} />

@@ -231,15 +231,13 @@ export default function Layout() {
     { to: '/', label: 'Главная', icon: <IconHome />, end: true, badge: null },
     { to: '/ktp', label: 'КТП', icon: <IconBook />, end: false, badge: null },
     { to: '/schedule', label: 'Расписание', icon: <IconCalendar />, end: false, badge: null },
-    ...(isStaff
-      ? [{
-          to: '/tasks',
-          label: 'Задачи',
-          icon: <IconTasks />,
-          end: false,
-          badge: tasksCount && tasksCount.total > 0 ? tasksCount.total : null,
-        }]
-      : []),
+    {
+      to: '/tasks',
+      label: 'Задачи',
+      icon: <IconTasks />,
+      end: false,
+      badge: tasksCount && tasksCount.total > 0 ? tasksCount.total : null,
+    },
     { to: '/lessons', label: 'Уроки', icon: <IconPresentation />, end: false, badge: null, live: user?.is_student && activeLessonsCount > 0 },
     { to: '/projects', label: 'Проекты', icon: <IconProjects />, end: false, badge: null },
     ...(isStaff

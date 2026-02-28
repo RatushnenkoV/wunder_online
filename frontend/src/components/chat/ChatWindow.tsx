@@ -3,7 +3,7 @@ import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import api from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
-import type { ChatRoom, ChatRoomDetail, ChatMessage } from '../../types';
+import type { ChatRoom, ChatRoomDetail, ChatMessage, ChatPoll } from '../../types';
 import ChatMessageBubble from './ChatMessageBubble';
 import ChatMembersPanel from './ChatMembersPanel';
 
@@ -51,6 +51,9 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
   const [uploading, setUploading] = useState(false);
   const [typingUsers, setTypingUsers] = useState<{ id: number; name: string }[]>([]);
   const [detail, setDetail] = useState<ChatRoomDetail | null>(null);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showPollModal, setShowPollModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -118,6 +121,22 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
             setMessages((prev) =>
               prev.map((m) => m.id === data.message_id ? { ...m, is_deleted: true, text: '' } : m)
             );
+          } else if (data.type === 'poll_updated') {
+            setMessages((prev) => prev.map((m) =>
+              m.poll?.id === data.poll_id
+                ? { ...m, poll: { ...m.poll!, options: data.options, total_votes: data.total_votes } as ChatPoll }
+                : m
+            ));
+          } else if (data.type === 'chat_task_taken') {
+            setMessages((prev) => prev.map((m) =>
+              m.task_preview?.id === data.task_id
+                ? { ...m, task_preview: {
+                    ...m.task_preview!,
+                    takers: data.takers,
+                    user_took: m.task_preview!.user_took || data.takers.some((t: { id: number }) => t.id === user?.id),
+                  }}
+                : m
+            ));
           } else if (data.type === 'user_typing') {
             setTypingUsers((prev) => {
               const filtered = prev.filter((u) => u.id !== data.user_id);
@@ -246,6 +265,18 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
     } catch { /* ignore */ }
   };
 
+  const handleTakeTask = async (taskId: number) => {
+    try {
+      await api.post(`/chat/rooms/${room.id}/chat-tasks/${taskId}/take/`);
+    } catch { /* ignore */ }
+  };
+
+  const handleVotePoll = async (pollId: number, optionId: number) => {
+    try {
+      await api.post(`/chat/polls/${pollId}/vote/`, { option_id: optionId });
+    } catch { /* ignore */ }
+  };
+
   const roomName = room.room_type === 'direct'
     ? room.other_user?.display_name || 'Личный чат'
     : room.name;
@@ -329,6 +360,8 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
                 isGroup={room.room_type === 'group'}
                 onReply={setReplyTo}
                 onDelete={handleDelete}
+                onVotePoll={handleVotePoll}
+                onTakeTask={handleTakeTask}
               />
             ))}
           </div>
@@ -393,26 +426,64 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
             </svg>
           </button>
 
-          {/* Файл */}
+          {/* Прикрепить */}
           <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex-shrink-0 p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 rounded-full"
-            title="Прикрепить файл"
-          >
-            {uploading ? (
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-              </svg>
+          <div className="relative flex-shrink-0">
+            <button
+              onClick={() => setShowAttachMenu((v) => !v)}
+              disabled={uploading}
+              className={`p-2 disabled:opacity-50 rounded-full transition-colors ${showAttachMenu ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+              title="Прикрепить"
+            >
+              {uploading ? (
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+              )}
+            </button>
+            {showAttachMenu && (
+              <div className="absolute bottom-full left-0 mb-1 bg-white shadow-lg rounded-xl border border-gray-100 p-1 flex flex-col gap-0.5 min-w-[130px] z-50">
+                <button
+                  onClick={() => { setShowAttachMenu(false); fileInputRef.current?.click(); }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 text-left"
+                >
+                  <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                  Файл
+                </button>
+                <button
+                  onClick={() => { setShowAttachMenu(false); setShowPollModal(true); }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 text-left"
+                >
+                  <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Опрос
+                </button>
+                {(user?.is_admin || user?.is_teacher) && (
+                  <button
+                    onClick={() => { setShowAttachMenu(false); setShowTaskModal(true); }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 text-left"
+                  >
+                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                    Задача
+                  </button>
+                )}
+              </div>
             )}
-          </button>
+          </div>
 
           {/* Textarea */}
           <textarea
@@ -452,6 +523,216 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
           }}
         />
       )}
+
+      {/* Модал создания опроса */}
+      {showPollModal && (
+        <PollCreatorModal
+          roomId={room.id}
+          onClose={() => setShowPollModal(false)}
+        />
+      )}
+
+      {/* Модал создания задачи */}
+      {showTaskModal && (
+        <TaskCreatorModal
+          roomId={room.id}
+          onClose={() => setShowTaskModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── PollCreatorModal ──────────────────────────────────────────────────────────
+
+function PollCreatorModal({ roomId, onClose }: { roomId: number; onClose: () => void }) {
+  const [question, setQuestion] = useState('');
+  const [options, setOptions] = useState(['', '']);
+  const [isMultiple, setIsMultiple] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleOptionChange = (i: number, val: string) => {
+    setOptions((prev) => prev.map((o, idx) => idx === i ? val : o));
+  };
+
+  const addOption = () => {
+    if (options.length < 10) setOptions((prev) => [...prev, '']);
+  };
+
+  const removeOption = (i: number) => {
+    if (options.length <= 2) return;
+    setOptions((prev) => prev.filter((_, idx) => idx !== i));
+  };
+
+  const handleSubmit = async () => {
+    const q = question.trim();
+    const opts = options.map((o) => o.trim()).filter(Boolean);
+    if (!q || opts.length < 2) return;
+    setSubmitting(true);
+    try {
+      await api.post(`/chat/rooms/${roomId}/polls/`, { question: q, options: opts, is_multiple: isMultiple });
+      onClose();
+    } catch { /* ignore */ }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-gray-800">Создать опрос</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-gray-600 block mb-1">Вопрос</label>
+          <textarea
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            rows={2}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+            placeholder="Введите вопрос..."
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-gray-600 block mb-1">Варианты ответов</label>
+          <div className="flex flex-col gap-2">
+            {options.map((opt, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input
+                  value={opt}
+                  onChange={(e) => handleOptionChange(i, e.target.value)}
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  placeholder={`Вариант ${i + 1}`}
+                />
+                {options.length > 2 && (
+                  <button onClick={() => removeOption(i)} className="text-gray-400 hover:text-red-500 flex-shrink-0">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+            {options.length < 10 && (
+              <button onClick={addOption} className="text-sm text-blue-500 hover:text-blue-700 text-left mt-1">
+                + Добавить вариант
+              </button>
+            )}
+          </div>
+        </div>
+
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isMultiple}
+            onChange={(e) => setIsMultiple(e.target.checked)}
+            className="rounded"
+          />
+          <span className="text-sm text-gray-700">Мультивыбор</span>
+        </label>
+
+        <div className="flex gap-2 justify-end mt-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">
+            Отмена
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || !question.trim() || options.filter((o) => o.trim()).length < 2}
+            className="px-4 py-2 text-sm bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-40"
+          >
+            {submitting ? 'Отправка...' : 'Создать опрос'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── TaskCreatorModal ──────────────────────────────────────────────────────────
+
+function TaskCreatorModal({ roomId, onClose }: { roomId: number; onClose: () => void }) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    const t = title.trim();
+    if (!t) return;
+    setSubmitting(true);
+    try {
+      await api.post(`/chat/rooms/${roomId}/chat-tasks/`, {
+        title: t,
+        description: description.trim(),
+        due_date: dueDate || null,
+      });
+      onClose();
+    } catch { /* ignore */ }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-gray-800">Создать задачу в чате</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-gray-600 block mb-1">Название *</label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder="Название задачи..."
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-gray-600 block mb-1">Описание</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+            placeholder="Описание (необязательно)..."
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-gray-600 block mb-1">Срок выполнения</label>
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+        </div>
+
+        <div className="flex gap-2 justify-end mt-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">
+            Отмена
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || !title.trim()}
+            className="px-4 py-2 text-sm bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-40"
+          >
+            {submitting ? 'Отправка...' : 'Создать'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

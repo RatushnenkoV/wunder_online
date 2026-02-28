@@ -496,6 +496,33 @@ export interface ChatReplyPreview {
   sender_name: string;
 }
 
+export interface ChatPollOption {
+  id: number;
+  text: string;
+  order: number;
+  vote_count: number;
+  user_voted: boolean;
+  voters: { id: number; name: string }[];
+}
+
+export interface ChatPoll {
+  id: number;
+  question: string;
+  is_multiple: boolean;
+  options: ChatPollOption[];
+  total_votes: number;
+}
+
+export interface ChatTaskPreview {
+  id: number;
+  title: string;
+  description: string;
+  due_date: string | null;
+  created_by_name: string;
+  takers: { id: number; name: string }[];
+  user_took: boolean;
+}
+
 export interface ChatMessage {
   id: number;
   room: number;
@@ -504,6 +531,8 @@ export interface ChatMessage {
   reply_to: number | null;
   reply_to_preview: ChatReplyPreview | null;
   attachments: ChatAttachment[];
+  poll: ChatPoll | null;
+  task_preview: ChatTaskPreview | null;
   created_at: string;
   updated_at: string;
   is_deleted: boolean;

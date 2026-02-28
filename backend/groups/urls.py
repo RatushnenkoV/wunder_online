@@ -5,6 +5,8 @@ from .views import (
     ChatMembersView, ChatMessagesView,
     ChatFileUploadView, ChatReadView,
     ChatUsersView, ChatDirectView,
+    ChatPollCreateView, ChatPollVoteView,
+    ChatTaskCreateView, ChatTaskTakeView,
 )
 
 urlpatterns = [
@@ -16,6 +18,10 @@ urlpatterns = [
     path('rooms/<int:pk>/messages/<int:msg_id>/', ChatMessagesView.as_view()),
     path('rooms/<int:pk>/files/', ChatFileUploadView.as_view()),
     path('rooms/<int:pk>/read/', ChatReadView.as_view()),
+    path('rooms/<int:room_id>/polls/', ChatPollCreateView.as_view()),
+    path('rooms/<int:room_id>/chat-tasks/', ChatTaskCreateView.as_view()),
+    path('rooms/<int:room_id>/chat-tasks/<int:task_id>/take/', ChatTaskTakeView.as_view()),
+    path('polls/<int:poll_id>/vote/', ChatPollVoteView.as_view()),
     path('users/', ChatUsersView.as_view()),
     path('direct/', ChatDirectView.as_view()),
 ]
