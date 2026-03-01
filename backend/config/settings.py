@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'projects',
     'curator',
     'yellow_list',
+    'news',
 ]
 
 MIDDLEWARE = [

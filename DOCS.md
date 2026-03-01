@@ -84,7 +84,8 @@ WunderOnline/
     ├── lessons/                     # Интерактивные уроки (Nearpod-аналог)
     ├── projects/                    # Проекты (Google Classroom-аналог)
     ├── curator/                     # Кураторская таблица
-    └── yellow_list/                 # Жёлтый список (заявки по ученикам, СППС)
+    ├── yellow_list/                 # Жёлтый список (заявки по ученикам, СППС)
+    └── news/                        # Новости (фид, редактор, аудитория)
 ```
 
 ---
@@ -114,6 +115,7 @@ WunderOnline/
 | `/projects` | ProjectsPage | Авторизованные |
 | `/projects/:id` | ProjectDetailPage | Авторизованные (только участники) |
 | `/yellow-list` | YellowListPage | Сотрудники (staffOnly); вкладка «Список» — только is_spps |
+| `/news` | NewsPage | Все авторизованные; admin — всё; staff (teacher/spps) — for_staff; parent + student — for_parents |
 
 ---
 
@@ -158,7 +160,7 @@ WunderOnline/
 - `GET/PUT/DELETE /api/tasks/groups/:id/` — группа
 - `POST /api/tasks/groups/:id/members/` — `{action: add|remove}`. Admin: + `{user_id}`. Teacher: управляет только своим членством
 - `GET /api/tasks/tasks/count/` — счётчик `{new, review, total}` для бейджа в сайдбаре
-- `GET/POST /api/tasks/tasks/` — задачи видимые мне / создать (staff). GET фильтр: `?status=`
+- `GET/POST /api/tasks/tasks/` — задачи видимые мне / создать (staff). GET фильтр: `?status=`. При создании файлы прикрепляются после — сначала POST /tasks/tasks/, затем POST /tasks/tasks/:id/files/
 - `GET/PUT /api/tasks/tasks/:id/` — задача. DELETE — только создатель
 - `POST /api/tasks/tasks/:id/status/` — изменить статус `{status}`. `new→in_progress`, `in_progress→review`: только исполнитель. `review→done/in_progress`: только постановщик или admin
 - `POST /api/tasks/tasks/:id/reassign/` — переназначить `{assigned_to|assigned_group}`. Сбрасывает статус в `new`, очищает `taken_by`. Доступно: постановщик, взявший в работу, admin
@@ -231,13 +233,13 @@ WunderOnline/
 - `GET/POST /api/projects/:id/posts/?before=` — лента / отправить пост `{text}`
 - `DELETE /api/projects/:id/posts/:pid/` — soft-delete поста
 - `POST /api/projects/:id/posts/:pid/files/` — загрузить файл к посту
-- `GET/POST /api/projects/:id/assignments/` — задания / создать (только teacher)
+- `GET/POST /api/projects/:id/assignments/` — задания / создать (только teacher); список возвращает `review_count` — кол-во сдач в статусе review
 - `GET/PUT/DELETE /api/projects/:id/assignments/:aid/` — задание
 - `POST /api/projects/:id/assignments/:aid/files/` — файл к заданию
 - `GET/POST /api/projects/:id/assignments/:aid/submissions/` — сдачи / сдать работу (upsert, переводит Task → review)
 - `PATCH /api/projects/:id/assignments/:aid/submissions/:sid/` — выставить оценку `{grade}` (опционально, только teacher)
 - `POST /api/projects/:id/assignments/:aid/submissions/:sid/accept/` — принять работу (Task → done)
-- `POST /api/projects/:id/assignments/:aid/submissions/:sid/send-back/` — вернуть на доработку `{comment}` (Task → in_progress + review_comment)
+- `POST /api/projects/:id/assignments/:aid/submissions/:sid/send-back/` — вернуть на доработку `{comment}` (Task → in_progress + review_comment; добавляет событие `sent_back` в `submission.events`)
 - `POST /api/projects/:id/assignments/:aid/submissions/:sid/files/` — файл к сдаче (переводит Task → review)
 - **WebSocket** `ws://.../ws/project/<project_id>/?token=<jwt>` — ProjectConsumer
   - client→server: `send_post {text}`, `typing`
@@ -261,6 +263,20 @@ WunderOnline/
 - `GET /api/yellow-list/<id>/` — деталь заявки (только is_spps); автоматически помечает как прочитанную (`is_read_by_spps=True`)
 - `POST /api/yellow-list/<id>/comments/` — добавить комментарий `{text}` (только is_spps)
 - `POST /api/yellow-list/<id>/create-task/` — создать Task из заявки `{title?, due_date?}` (только is_spps; исполнитель не указывается)
+
+### Новости (`/api/news/`)
+- `GET /api/news/unread-count/` — `{count: N}` непрочитанных (видимых для текущего пользователя опубликованных)
+- `POST /api/news/upload-image/` — загрузить изображение (admin) → `{url}` для встраивания в редакторе
+- `GET /api/news/?limit=5&offset=0` — лента новостей с пагинацией → `{results: [...], count: N}`
+- `POST /api/news/` — создать черновик `{title, content, for_staff, for_parents}` (только admin)
+- `GET/PUT/DELETE /api/news/<id>/` — деталь / обновить / удалить (GET опубликованного: автоматически помечает прочитанным)
+- `POST /api/news/<id>/publish/` — переключить публикацию (admin; требует выбранную аудиторию) → `{is_published}`
+- `POST /api/news/<id>/read/` — отметить прочитанным вручную
+
+**Права:** admin — всё (включая черновики); staff (teacher/spps) — опубликованные for_staff=True; parent + student — опубликованные for_parents=True.
+**Поле `for_parents`:** в UI отображается как «Ученики и родители» — видно и родителям, и студентам.
+**Бейдж в сайдбаре:** синяя точка для всех пользователей, если есть непрочитанные. Страница грузит по 5 новостей; при открытии все видимые непрочитанные автоматически помечаются прочитанными.
+**Редактор:** Tiptap (шрифт/размер/цвет/bold/italic/underline/strike), маркированный и нумерованный списки, загрузка фото с обтеканием текстом (float left/right/center) + изменение размера (поле «Ширина»), кнопка эмодзи (@emoji-mart/react). CustomEvent `news:read` сбрасывает счётчик в Layout.
 
 ### КТП (`/api/ktp/`)
 - `GET/POST /api/ktp/ctps/` — список КТП
@@ -376,6 +392,31 @@ YellowListComment      # Комментарий СППС к заявке
   text: TextField
   created_by -> User (null)
   created_at: datetime
+```
+
+### news/
+```python
+NewsPost
+  title: str (max_length=255)
+  content: TextField (HTML, хранит Tiptap-output)
+  author -> User (null, SET_NULL)
+  created_at: datetime (auto_now_add)
+  updated_at: datetime (auto_now)
+  is_published: bool (default=False)
+  for_staff: bool (default=False)    # видна сотрудникам (teacher/spps); UI: «Сотрудники»
+  for_parents: bool (default=False)  # видна родителям И студентам; UI: «Ученики и родители»
+  # Нельзя опубликовать если оба false
+
+NewsImage              # изображения, загружаемые в редакторе
+  image: ImageField (upload_to='news_images/%Y/%m/')
+  uploaded_by -> User (null, SET_NULL)
+  uploaded_at: datetime (auto_now_add)
+
+NewsRead               # отслеживание прочтений
+  post -> NewsPost (related_name='reads')
+  user -> User
+  read_at: datetime (auto_now_add)
+  unique_together: [post, user]
 ```
 
 ### ktp/
@@ -709,9 +750,10 @@ TaskFile         # файл, прикреплённый к задаче
   - При создании задания → автоматически создаётся Task (статус `new`) для каждого студента проекта
   - При добавлении нового студента → создаются Tasks для всех существующих заданий
   - Ученик видит статус: "Не сдано" (new) / "На проверке" (review) / "На доработке" (in_progress) / "Принято" (done)
-  - Ученик сдаёт текст + файлы → Task переходит в `review`; при наличии `review_comment` (от учителя) показывается оранжевый блок
+  - Ученик сдаёт текст + файлы → Task переходит в `review`
   - Учитель видит все сдачи: кнопки "Принять" (Task → done) и "На доработку" (вводит комментарий → Task → in_progress + review_comment)
-  - `review_comment` виден и в `/tasks` (оранжевый блок в карточке TasksPage) и в проектах
+  - **История сдачи** (`events: SubmissionEvent[]`): JSONField на `AssignmentSubmission`; каждое действие (submitted / sent_back / accepted) добавляет запись `{type, author, comment, at}`. Отображается компонентом `EventTimeline` как хронологический список — виден и учителю, и ученику
+  - `review_comment` на Task хранит только последний комментарий; полная история — в `events`
   - Задачи проектов видны в TasksPage в канбан-колонках; teacher может вернуть на доработку прямо оттуда
 - **WS**: `ws://.../ws/project/<id>/?token=<jwt>` — ProjectConsumer, group `project_<id>`
 - **Сайдбар**: пункт "Проекты" (папка) между "Уроки" и "Заявки"

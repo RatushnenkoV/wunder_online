@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../../api/client';
 import type {
-  ProjectAssignment, AssignmentSubmission, AssignmentAttachment, SubmissionFile, TaskStatus, Lesson,
+  ProjectAssignment, AssignmentSubmission, AssignmentAttachment, SubmissionFile, TaskStatus, Lesson, SubmissionEvent,
 } from '../../types';
 
 function formatDate(s: string | null) {
@@ -48,6 +48,43 @@ function SubmissionStatus({ taskStatus }: { taskStatus: TaskStatus | null | unde
     return <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Принято</span>;
   }
   return <span className="text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full">Сдано</span>;
+}
+
+// ─── Event Timeline ───────────────────────────────────────────────────────────
+
+const EVENT_CONFIG = {
+  submitted: { label: 'Сдано', dot: 'bg-blue-500', text: 'text-blue-700', bg: 'bg-blue-50 border-blue-100' },
+  sent_back: { label: 'На доработку', dot: 'bg-orange-500', text: 'text-orange-700', bg: 'bg-orange-50 border-orange-100' },
+  accepted:  { label: 'Принято',      dot: 'bg-green-500', text: 'text-green-700', bg: 'bg-green-50 border-green-100'  },
+} as const;
+
+function EventTimeline({ events }: { events: SubmissionEvent[] }) {
+  if (!events || events.length === 0) return null;
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">История</p>
+      {events.map((ev, i) => {
+        const c = EVENT_CONFIG[ev.type];
+        return (
+          <div key={i} className={`flex gap-2.5 border rounded-lg px-3 py-2 ${c.bg}`}>
+            <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${c.dot}`} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className={`text-xs font-medium ${c.text}`}>{c.label}</span>
+                <span className="text-xs text-gray-400 flex-shrink-0">
+                  {new Date(ev.at).toLocaleString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">{ev.author}</p>
+              {ev.comment && (
+                <p className="text-xs text-gray-700 mt-1 whitespace-pre-wrap">{ev.comment}</p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 // ─── Assignment Modal ─────────────────────────────────────────────────────────
@@ -212,12 +249,9 @@ function AssignmentModal({
                 </div>
               )}
 
-              {/* Review comment from teacher */}
-              {mySub?.task_status === 'in_progress' && mySub?.review_comment && (
-                <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-sm text-orange-800">
-                  <span className="font-medium">Комментарий учителя: </span>
-                  {mySub.review_comment}
-                </div>
+              {/* Submission history */}
+              {mySub?.events && mySub.events.length > 0 && (
+                <EventTimeline events={mySub.events} />
               )}
 
               <textarea
@@ -291,12 +325,9 @@ function AssignmentModal({
                         <SubmissionStatus taskStatus={sub.task_status} />
                       </div>
 
-                      {/* Review comment sent to student */}
-                      {sub.task_status === 'in_progress' && sub.review_comment && (
-                        <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-xs text-orange-700">
-                          <span className="font-medium">Ваш комментарий: </span>
-                          {sub.review_comment}
-                        </div>
+                      {/* Submission history */}
+                      {sub.events && sub.events.length > 0 && (
+                        <EventTimeline events={sub.events} />
                       )}
 
                       {/* Submission text */}
@@ -573,7 +604,14 @@ function AssignmentCard({
         </div>
         <div className="flex-shrink-0 text-right">
           {isTeacher ? (
-            <span className="text-xs text-gray-500">{assignment.submissions_count} сдач</span>
+            <div className="flex flex-col items-end gap-1">
+              {assignment.review_count > 0 && (
+                <span className="text-xs font-medium text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                  {assignment.review_count} на проверке
+                </span>
+              )}
+              <span className="text-xs text-gray-400">{assignment.submissions_count} сдач</span>
+            </div>
           ) : (
             <SubmissionStatus taskStatus={assignment.my_submission?.task_status} />
           )}

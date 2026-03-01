@@ -93,6 +93,16 @@ function IconProjects() {
   );
 }
 
+function IconNews() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l6 6v10a2 2 0 01-2 2z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13 2v6h6" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6M9 17h4" />
+    </svg>
+  );
+}
+
 function IconYellowList() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -126,6 +136,7 @@ export default function Layout() {
   const [activeLessonsCount, setActiveLessonsCount] = useState(0);
   const [chatsUnread, setChatsUnread] = useState(0);
   const [yellowUnread, setYellowUnread] = useState(0);
+  const [newsUnread, setNewsUnread] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
@@ -150,6 +161,16 @@ export default function Layout() {
     }
   }, [user]);
 
+  const loadNewsUnread = useCallback(async () => {
+    if (!user || user.must_change_password) return;
+    try {
+      const res = await api.get('/news/unread-count/');
+      setNewsUnread(res.data.count ?? 0);
+    } catch {
+      // ignore
+    }
+  }, [user]);
+
   const loadYellowUnread = useCallback(async () => {
     if (!user || user.must_change_password) return;
     if (!user.is_spps) return;  // только is_spps; admin без роли СППС не видит счётчик
@@ -166,7 +187,8 @@ export default function Layout() {
     loadTasksCount();
     loadChatsUnread();
     loadYellowUnread();
-  }, [location.pathname, loadTasksCount, loadChatsUnread, loadYellowUnread]);
+    loadNewsUnread();
+  }, [location.pathname, loadTasksCount, loadChatsUnread, loadYellowUnread, loadNewsUnread]);
 
   // Слушаем реалтайм-обновления счётчика из ChatsPage
   useEffect(() => {
@@ -176,6 +198,13 @@ export default function Layout() {
     window.addEventListener('chat:unread:update', handler);
     return () => window.removeEventListener('chat:unread:update', handler);
   }, []);
+
+  // Слушаем событие прочтения новости — пересчитываем счётчик
+  useEffect(() => {
+    const handler = () => loadNewsUnread();
+    window.addEventListener('news:read', handler);
+    return () => window.removeEventListener('news:read', handler);
+  }, [loadNewsUnread]);
 
   const handleLogout = () => {
     logout();
@@ -250,6 +279,7 @@ export default function Layout() {
 
   const navItems = [
     { to: '/', label: 'Главная', icon: <IconHome />, end: true, badge: null },
+    { to: '/news', label: 'Новости', icon: <IconNews />, end: false, badge: null, dot: newsUnread > 0 },
     { to: '/ktp', label: 'КТП', icon: <IconBook />, end: false, badge: null },
     { to: '/schedule', label: 'Расписание', icon: <IconCalendar />, end: false, badge: null },
     {
@@ -342,6 +372,9 @@ export default function Layout() {
                     <span className={`${'badgeYellow' in item && item.badgeYellow ? 'bg-yellow-500' : 'bg-blue-600'} text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none`}>
                       {item.badge}
                     </span>
+                  )}
+                  {'dot' in item && item.dot && (
+                    <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
                   )}
                   {'live' in item && item.live && (
                     <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse flex-shrink-0" />

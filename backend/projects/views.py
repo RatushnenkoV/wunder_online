@@ -25,6 +25,19 @@ from .serializers import (
 User = get_user_model()
 
 
+def _append_event(submission, event_type, author, comment=''):
+    """Добавить событие в лог сдачи."""
+    events = list(submission.events or [])
+    events.append({
+        'type': event_type,
+        'author': f'{author.last_name} {author.first_name}'.strip(),
+        'comment': comment,
+        'at': timezone.now().isoformat(),
+    })
+    submission.events = events
+    submission.save(update_fields=['events'])
+
+
 def broadcast_project(project_id, event):
     """Отправить событие всем WebSocket-клиентам проекта."""
     channel_layer = get_channel_layer()
@@ -490,6 +503,8 @@ class AssignmentSubmissionsView(APIView):
                 submission.task.taken_by = request.user
             submission.task.save(update_fields=['status', 'review_comment', 'taken_by'])
 
+        _append_event(submission, 'submitted', request.user)
+
         serializer = AssignmentSubmissionSerializer(submission, context={'request': request})
         return Response(serializer.data, status=201 if created else 200)
 
@@ -551,6 +566,8 @@ class AcceptSubmissionView(APIView):
             submission.graded_at = timezone.now()
             submission.save()
 
+        _append_event(submission, 'accepted', request.user)
+
         serializer = AssignmentSubmissionSerializer(submission, context={'request': request})
         return Response(serializer.data)
 
@@ -578,6 +595,8 @@ class SendBackSubmissionView(APIView):
             submission.task.review_comment = comment
             submission.task.completed_at = None
             submission.task.save(update_fields=['status', 'review_comment', 'completed_at'])
+
+        _append_event(submission, 'sent_back', request.user, comment)
 
         serializer = AssignmentSubmissionSerializer(submission, context={'request': request})
         return Response(serializer.data)
@@ -616,6 +635,8 @@ class SubmissionFileView(APIView):
             if not submission.task.taken_by:
                 submission.task.taken_by = request.user
             submission.task.save(update_fields=['status', 'review_comment', 'taken_by'])
+
+        _append_event(submission, 'submitted', request.user)
 
         from .serializers import SubmissionFileSerializer
         return Response(SubmissionFileSerializer(sub_file).data, status=201)

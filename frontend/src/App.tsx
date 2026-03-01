@@ -22,6 +22,7 @@ import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import CuratorReportPage from './pages/CuratorReportPage';
 import YellowListPage from './pages/YellowListPage';
+import NewsPage from './pages/NewsPage';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children, adminOnly = false, staffOnly = false }: { children: ReactNode; adminOnly?: boolean; staffOnly?: boolean }) {
@@ -83,6 +84,7 @@ function App() {
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/people/curator/:studentId" element={<CuratorReportPage />} />
             <Route path="/yellow-list" element={<ProtectedRoute staffOnly><YellowListPage /></ProtectedRoute>} />
+            <Route path="/news" element={<NewsPage />} />
           </Route>
 
           <Route path="/lessons/session/:id" element={<ProtectedRoute><LessonPresenterPage /></ProtectedRoute>} />

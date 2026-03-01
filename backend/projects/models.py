@@ -140,6 +140,7 @@ class AssignmentSubmission(models.Model):
     )
     text = models.TextField(blank=True)
     submitted_at = models.DateTimeField(auto_now=True)
+    events = models.JSONField(default=list, blank=True)
     grade = models.CharField(max_length=50, null=True, blank=True)
     graded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

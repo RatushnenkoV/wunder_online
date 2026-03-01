@@ -99,6 +99,8 @@ function CreateTaskModal({
   const [dueDate, setDueDate] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -111,7 +113,18 @@ function CreateTaskModal({
       else payload.assigned_group = Number(assignedGroup);
 
       const res = await api.post('/tasks/tasks/', payload);
-      onCreated(res.data);
+      const task = res.data;
+
+      // Upload pending files
+      const uploadedFiles: TaskFile[] = [];
+      for (const file of pendingFiles) {
+        const form = new FormData();
+        form.append('file', file);
+        const fRes = await api.post(`/tasks/tasks/${task.id}/files/`, form);
+        uploadedFiles.push(fRes.data);
+      }
+
+      onCreated({ ...task, files: uploadedFiles });
       onClose();
     } catch (err: unknown) {
       const e = err as { response?: { data?: Record<string, string[]> } };
@@ -171,6 +184,45 @@ function CreateTaskModal({
             <label className="block text-sm font-medium text-gray-700 mb-1">Срок (необязательно)</label>
             <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <label className="text-sm font-medium text-gray-700">Вложения</label>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                + Добавить файл
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                  const f = e.target.files?.[0];
+                  if (f) setPendingFiles(prev => [...prev, f]);
+                  e.target.value = '';
+                }}
+              />
+            </div>
+            {pendingFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {pendingFiles.map((f, i) => (
+                  <div key={i} className="flex items-center gap-1.5 bg-gray-100 rounded-lg px-3 py-1.5 text-xs text-gray-700">
+                    <FileIcon />
+                    <span className="max-w-[160px] truncate">{f.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))}
+                      className="text-gray-400 hover:text-red-500 ml-0.5"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}

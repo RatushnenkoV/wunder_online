@@ -84,7 +84,7 @@ class AssignmentSubmissionSerializer(serializers.ModelSerializer):
         model = AssignmentSubmission
         fields = ['id', 'assignment', 'student', 'text', 'files',
                   'submitted_at', 'grade', 'graded_by', 'graded_at',
-                  'task_id', 'task_status', 'review_comment']
+                  'task_id', 'task_status', 'review_comment', 'events']
 
     def get_task_id(self, obj):
         return obj.task_id
@@ -100,17 +100,21 @@ class ProjectAssignmentSerializer(serializers.ModelSerializer):
     created_by = ProjectUserSerializer(read_only=True)
     attachments = AssignmentAttachmentSerializer(many=True, read_only=True)
     submissions_count = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
     my_submission = serializers.SerializerMethodField()
     lesson_title = serializers.CharField(source='lesson.title', read_only=True, default=None)
 
     class Meta:
         model = ProjectAssignment
         fields = ['id', 'project', 'title', 'description', 'due_date', 'lesson', 'lesson_title',
-                  'created_by', 'attachments', 'submissions_count', 'my_submission',
+                  'created_by', 'attachments', 'submissions_count', 'review_count', 'my_submission',
                   'created_at', 'updated_at']
 
     def get_submissions_count(self, obj):
         return obj.submissions.count()
+
+    def get_review_count(self, obj):
+        return obj.submissions.filter(task__status='review').count()
 
     def get_my_submission(self, obj):
         request = self.context.get('request')

@@ -725,6 +725,13 @@ export interface SubmissionFile {
   mime_type: string;
 }
 
+export interface SubmissionEvent {
+  type: 'submitted' | 'sent_back' | 'accepted';
+  author: string;
+  comment: string;
+  at: string;
+}
+
 export interface AssignmentSubmission {
   id: number;
   assignment: number;
@@ -738,6 +745,7 @@ export interface AssignmentSubmission {
   task_id: number | null;
   task_status: TaskStatus | null;
   review_comment: string;
+  events: SubmissionEvent[];
 }
 
 export interface ProjectAssignment {
@@ -751,6 +759,7 @@ export interface ProjectAssignment {
   created_by: ProjectUser | null;
   attachments: AssignmentAttachment[];
   submissions_count: number;
+  review_count: number;
   my_submission: AssignmentSubmission | null;
   created_at: string;
   updated_at: string;
