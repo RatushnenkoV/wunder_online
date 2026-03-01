@@ -28,6 +28,8 @@ INSTALLED_APPS = [
     'lessons',
     'groups',
     'projects',
+    'curator',
+    'yellow_list',
 ]
 
 MIDDLEWARE = [

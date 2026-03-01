@@ -28,6 +28,7 @@ class User(AbstractUser):
     is_teacher = models.BooleanField('Учитель', default=False)
     is_parent = models.BooleanField('Родитель', default=False)
     is_student = models.BooleanField('Ученик', default=False)
+    is_spps = models.BooleanField('СППС', default=False)
 
     birth_date = models.DateField('Дата рождения', null=True, blank=True)
 
@@ -77,4 +78,6 @@ class User(AbstractUser):
             result.append('parent')
         if self.is_student:
             result.append('student')
+        if self.is_spps:
+            result.append('spps')
         return result

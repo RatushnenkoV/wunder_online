@@ -84,6 +84,13 @@ class ProjectAssignment(models.Model):
     title = models.CharField(max_length=300)
     description = models.TextField(blank=True)
     due_date = models.DateField(null=True, blank=True)
+    lesson = models.ForeignKey(
+        'lessons.Lesson',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='project_assignments',
+        verbose_name='Урок',
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

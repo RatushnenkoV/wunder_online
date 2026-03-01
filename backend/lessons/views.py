@@ -6,8 +6,8 @@ from rest_framework.response import Response
 
 from django.utils import timezone
 from accounts.permissions import PasswordChanged
-from .models import Lesson, LessonFolder, Slide, LessonMedia, LessonSession, FormAnswer, VocabProgress
-from .serializers import LessonFolderSerializer, LessonSerializer, SlideSerializer, LessonMediaSerializer, LessonSessionSerializer
+from .models import Lesson, LessonFolder, Slide, LessonMedia, LessonSession, FormAnswer, VocabProgress, Textbook, TextbookAnnotation, LessonAssignment
+from .serializers import LessonFolderSerializer, LessonSerializer, SlideSerializer, LessonMediaSerializer, LessonSessionSerializer, TextbookSerializer, LessonAssignmentSerializer
 from .utils import compute_form_results
 
 
@@ -82,12 +82,8 @@ def folder_detail(request, folder_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, PasswordChanged])
 def folder_contents(request, folder_id):
-    """Содержимое папки: вложенные папки + уроки."""
+    """Содержимое папки: вложенные папки + уроки. Доступно всем авторизованным."""
     folder = get_object_or_404(LessonFolder, id=folder_id)
-
-    # Только владелец или admin видит содержимое
-    if folder.owner_id != request.user.id and not request.user.is_admin:
-        return Response({'error': 'Нет доступа'}, status=403)
 
     subfolders = folder.children.all()
     lessons = folder.lessons.all()
@@ -119,6 +115,10 @@ def lesson_list_create(request):
         else:
             # Только мои уроки
             lessons = Lesson.objects.filter(owner=request.user).select_related('owner', 'folder')
+
+        # ?picker=true — все уроки без фильтра по папке (для выбора в КТП/проектах)
+        if request.query_params.get('picker') == 'true':
+            return Response(LessonSerializer(lessons.order_by('title'), many=True, context=_ctx(request)).data)
 
         folder_id = request.query_params.get('folder')
         if folder_id:
@@ -1072,3 +1072,248 @@ def vocab_progress(request, session_id, slide_id):
         'learned': obj.learned,
         'updated_at': obj.updated_at,
     }, status=201)
+
+
+# ─── Обзор уроков школы (вкладка «Все уроки») ─────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def school_lessons_overview(request):
+    """Список пользователей, у которых есть уроки или папки."""
+    from accounts.models import User
+
+    teacher_ids = set(
+        list(Lesson.objects.values_list('owner_id', flat=True).distinct()) +
+        list(LessonFolder.objects.values_list('owner_id', flat=True).distinct())
+    )
+    users = User.objects.filter(id__in=teacher_ids).order_by('last_name', 'first_name')
+
+    result = []
+    for u in users:
+        result.append({
+            'teacher_id': u.id,
+            'teacher_name': f'{u.last_name} {u.first_name}'.strip(),
+            'folders_count': LessonFolder.objects.filter(owner=u, parent=None).count(),
+            'lessons_count': Lesson.objects.filter(owner=u).count(),
+        })
+    return Response(result)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def teacher_root_content(request):
+    """Корневые папки и уроки конкретного пользователя."""
+    from accounts.models import User
+
+    teacher_id = request.query_params.get('teacher_id')
+    if not teacher_id:
+        return Response({'error': 'teacher_id обязателен'}, status=400)
+
+    teacher = get_object_or_404(User, id=teacher_id)
+    folders = LessonFolder.objects.filter(owner=teacher, parent=None)
+    lessons = Lesson.objects.filter(owner=teacher, folder=None).select_related('owner')
+
+    return Response({
+        'teacher_id': teacher.id,
+        'teacher_name': f'{teacher.last_name} {teacher.first_name}'.strip(),
+        'folders': LessonFolderSerializer(folders, many=True, context=_ctx(request)).data,
+        'lessons': LessonSerializer(lessons, many=True, context=_ctx(request)).data,
+    })
+
+
+# ─── Учебники ─────────────────────────────────────────────────────────────────
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def textbook_list_create(request):
+    """
+    GET ?grade_level_id=<id> — список учебников (фильтр по параллели).
+    POST — загрузить учебник (только staff).
+    """
+    if request.method == 'GET':
+        qs = Textbook.objects.prefetch_related('grade_levels', 'subject').select_related('uploaded_by')
+        grade_level_id = request.query_params.get('grade_level_id')
+        if grade_level_id:
+            qs = qs.filter(grade_levels__id=grade_level_id)
+        return Response(TextbookSerializer(qs, many=True, context=_ctx(request)).data)
+
+    if not _is_staff(request.user):
+        return Response({'error': 'Только учителя могут загружать учебники'}, status=403)
+
+    file = request.FILES.get('file')
+    if not file:
+        return Response({'error': 'Файл обязателен'}, status=400)
+
+    title = request.data.get('title', '').strip() or file.name
+    subject_id = request.data.get('subject') or None
+    grade_level_ids = request.data.getlist('grade_level_ids')
+
+    textbook = Textbook.objects.create(
+        title=title,
+        file=file,
+        original_name=file.name,
+        file_size=file.size,
+        subject_id=subject_id,
+        uploaded_by=request.user,
+    )
+    if grade_level_ids:
+        textbook.grade_levels.set([int(g) for g in grade_level_ids])
+
+    return Response(TextbookSerializer(textbook, context=_ctx(request)).data, status=201)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def textbook_detail(request, textbook_id):
+    textbook = get_object_or_404(
+        Textbook.objects.prefetch_related('grade_levels').select_related('subject', 'uploaded_by'),
+        id=textbook_id,
+    )
+
+    if request.method == 'GET':
+        return Response(TextbookSerializer(textbook, context=_ctx(request)).data)
+
+    if not _is_staff(request.user):
+        return Response({'error': 'Нет доступа'}, status=403)
+
+    if request.method == 'PUT':
+        title = request.data.get('title', textbook.title).strip() or textbook.title
+        subject_id = request.data.get('subject') or None
+        grade_level_ids = request.data.getlist('grade_level_ids')
+
+        textbook.title = title
+        textbook.subject_id = subject_id
+        textbook.save()
+        if grade_level_ids is not None:
+            textbook.grade_levels.set([int(g) for g in grade_level_ids])
+
+        return Response(TextbookSerializer(textbook, context=_ctx(request)).data)
+
+    textbook.delete()
+    return Response(status=204)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def textbook_grade_levels(request):
+    """
+    Список параллелей, для которых пользователь может видеть учебники.
+    Staff: все параллели. Ученик: своя параллель. Родитель: параллели детей.
+    """
+    from school.models import GradeLevel
+
+    user = request.user
+
+    if user.is_admin or user.is_teacher:
+        grade_levels = GradeLevel.objects.order_by('number')
+    elif user.is_student:
+        try:
+            sp = user.student_profile
+            gl_id = sp.school_class.grade_level_id if sp.school_class else None
+            grade_levels = GradeLevel.objects.filter(id=gl_id) if gl_id else GradeLevel.objects.none()
+        except Exception:
+            grade_levels = GradeLevel.objects.none()
+    elif user.is_parent:
+        try:
+            children = user.parent_profile.children.select_related('school_class__grade_level')
+            gl_ids = set(
+                c.school_class.grade_level_id for c in children
+                if c.school_class and c.school_class.grade_level_id
+            )
+            grade_levels = GradeLevel.objects.filter(id__in=gl_ids).order_by('number')
+        except Exception:
+            grade_levels = GradeLevel.objects.none()
+    else:
+        grade_levels = GradeLevel.objects.none()
+
+    data = [{'id': gl.id, 'number': gl.number, 'name': str(gl)} for gl in grade_levels]
+    return Response(data)
+
+
+# ─── Аннотации учебника ────────────────────────────────────────────────────────
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def textbook_annotations(request, session_id, slide_id):
+    """
+    GET  — все аннотации текущего студента на слайде (все страницы).
+    PUT  — сохранить аннотацию страницы {page_number, strokes}.
+    """
+    session = get_object_or_404(LessonSession, id=session_id)
+    slide   = get_object_or_404(Slide, id=slide_id)
+
+    if request.method == 'GET':
+        qs = TextbookAnnotation.objects.filter(session=session, slide=slide, student=request.user)
+        return Response([{'page_number': a.page_number, 'strokes': a.strokes} for a in qs])
+
+    page_number = request.data.get('page_number')
+    if page_number is None:
+        return Response({'error': 'page_number required'}, status=400)
+    obj, _ = TextbookAnnotation.objects.update_or_create(
+        session=session, slide=slide, student=request.user, page_number=int(page_number),
+        defaults={'strokes': request.data.get('strokes', [])},
+    )
+    return Response({'page_number': obj.page_number, 'strokes': obj.strokes})
+
+
+# ─── LessonAssignment views ────────────────────────────────────────────────────
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def lesson_assignments(request):
+    """
+    GET  — список заданий (учитель видит свои выдачи, ученик — выдачи ему)
+    POST — создать выдачу (только учитель/admin)
+    """
+    if request.method == 'GET':
+        user = request.user
+        if _is_staff(user):
+            qs = LessonAssignment.objects.filter(assigned_by=user).select_related(
+                'lesson', 'school_class', 'student', 'assigned_by'
+            )
+        else:
+            # Ученик: выдачи на его класс ИЛИ лично на него
+            try:
+                student_class = user.student_profile.school_class
+            except Exception:
+                student_class = None
+            qs = LessonAssignment.objects.filter(
+                django_models.Q(student=user) |
+                (django_models.Q(school_class=student_class) if student_class else django_models.Q(pk__in=[]))
+            ).select_related('lesson', 'school_class', 'student', 'assigned_by')
+        return Response(LessonAssignmentSerializer(qs, many=True, context=_ctx(request)).data)
+
+    # POST
+    if not _is_staff(request.user):
+        return Response({'error': 'Нет доступа'}, status=403)
+
+    lesson_id = request.data.get('lesson')
+    school_class_id = request.data.get('school_class')
+    student_id = request.data.get('student')
+    due_date = request.data.get('due_date') or None
+
+    if not lesson_id:
+        return Response({'error': 'lesson required'}, status=400)
+    if not school_class_id and not student_id:
+        return Response({'error': 'school_class or student required'}, status=400)
+
+    lesson = get_object_or_404(Lesson, id=lesson_id)
+    assignment = LessonAssignment.objects.create(
+        lesson=lesson,
+        school_class_id=school_class_id or None,
+        student_id=student_id or None,
+        assigned_by=request.user,
+        due_date=due_date,
+    )
+    return Response(LessonAssignmentSerializer(assignment, context=_ctx(request)).data, status=201)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def lesson_assignment_detail(request, assignment_id):
+    """DELETE — отозвать выдачу (только создавший или admin)."""
+    assignment = get_object_or_404(LessonAssignment, id=assignment_id)
+    if assignment.assigned_by != request.user and not request.user.is_admin:
+        return Response({'error': 'Нет доступа'}, status=403)
+    assignment.delete()
+    return Response(status=204)

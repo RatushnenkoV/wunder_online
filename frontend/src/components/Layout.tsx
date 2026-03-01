@@ -93,6 +93,14 @@ function IconProjects() {
   );
 }
 
+function IconYellowList() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+    </svg>
+  );
+}
+
 function IconLogout() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -117,6 +125,7 @@ export default function Layout() {
   const [tasksCount, setTasksCount] = useState<TasksCount | null>(null);
   const [activeLessonsCount, setActiveLessonsCount] = useState(0);
   const [chatsUnread, setChatsUnread] = useState(0);
+  const [yellowUnread, setYellowUnread] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
@@ -141,11 +150,23 @@ export default function Layout() {
     }
   }, [user]);
 
+  const loadYellowUnread = useCallback(async () => {
+    if (!user || user.must_change_password) return;
+    if (!user.is_spps) return;  // только is_spps; admin без роли СППС не видит счётчик
+    try {
+      const res = await api.get('/yellow-list/unread-count/');
+      setYellowUnread(res.data.count ?? 0);
+    } catch {
+      // ignore
+    }
+  }, [user]);
+
   // Обновлять счётчики при смене роута
   useEffect(() => {
     loadTasksCount();
     loadChatsUnread();
-  }, [location.pathname, loadTasksCount, loadChatsUnread]);
+    loadYellowUnread();
+  }, [location.pathname, loadTasksCount, loadChatsUnread, loadYellowUnread]);
 
   // Слушаем реалтайм-обновления счётчика из ChatsPage
   useEffect(() => {
@@ -243,16 +264,25 @@ export default function Layout() {
     ...(isStaff
       ? [{ to: '/requests', label: 'Заявки', icon: <IconWrench />, end: false, badge: null }]
       : []),
+    ...(isStaff
+      ? [{
+          to: '/yellow-list',
+          label: 'Жёлтый список',
+          icon: <IconYellowList />,
+          end: false,
+          badge: user?.is_spps && yellowUnread > 0 ? yellowUnread : null,
+          badgeYellow: true,
+        }]
+      : []),
     { to: '/chats', label: 'Чаты', icon: <IconGroups />, end: false, badge: chatsUnread > 0 ? chatsUnread : null },
-    ...(user?.is_teacher && !user?.is_admin
-      ? [{ to: '/people', label: 'Сотрудники', icon: <IconPeople />, end: false, badge: null }]
+    ...(isStaff
+      ? [
+          { to: '/school', label: 'Ученики', icon: <IconUsers />, end: false, badge: null },
+          { to: '/people', label: 'Сотрудники', icon: <IconPeople />, end: false, badge: null },
+        ]
       : []),
     ...(user?.is_admin
-      ? [
-          { to: '/admin/school', label: 'Ученики', icon: <IconUsers />, end: false, badge: null },
-          { to: '/admin/people', label: 'Сотрудники', icon: <IconPeople />, end: false, badge: null },
-          { to: '/admin/settings', label: 'Настройки', icon: <IconSettings />, end: false, badge: null },
-        ]
+      ? [{ to: '/admin/settings', label: 'Настройки', icon: <IconSettings />, end: false, badge: null }]
       : []),
   ];
 
@@ -309,7 +339,7 @@ export default function Layout() {
                   </span>
                   <span className="flex-1">{item.label}</span>
                   {item.badge !== null && (
-                    <span className="bg-blue-600 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none">
+                    <span className={`${'badgeYellow' in item && item.badgeYellow ? 'bg-yellow-500' : 'bg-blue-600'} text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none`}>
                       {item.badge}
                     </span>
                   )}

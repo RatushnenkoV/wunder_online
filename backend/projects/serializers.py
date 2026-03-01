@@ -101,10 +101,11 @@ class ProjectAssignmentSerializer(serializers.ModelSerializer):
     attachments = AssignmentAttachmentSerializer(many=True, read_only=True)
     submissions_count = serializers.SerializerMethodField()
     my_submission = serializers.SerializerMethodField()
+    lesson_title = serializers.CharField(source='lesson.title', read_only=True, default=None)
 
     class Meta:
         model = ProjectAssignment
-        fields = ['id', 'project', 'title', 'description', 'due_date',
+        fields = ['id', 'project', 'title', 'description', 'due_date', 'lesson', 'lesson_title',
                   'created_by', 'attachments', 'submissions_count', 'my_submission',
                   'created_at', 'updated_at']
 

@@ -3,6 +3,7 @@ export interface ParentChild {
   student_profile_id: number;
   first_name: string;
   last_name: string;
+  school_class_id: number | null;
   school_class_name: string;
 }
 
@@ -17,11 +18,14 @@ export interface User {
   is_teacher: boolean;
   is_parent: boolean;
   is_student: boolean;
+  is_spps: boolean;
   must_change_password: boolean;
   temp_password: string;
   roles: string[];
   curated_classes?: string[];
-  children?: ParentChild[];  // только для родителей (из /auth/me/)
+  children?: ParentChild[];    // только для родителей (из /auth/me/)
+  school_class_id?: number | null;   // только для студентов (из /auth/me/)
+  school_class_name?: string;        // только для студентов (из /auth/me/)
 }
 
 export interface Parent {
@@ -111,6 +115,8 @@ export interface Topic {
   homework: string;
   resources: Resource[];
   files: TopicFile[];
+  lesson: number | null;
+  lesson_title: string | null;
   created_at: string;
 }
 
@@ -323,6 +329,22 @@ export interface Lesson {
   updated_at: string;
 }
 
+export interface LessonAssignment {
+  id: number;
+  lesson: number;
+  lesson_title: string;
+  lesson_cover_color: string;
+  lesson_slides_count: number;
+  school_class: number | null;
+  school_class_name: string | null;
+  student: number | null;
+  student_name: string | null;
+  assigned_by: number;
+  assigned_by_name: string;
+  due_date: string | null;
+  created_at: string;
+}
+
 export interface LessonSession {
   id: number;
   lesson: number;
@@ -337,7 +359,7 @@ export interface LessonSession {
   ended_at: string | null;
 }
 
-export type SlideType = 'content' | 'image' | 'poll' | 'quiz' | 'open_question' | 'video' | 'form' | 'discussion' | 'vocab';
+export type SlideType = 'content' | 'image' | 'poll' | 'quiz' | 'open_question' | 'video' | 'form' | 'discussion' | 'vocab' | 'textbook';
 
 export type FormQuestionType = 'single' | 'multiple' | 'text' | 'scale';
 
@@ -419,6 +441,23 @@ export interface VocabProgressRecord {
   updated_at: string;
 }
 
+// ─── Textbook slide ───────────────────────────────────────────────────────────
+
+export interface TextbookSlideContent {
+  textbook_id: number | null;
+  page_from: number;
+  page_to: number;
+}
+
+export interface AnnotationStroke {
+  id: string;
+  color: string;
+  width: number;
+  points: [number, number][];  // normalized 0–1 relative to canvas dims
+  eraser?: boolean;
+  opacity?: number;            // 1 = solid (default), <1 = highlighter
+}
+
 export interface DiscussionStroke {
   id: string;
   points: [number, number][];
@@ -467,6 +506,40 @@ export interface FolderContents {
   folder: LessonFolder;
   subfolders: LessonFolder[];
   lessons: Lesson[];
+}
+
+export interface TeacherLessonsOverview {
+  teacher_id: number;
+  teacher_name: string;
+  folders_count: number;
+  lessons_count: number;
+}
+
+export interface TeacherRootContent {
+  teacher_id: number;
+  teacher_name: string;
+  folders: LessonFolder[];
+  lessons: Lesson[];
+}
+
+export interface TextbookGradeLevel {
+  id: number;
+  number: number;
+  name: string;  // "5 класс"
+}
+
+export interface Textbook {
+  id: number;
+  title: string;
+  file_url: string | null;
+  original_name: string;
+  file_size: number;
+  subject: number | null;
+  subject_name: string | null;
+  grade_levels_data: TextbookGradeLevel[];
+  uploaded_by: number | null;
+  uploaded_by_name: string;
+  created_at: string;
 }
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
@@ -673,6 +746,8 @@ export interface ProjectAssignment {
   title: string;
   description: string;
   due_date: string | null;
+  lesson: number | null;
+  lesson_title: string | null;
   created_by: ProjectUser | null;
   attachments: AssignmentAttachment[];
   submissions_count: number;
@@ -695,4 +770,88 @@ export interface Project {
 
 export interface ProjectDetail extends Project {
   members: ProjectMember[];
+}
+
+// ─── Curator Table ────────────────────────────────────────────────────────────
+
+export interface CuratorHint {
+  id: number;
+  field: number;
+  text: string;
+}
+
+export interface CuratorField {
+  id: number;
+  name: string;
+  order: number;
+  hints: CuratorHint[];
+}
+
+export interface CuratorSection {
+  id: number;
+  name: string;
+  order: number;
+  fields: CuratorField[];
+}
+
+export interface CuratorReportValue {
+  field: number;
+  value: string;
+}
+
+export interface CuratorReport {
+  id: number | null;
+  student: number;
+  academic_year: string;
+  updated_at?: string;
+  values: CuratorReportValue[];
+}
+
+export interface CuratorStudentItem {
+  id: number;
+  first_name: string;
+  last_name: string;
+  student_profile_id: number;
+  has_report: boolean;
+  updated_at: string | null;
+}
+
+export interface CuratorClassInfo {
+  class_name: string;
+  class_id: number;
+  academic_year: string;
+  students: CuratorStudentItem[];
+}
+
+// ─── Yellow List ──────────────────────────────────────────────────────────────
+
+export interface YellowListStudentOption {
+  id: number;               // user id
+  student_profile_id: number;
+  first_name: string;
+  last_name: string;
+  school_class_name: string;
+}
+
+export interface YellowListComment {
+  id: number;
+  text: string;
+  created_by_name: string;
+  created_at: string;
+}
+
+export interface YellowListEntry {
+  id: number;
+  date: string;
+  fact: string;
+  lesson: string;
+  is_read_by_spps: boolean;
+  student_name: string;
+  student_class: string;
+  student_profile_id: number;
+  student_user_id: number;
+  submitted_by_name: string;
+  created_at: string;
+  comments: YellowListComment[];
+  comments_count?: number;
 }

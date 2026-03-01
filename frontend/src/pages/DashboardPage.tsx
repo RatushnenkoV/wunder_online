@@ -276,7 +276,253 @@ function TeacherDashboard() {
   );
 }
 
-// ── Student dashboard ─────────────────────────────────────────────────────────
+// ── Student schedule dashboard (для главной страницы студента) ────────────────
+
+interface StudentSlot {
+  lessonNumber: number;
+  lesson: ScheduleLesson | null;
+  sub: Substitution | null;
+  status: 'normal' | 'replaced' | 'added';
+  topic: TopicByDate | null;
+}
+
+function StudentSlotCard({ slot }: { slot: StudentSlot }) {
+  const { lessonNumber, lesson, sub, status, topic } = slot;
+  const [expanded, setExpanded] = useState(false);
+
+  const isReplaced = status === 'replaced';
+  const isAdded    = status === 'added';
+  const hasChange  = isReplaced || isAdded;
+
+  const displaySubject = sub ? sub.subject_name : (lesson?.subject_name ?? '');
+  const displayTeacher = sub ? sub.teacher_name : lesson?.teacher_name;
+  const displayRoom    = sub ? sub.room_name    : lesson?.room_name;
+
+  const subjectChanged = isReplaced && !!sub && !!lesson && sub.subject_name !== lesson.subject_name;
+  const teacherChanged = isReplaced && !!sub && !!lesson && sub.teacher_name !== lesson.teacher_name;
+
+  const hasDetails = !!(
+    topic?.homework ||
+    (topic?.resources?.length ?? 0) > 0 ||
+    (topic?.files?.length ?? 0) > 0
+  );
+
+  const cardBg = hasChange
+    ? 'bg-amber-50 border-amber-200'
+    : 'bg-white border-gray-100 shadow-sm';
+
+  return (
+    <div className={`rounded-xl border ${cardBg}`}>
+      <div className="px-4 py-3 flex items-start gap-3">
+        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5 ${
+          hasChange ? 'bg-amber-200 text-amber-700' : 'bg-gray-100 text-gray-600'
+        }`}>
+          {lessonNumber}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            {hasChange && (
+              <span className="text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-full bg-amber-200 text-amber-800">
+                ЗАМЕНА
+              </span>
+            )}
+            <span className="text-sm font-semibold text-gray-900">{displaySubject}</span>
+            {displayRoom && (
+              <span className="text-xs text-gray-400 ml-auto">каб. {displayRoom}</span>
+            )}
+          </div>
+          {displayTeacher && (
+            <div className="text-sm text-gray-500 mt-0.5">{displayTeacher}</div>
+          )}
+          {subjectChanged && (
+            <div className="text-xs text-amber-600 mt-0.5">вместо: {lesson!.subject_name}</div>
+          )}
+          {teacherChanged && !subjectChanged && (
+            <div className="text-xs text-amber-600 mt-0.5">вместо: {lesson!.teacher_name ?? '—'}</div>
+          )}
+        </div>
+      </div>
+
+      {!isAdded && (
+        <button
+          disabled={!hasDetails}
+          onClick={() => hasDetails && setExpanded(e => !e)}
+          className={`w-full px-4 py-2 border-t ${hasChange ? 'border-amber-100' : 'border-gray-100'} flex items-center gap-2 ${hasDetails ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'}`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            className={topic ? 'text-blue-400' : 'text-gray-300'}
+          >
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+          {topic ? (
+            <span className="text-sm text-blue-600 truncate flex-1 text-left">{topic.title}</span>
+          ) : (
+            <span className="text-sm text-gray-400 italic">Тема не указана</span>
+          )}
+          {hasDetails && (
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              className={`text-blue-300 flex-shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`}
+            >
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          )}
+        </button>
+      )}
+
+      {expanded && hasDetails && (
+        <div className="px-4 pb-3 border-t border-gray-100 space-y-3 pt-3">
+          {topic!.homework && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Домашнее задание</label>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{topic!.homework}</p>
+            </div>
+          )}
+          {(topic!.resources?.length ?? 0) > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Материалы</label>
+              <ul className="space-y-1">
+                {topic!.resources.map((r, i) => (
+                  <li key={i}>
+                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                      {r.title || r.url}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {(topic!.files?.length ?? 0) > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Файлы</label>
+              <ul className="space-y-1">
+                {topic!.files.map(f => (
+                  <li key={f.id}>
+                    <a href={f.file} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                      {f.original_name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StudentScheduleDashboard() {
+  const { user } = useAuth();
+  const [date, setDate] = useState(todayISO);
+  const [slots, setSlots] = useState<StudentSlot[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const classId = user?.school_class_id ?? null;
+
+  const shiftDate = (days: number) => {
+    const d = new Date(date + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    setDate(toLocalISO(d));
+  };
+
+  useEffect(() => {
+    if (!classId) { setLoading(false); return; }
+    setLoading(true);
+    Promise.all([
+      api.get('/school/schedule/', { params: { school_class: classId } }),
+      api.get('/school/substitutions/', { params: { date_from: date, date_to: date } }),
+      api.get(`/ktp/topics-by-date/?date=${date}`),
+    ]).then(([schedRes, subsRes, topicsRes]) => {
+      const allLessons: ScheduleLesson[] = schedRes.data;
+      const allSubs: Substitution[]      = subsRes.data;
+      const allTopics: TopicByDate[]     = topicsRes.data;
+
+      const weekday    = new Date(date + 'T00:00:00').getDay();
+      const dayLessons = allLessons.filter(l => l.weekday === weekday);
+      const classSubs  = allSubs.filter(s => s.school_class === classId);
+
+      const findTopic = (subjectName: string): TopicByDate | null =>
+        allTopics.find(t => t.subject_name === subjectName) ?? null;
+
+      const result: StudentSlot[] = [];
+      const processedSubIds = new Set<number>();
+
+      for (const lesson of dayLessons) {
+        const sub = classSubs.find(s => s.original_lesson === lesson.id) ?? null;
+        if (sub) processedSubIds.add(sub.id);
+        const effectiveSubject = sub ? sub.subject_name : lesson.subject_name;
+        result.push({
+          lessonNumber: lesson.lesson_number,
+          lesson,
+          sub,
+          status: sub ? 'replaced' : 'normal',
+          topic: findTopic(effectiveSubject),
+        });
+      }
+
+      // Дополнительные замены без исходного урока (добавленные уроки)
+      for (const sub of classSubs) {
+        if (!processedSubIds.has(sub.id)) {
+          result.push({
+            lessonNumber: sub.lesson_number,
+            lesson: null,
+            sub,
+            status: 'added',
+            topic: findTopic(sub.subject_name),
+          });
+        }
+      }
+
+      result.sort((a, b) => a.lessonNumber - b.lessonNumber);
+      setSlots(result);
+    }).finally(() => setLoading(false));
+  }, [date, classId]); // eslint-disable-line
+
+  const isToday = date === todayISO();
+
+  if (!classId) {
+    return <p className="text-gray-400 py-8 text-center">Класс не указан в профиле</p>;
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-6">
+        <button onClick={() => shiftDate(-1)} className="p-2 rounded hover:bg-gray-100 text-gray-500" title="Предыдущий день">←</button>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold capitalize">{formatDateRu(date)}</h2>
+          <input
+            type="date" value={date}
+            onChange={e => e.target.value && setDate(e.target.value)}
+            className="border rounded px-2 py-1 text-sm text-gray-500 w-36"
+          />
+        </div>
+        <button onClick={() => shiftDate(1)} className="p-2 rounded hover:bg-gray-100 text-gray-500" title="Следующий день">→</button>
+        {!isToday && (
+          <button onClick={() => setDate(todayISO())} className="text-sm text-blue-600 hover:text-blue-800 ml-1">Сегодня</button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map(i => <div key={i} className="bg-white border border-gray-100 rounded-xl h-20 animate-pulse" />)}
+        </div>
+      ) : slots.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8 text-center">
+          <p className="text-gray-400">Нет уроков на этот день</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {slots.map((slot, i) => <StudentSlotCard key={i} slot={slot} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Student topics dashboard (для родителей) ──────────────────────────────────
 
 function StudentDashboard({ studentId }: { studentId?: number } = {}) {
   const [date, setDate] = useState(() => todayISO());
@@ -438,7 +684,7 @@ export default function DashboardPage() {
     return (
       <div>
         <h1 className="text-2xl font-bold mb-6">Добро пожаловать, {user.first_name}!</h1>
-        <StudentDashboard />
+        <StudentScheduleDashboard />
       </div>
     );
   }

@@ -11,10 +11,11 @@ class TopicFileSerializer(serializers.ModelSerializer):
 
 class TopicSerializer(serializers.ModelSerializer):
     files = TopicFileSerializer(many=True, read_only=True)
+    lesson_title = serializers.CharField(source='lesson.title', read_only=True, default=None)
 
     class Meta:
         model = Topic
-        fields = ['id', 'ctp', 'order', 'title', 'date', 'homework', 'resources', 'files', 'created_at']
+        fields = ['id', 'ctp', 'order', 'title', 'date', 'homework', 'resources', 'files', 'lesson', 'lesson_title', 'created_at']
         read_only_fields = ['id', 'ctp', 'created_at']
 
 

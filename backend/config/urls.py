@@ -12,6 +12,8 @@ urlpatterns = [
     path('api/lessons/', include('lessons.urls')),
     path('api/chat/', include('groups.urls')),
     path('api/projects/', include('projects.urls')),
+    path('api/curator/', include('curator.urls')),
+    path('api/yellow-list/', include('yellow_list.urls')),
 ]
 
 if settings.DEBUG:

@@ -17,8 +17,11 @@ import LessonsPage from './pages/LessonsPage';
 import LessonEditorPage from './pages/LessonEditorPage';
 import ChatsPage from './pages/ChatsPage';
 import LessonPresenterPage from './pages/LessonPresenterPage';
+import SelfPacedLessonPage from './pages/SelfPacedLessonPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
+import CuratorReportPage from './pages/CuratorReportPage';
+import YellowListPage from './pages/YellowListPage';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children, adminOnly = false, staffOnly = false }: { children: ReactNode; adminOnly?: boolean; staffOnly?: boolean }) {
@@ -67,9 +70,9 @@ function App() {
             <Route path="/ktp/:id" element={<KTPDetailPage />} />
             <Route path="/schedule" element={<SchedulePage />} />
             <Route path="/chats" element={<ChatsPage />} />
-            <Route path="/people" element={<PeoplePage />} />
-            <Route path="/admin/people" element={<ProtectedRoute adminOnly><PeoplePage /></ProtectedRoute>} />
-            <Route path="/admin/school" element={<ProtectedRoute adminOnly><SchoolPage /></ProtectedRoute>} />
+            <Route path="/people" element={<ProtectedRoute staffOnly><PeoplePage /></ProtectedRoute>} />
+            <Route path="/school" element={<ProtectedRoute staffOnly><SchoolPage /></ProtectedRoute>} />
+            <Route path="/admin/school" element={<ProtectedRoute staffOnly><SchoolPage /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute adminOnly><SettingsPage /></ProtectedRoute>} />
             <Route path="/account" element={<AccountPage />} />
             <Route path="/tasks" element={<TasksPage />} />
@@ -78,9 +81,12 @@ function App() {
             <Route path="/lessons/:id/edit" element={<LessonEditorPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
+            <Route path="/people/curator/:studentId" element={<CuratorReportPage />} />
+            <Route path="/yellow-list" element={<ProtectedRoute staffOnly><YellowListPage /></ProtectedRoute>} />
           </Route>
 
           <Route path="/lessons/session/:id" element={<ProtectedRoute><LessonPresenterPage /></ProtectedRoute>} />
+          <Route path="/lessons/self-paced/:id" element={<ProtectedRoute><SelfPacedLessonPage /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

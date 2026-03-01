@@ -40,6 +40,13 @@ class Topic(models.Model):
     date = models.DateField('Дата', null=True, blank=True)
     homework = models.TextField('Домашнее задание', blank=True, default='')
     resources = models.JSONField('Ссылки на материалы', default=list, blank=True)
+    lesson = models.ForeignKey(
+        'lessons.Lesson',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='ktp_topics',
+        verbose_name='Урок',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

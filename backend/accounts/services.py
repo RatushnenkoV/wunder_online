@@ -34,6 +34,8 @@ def create_user_with_temp_password(first_name, last_name, roles=None, email='', 
                 user.is_parent = True
             elif role == 'student':
                 user.is_student = True
+            elif role == 'spps':
+                user.is_spps = True
     user.set_password(password)
     user.save()
     return user

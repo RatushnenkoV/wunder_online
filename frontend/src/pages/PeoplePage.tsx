@@ -3,5 +3,7 @@ import StaffTab from '../components/StaffTab';
 
 export default function PeoplePage() {
   const { user } = useAuth();
-  return <StaffTab readOnly={!user?.is_admin} />;
+  const isAdmin = user?.is_admin ?? false;
+
+  return <StaffTab readOnly={!isAdmin} />;
 }

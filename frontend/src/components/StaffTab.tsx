@@ -7,7 +7,13 @@ import type { MenuItem } from './ContextMenu';
 const ROLE_OPTIONS = [
   { value: 'admin', label: 'Администратор' },
   { value: 'teacher', label: 'Учитель' },
+  { value: 'spps', label: 'СППС' },
 ];
+
+function roleBadgeClass(role: string) {
+  if (role === 'spps') return 'bg-yellow-100 text-yellow-700';
+  return 'bg-blue-100 text-blue-700';
+}
 
 interface StaffRow {
   first_name: string;
@@ -262,7 +268,7 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
                 <td className="px-4 py-2 hidden sm:table-cell">
                   <div className="flex flex-wrap gap-1">
                     {u.roles.filter(r => r !== 'parent').map(r => (
-                      <span key={r} className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded">
+                      <span key={r} className={`${roleBadgeClass(r)} text-xs px-2 py-0.5 rounded`}>
                         {ROLE_OPTIONS.find(o => o.value === r)?.label || r}
                       </span>
                     ))}
@@ -372,7 +378,7 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
                 <span className="text-gray-500">Роли</span>
                 <div className="flex flex-wrap gap-1 justify-end">
                   {viewUser.roles.filter(r => r !== 'parent').map(r => (
-                    <span key={r} className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded">
+                    <span key={r} className={`${roleBadgeClass(r)} text-xs px-2 py-0.5 rounded`}>
                       {ROLE_OPTIONS.find(o => o.value === r)?.label || r}
                     </span>
                   ))}
@@ -437,6 +443,7 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
                     <th className="pb-2 font-medium pl-2">Телефон</th>
                     <th className="pb-2 font-medium pl-2 text-center">Админ</th>
                     <th className="pb-2 font-medium pl-2 text-center">Учитель</th>
+                    <th className="pb-2 font-medium pl-2 text-center">СППС</th>
                     <th className="pb-2 w-8"></th>
                   </tr>
                 </thead>
@@ -460,6 +467,9 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
                       </td>
                       <td className="py-1 px-1 text-center">
                         <input type="checkbox" checked={row.roles.includes('teacher')} onChange={() => toggleRowRole(idx, 'teacher')} />
+                      </td>
+                      <td className="py-1 px-1 text-center">
+                        <input type="checkbox" checked={row.roles.includes('spps')} onChange={() => toggleRowRole(idx, 'spps')} />
                       </td>
                       <td className="py-1 pl-1">
                         {rows.length > 1 && (

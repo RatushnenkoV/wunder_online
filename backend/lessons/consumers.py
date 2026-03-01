@@ -368,6 +368,50 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
         is_presenter = session.teacher_id == self.user.id or self.user.is_admin
         logger.info('[LessonSession] is_presenter=%s  teacher_id=%s  user_id=%s',
                     is_presenter, session.teacher_id, self.user.id)
+
+        # quiz_answer доступен только студентам (обрабатываем до проверки is_presenter)
+        if msg_type == 'quiz_answer':
+            if not is_presenter:
+                slide_id = data.get('slide_id')
+                question_idx = int(data.get('question_idx', 0))
+                option_index = data.get('option_index')
+                elapsed_ms = int(data.get('elapsed_ms', 0))
+                if slide_id is not None and option_index is not None:
+                    slide = await self.get_slide_by_id(slide_id)
+                    if slide and slide.slide_type == 'quiz':
+                        questions = (slide.content or {}).get('questions', [])
+                        if 0 <= question_idx < len(questions):
+                            q = questions[question_idx]
+                            correct = q.get('correct', -1)
+                            time_limit_ms = q.get('time_limit', 30) * 1000
+                        else:
+                            correct = -1
+                            time_limit_ms = 30000
+                        is_correct = (option_index == correct)
+                        if is_correct:
+                            points = max(100, round(1000 - (elapsed_ms / max(time_limit_ms, 1)) * 900))
+                        else:
+                            points = 0
+                        await self.save_quiz_answer(slide_id, question_idx, option_index, elapsed_ms, points)
+                        answered_count = await self.get_quiz_answered_count(slide_id, question_idx)
+                        try:
+                            await self.channel_layer.group_send(
+                                self.room_group_name,
+                                {'type': 'quiz_answer_received', 'slide_id': slide_id, 'question_idx': question_idx, 'answered_count': answered_count},
+                            )
+                        except Exception as e:
+                            logger.error('[LessonSession] quiz_answer_received broadcast failed: %s', e)
+                        # Прямое подтверждение отвечавшему студенту
+                        await self.send(text_data=json.dumps({
+                            'type': 'quiz_answer_confirmed',
+                            'slide_id': slide_id,
+                            'question_idx': question_idx,
+                            'option_index': option_index,
+                            'points': points,
+                            'is_correct': is_correct,
+                        }))
+            return
+
         if not is_presenter:
             return
 
@@ -424,47 +468,6 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
                         )
                     except Exception as e:
                         logger.error('[LessonSession] quiz_start broadcast failed: %s', e)
-
-        elif msg_type == 'quiz_answer':
-            if not is_presenter:
-                slide_id = data.get('slide_id')
-                question_idx = int(data.get('question_idx', 0))
-                option_index = data.get('option_index')
-                elapsed_ms = int(data.get('elapsed_ms', 0))
-                if slide_id is not None and option_index is not None:
-                    slide = await self.get_slide_by_id(slide_id)
-                    if slide and slide.slide_type == 'quiz':
-                        questions = (slide.content or {}).get('questions', [])
-                        if 0 <= question_idx < len(questions):
-                            q = questions[question_idx]
-                            correct = q.get('correct', -1)
-                            time_limit_ms = q.get('time_limit', 30) * 1000
-                        else:
-                            correct = -1
-                            time_limit_ms = 30000
-                        is_correct = (option_index == correct)
-                        if is_correct:
-                            points = max(100, round(1000 - (elapsed_ms / max(time_limit_ms, 1)) * 900))
-                        else:
-                            points = 0
-                        await self.save_quiz_answer(slide_id, question_idx, option_index, elapsed_ms, points)
-                        answered_count = await self.get_quiz_answered_count(slide_id, question_idx)
-                        try:
-                            await self.channel_layer.group_send(
-                                self.room_group_name,
-                                {'type': 'quiz_answer_received', 'slide_id': slide_id, 'question_idx': question_idx, 'answered_count': answered_count},
-                            )
-                        except Exception as e:
-                            logger.error('[LessonSession] quiz_answer_received broadcast failed: %s', e)
-                        # Прямое подтверждение отвечавшему студенту
-                        await self.send(text_data=json.dumps({
-                            'type': 'quiz_answer_confirmed',
-                            'slide_id': slide_id,
-                            'question_idx': question_idx,
-                            'option_index': option_index,
-                            'points': points,
-                            'is_correct': is_correct,
-                        }))
 
         elif msg_type == 'quiz_show_results':
             if is_presenter:

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../../api/client';
 import type {
-  ProjectAssignment, AssignmentSubmission, AssignmentAttachment, SubmissionFile, TaskStatus,
+  ProjectAssignment, AssignmentSubmission, AssignmentAttachment, SubmissionFile, TaskStatus, Lesson,
 } from '../../types';
 
 function formatDate(s: string | null) {
@@ -175,6 +175,16 @@ function AssignmentModal({
           {/* Description */}
           {assignment.description && (
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{assignment.description}</p>
+          )}
+
+          {/* Attached lesson */}
+          {assignment.lesson_title && (
+            <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2">
+              <span className="text-indigo-500">📖</span>
+              <a href={`/lessons/editor/${assignment.lesson}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-indigo-700 hover:text-indigo-900">
+                {assignment.lesson_title}
+              </a>
+            </div>
           )}
 
           {/* Assignment files */}
@@ -374,6 +384,8 @@ function CreateAssignmentModal({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [lessonId, setLessonId] = useState<number | null>(null);
+  const [pickerLessons, setPickerLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [attachments, setAttachments] = useState<AssignmentAttachment[]>([]);
@@ -381,13 +393,17 @@ function CreateAssignmentModal({
   const [createdAssignment, setCreatedAssignment] = useState<ProjectAssignment | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    api.get('/lessons/lessons/?picker=true').then(r => setPickerLessons(r.data)).catch(() => {});
+  }, []);
+
   const ensureCreated = async (): Promise<ProjectAssignment | null> => {
     if (createdAssignment) return createdAssignment;
     if (!title.trim()) { setError('Введите название'); return null; }
     setLoading(true);
     try {
       const res = await api.post(`/projects/${projectId}/assignments/`, {
-        title: title.trim(), description, due_date: dueDate || null,
+        title: title.trim(), description, due_date: dueDate || null, lesson: lessonId,
       });
       setCreatedAssignment(res.data);
       return res.data;
@@ -460,6 +476,19 @@ function CreateAssignmentModal({
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+          {pickerLessons.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Прикреплённый урок (опционально)</label>
+              <select
+                value={lessonId ?? ''}
+                onChange={e => setLessonId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">— не привязан —</option>
+                {pickerLessons.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
+              </select>
+            </div>
+          )}
           <div>
             <div className="flex items-center gap-2 mb-2">
               <label className="text-sm font-medium text-gray-700">Материалы</label>

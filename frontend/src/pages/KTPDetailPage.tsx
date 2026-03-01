@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
-import type { CTPDetail, Topic, TopicFile, SchoolClass } from '../types';
+import type { CTPDetail, Topic, TopicFile, SchoolClass, Lesson } from '../types';
 import ContextMenu from '../components/ContextMenu';
 import type { MenuItem } from '../components/ContextMenu';
 
@@ -37,6 +37,8 @@ export default function KTPDetailPage() {
   const [message, setMessage] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ topic: Topic; x: number; y: number } | null>(null);
 
+  const [pickerLessons, setPickerLessons] = useState<Lesson[]>([]);
+
   // Schedule info
   const [scheduleInfo, setScheduleInfo] = useState<ScheduleInfo | null>(null);
 
@@ -65,6 +67,13 @@ export default function KTPDetailPage() {
   };
 
   useEffect(() => { load(); loadScheduleInfo(); }, [id]);
+
+  // Load lessons for picker when the edit modal is opened (teachers only)
+  useEffect(() => {
+    if (editTopic && canEdit && pickerLessons.length === 0) {
+      api.get('/lessons/lessons/?picker=true').then(r => setPickerLessons(r.data)).catch(() => {});
+    }
+  }, [editTopic]); // eslint-disable-line
 
   const isOwner = ctp && user && ctp.teacher === user.id;
   const canEdit = isOwner;
@@ -131,6 +140,7 @@ export default function KTPDetailPage() {
       date: editTopic.date,
       homework: editTopic.homework,
       resources: editTopic.resources,
+      lesson: editTopic.lesson,
     });
     setEditTopic(null);
     load();
@@ -481,6 +491,11 @@ export default function KTPDetailPage() {
                   <button onClick={() => setEditTopic({ ...topic })} className="text-left hover:text-blue-600 w-full">
                     {topic.title}
                   </button>
+                  {topic.lesson_title && (
+                    <span className="inline-flex items-center gap-1 text-xs text-indigo-600 bg-indigo-50 rounded px-1.5 py-0.5 mt-0.5">
+                      📖 {topic.lesson_title}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-2 text-gray-500">{topic.date || '—'}</td>
                 <td className="px-4 py-2">
@@ -580,6 +595,17 @@ export default function KTPDetailPage() {
                     <textarea value={editTopic.homework} onChange={e => setEditTopic({ ...editTopic, homework: e.target.value })} rows={3} className="w-full border rounded px-3 py-2 text-sm" />
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Прикреплённый урок</label>
+                    <select
+                      value={editTopic.lesson ?? ''}
+                      onChange={e => setEditTopic({ ...editTopic, lesson: e.target.value ? Number(e.target.value) : null, lesson_title: pickerLessons.find(l => l.id === Number(e.target.value))?.title ?? null })}
+                      className="w-full border rounded px-3 py-2 text-sm"
+                    >
+                      <option value="">— не привязан —</option>
+                      {pickerLessons.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
+                    </select>
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Ссылки на материалы</label>
                     {editTopic.resources.map((r, i) => (
                       <div key={i} className="flex gap-2 mb-2">
@@ -637,6 +663,14 @@ export default function KTPDetailPage() {
                           </li>
                         ))}
                       </ul>
+                    </div>
+                  )}
+                  {editTopic.lesson_title && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Урок</label>
+                      <a href={`/lessons/editor/${editTopic.lesson}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800">
+                        📖 {editTopic.lesson_title}
+                      </a>
                     </div>
                   )}
                   {editTopic.files.length > 0 && (

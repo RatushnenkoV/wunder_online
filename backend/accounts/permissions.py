@@ -16,6 +16,11 @@ class IsAdminOrTeacher(BasePermission):
         return request.user.is_authenticated and (request.user.is_admin or request.user.is_teacher)
 
 
+class IsSPPS(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and (request.user.is_spps or request.user.is_admin)
+
+
 class PasswordChanged(BasePermission):
     message = 'Необходимо сменить пароль перед использованием системы.'
 

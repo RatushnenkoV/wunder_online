@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import StartSessionDialog from '../components/StartSessionDialog';
-import type { Lesson, LessonFolder, FolderContents, LessonSession } from '../types';
+import TextbookViewer from '../components/TextbookViewer';
+import type {
+  Lesson, LessonFolder, FolderContents, LessonSession,
+  TeacherLessonsOverview, TeacherRootContent, Textbook, TextbookGradeLevel, Subject, LessonAssignment, SchoolClass,
+} from '../types';
 
 // ─── Иконки ──────────────────────────────────────────────────────────────────
 
@@ -43,6 +47,22 @@ function IconSlides() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+    </svg>
+  );
+}
+
+function IconBook() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+    </svg>
+  );
+}
+
+function IconDownload() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
     </svg>
   );
 }
@@ -235,6 +255,138 @@ function LessonModal({ folderId, onSave, onClose }: LessonModalProps) {
   );
 }
 
+// ─── Модал загрузки учебника ────────────────────────────────────────────────
+
+interface TextbookUploadModalProps {
+  onSave: (tb: Textbook) => void;
+  onClose: () => void;
+}
+
+function TextbookUploadModal({ onSave, onClose }: TextbookUploadModalProps) {
+  const [title, setTitle] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [subjectId, setSubjectId] = useState<number | ''>('');
+  const [selectedGLIds, setSelectedGLIds] = useState<number[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [gradeLevels, setGradeLevels] = useState<TextbookGradeLevel[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      api.get('/school/subjects/'),
+      api.get('/lessons/textbooks/grade-levels/'),
+    ]).then(([subRes, glRes]) => {
+      setSubjects(subRes.data);
+      setGradeLevels(glRes.data);
+    }).catch(() => {});
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null;
+    setFile(f);
+    if (f && !title) {
+      setTitle(f.name.replace(/\.[^.]+$/, ''));
+    }
+  };
+
+  const toggleGL = (id: number) => {
+    setSelectedGLIds(prev =>
+      prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]
+    );
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file || !title.trim()) return;
+    setSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('title', title.trim());
+      if (subjectId) fd.append('subject', String(subjectId));
+      selectedGLIds.forEach(id => fd.append('grade_level_ids', String(id)));
+      const res = await api.post('/lessons/textbooks/', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      onSave(res.data);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Загрузить учебник</h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Файл <span className="text-red-500">*</span></label>
+            <input
+              type="file"
+              accept=".pdf,.epub,.djvu,.doc,.docx"
+              onChange={handleFileChange}
+              className="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Название <span className="text-red-500">*</span></label>
+            <input
+              type="text"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Например: Математика 5 класс"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Предмет</label>
+            <select
+              value={subjectId}
+              onChange={e => setSubjectId(e.target.value ? Number(e.target.value) : '')}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">— не указан —</option>
+              {subjects.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Параллели</label>
+            <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+              {gradeLevels.length === 0 ? (
+                <p className="text-xs text-gray-400 p-1">Нет параллелей</p>
+              ) : (
+                gradeLevels.map(gl => (
+                  <label key={gl.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedGLIds.includes(gl.id)}
+                      onChange={() => toggleGL(gl.id)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{gl.name}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end pt-2">
+            <button type="button" onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              Отмена
+            </button>
+            <button type="submit" disabled={saving || !file || !title.trim()}
+              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+              {saving ? 'Загрузка...' : 'Загрузить'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Карточка папки ──────────────────────────────────────────────────────
 
 interface FolderCardProps {
@@ -252,7 +404,6 @@ interface FolderCardProps {
 
 function FolderCard({ folder, isOwner, isDropTarget, onClick, onRename, onDelete, onDragStart, onDragOver, onDragLeave, onDrop }: FolderCardProps) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
-  // Отслеживаем drag, чтобы не срабатывал onClick при броске
   const didDragRef = useRef(false);
 
   const openMenu = (e: React.MouseEvent) => {
@@ -322,20 +473,168 @@ function FolderCard({ folder, isOwner, isDropTarget, onClick, onRename, onDelete
   );
 }
 
+// ─── Карточка учителя (для вкладки «Все уроки») ──────────────────────────
+
+interface TeacherCardProps {
+  teacher: TeacherLessonsOverview;
+  onClick: () => void;
+}
+
+function TeacherCard({ teacher, onClick }: TeacherCardProps) {
+  const initials = teacher.teacher_name
+    .split(' ')
+    .slice(0, 2)
+    .map(w => w[0] ?? '')
+    .join('');
+
+  return (
+    <div
+      onClick={onClick}
+      className="bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer flex flex-col gap-3"
+    >
+      <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-semibold flex-shrink-0">
+        {initials}
+      </div>
+      <div>
+        <div className="font-medium text-gray-900 text-sm leading-tight">{teacher.teacher_name}</div>
+        <div className="text-xs text-gray-400 mt-1">
+          {teacher.folders_count > 0 && `${teacher.folders_count} папок · `}
+          {teacher.lessons_count} уроков
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Карточка параллели (для вкладки «Учебники») ─────────────────────────
+
+interface GradeLevelCardProps {
+  gradeLevel: TextbookGradeLevel;
+  onClick: () => void;
+}
+
+function GradeLevelCard({ gradeLevel, onClick }: GradeLevelCardProps) {
+  return (
+    <div
+      onClick={onClick}
+      className="bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer flex flex-col gap-3"
+    >
+      <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">
+        {gradeLevel.number}
+      </div>
+      <div>
+        <div className="font-medium text-gray-900 text-sm">{gradeLevel.name}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Карточка учебника ───────────────────────────────────────────────────
+
+interface TextbookCardProps {
+  textbook: Textbook;
+  isStaff: boolean;
+  onDelete: () => void;
+  onOpen: () => void;
+}
+
+function TextbookCard({ textbook, isStaff, onDelete, onOpen }: TextbookCardProps) {
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const ext = textbook.original_name.split('.').pop()?.toLowerCase() ?? '';
+  const extLabel = ext.toUpperCase() || 'FILE';
+  const isPdf = ext === 'pdf';
+
+  const sizeStr = textbook.file_size > 1024 * 1024
+    ? `${(textbook.file_size / 1024 / 1024).toFixed(1)} МБ`
+    : `${Math.round(textbook.file_size / 1024)} КБ`;
+
+  const menuItems = isStaff
+    ? [{ label: 'Удалить', onClick: onDelete, danger: true }]
+    : [];
+
+  return (
+    <>
+      <div
+        onClick={isPdf ? onOpen : undefined}
+        className={`bg-white border border-gray-200 rounded-xl overflow-hidden transition-all group flex flex-col ${isPdf ? 'cursor-pointer hover:border-blue-300 hover:shadow-sm' : ''}`}
+      >
+        {/* Цветная шапка */}
+        <div className="h-16 bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center relative">
+          <span className="text-white/80 text-xs font-bold tracking-widest">{extLabel}</span>
+          {isPdf && (
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                Открыть
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="p-3 flex-1 flex flex-col gap-1">
+          <div className="flex items-start justify-between gap-1">
+            <div className="font-medium text-gray-900 text-sm leading-tight line-clamp-2 flex-1">
+              {textbook.title}
+            </div>
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
+              {textbook.file_url && (
+                <a
+                  href={textbook.file_url}
+                  download={textbook.original_name}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="p-1 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-600 transition-colors"
+                  title="Скачать"
+                >
+                  <IconDownload />
+                </a>
+              )}
+              {isStaff && (
+                <button
+                  onClick={e => { e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY }); }}
+                  className="p-1 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                >
+                  <IconDots />
+                </button>
+              )}
+            </div>
+          </div>
+          {textbook.subject_name && (
+            <div className="text-xs text-indigo-600">{textbook.subject_name}</div>
+          )}
+          <div className="text-xs text-gray-400 mt-auto pt-0.5">{extLabel} · {sizeStr}</div>
+        </div>
+      </div>
+
+      {menu && menuItems.length > 0 && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          items={menuItems}
+          onClose={() => setMenu(null)}
+        />
+      )}
+    </>
+  );
+}
+
 // ─── Карточка урока ──────────────────────────────────────────────────────
 
 interface LessonCardProps {
   lesson: Lesson;
   showOwner?: boolean;
   isStaff?: boolean;
+  readonly?: boolean;
   onOpen: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onStart: () => void;
+  onIssue?: () => void;
   onDragStart: (e: React.DragEvent) => void;
 }
 
-function LessonCard({ lesson, showOwner, isStaff, onOpen, onDuplicate, onDelete, onStart, onDragStart }: LessonCardProps) {
+function LessonCard({ lesson, showOwner, isStaff, readonly, onOpen, onDuplicate, onDelete, onStart, onIssue, onDragStart }: LessonCardProps) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const didDragRef = useRef(false);
 
@@ -344,18 +643,21 @@ function LessonCard({ lesson, showOwner, isStaff, onOpen, onDuplicate, onDelete,
     setMenu({ x: e.clientX, y: e.clientY });
   };
 
-  const menuItems = [
-    { label: 'Открыть редактор', onClick: onOpen },
-    ...(isStaff ? [{ label: 'Начать урок', onClick: onStart }] : []),
-    { label: 'Дублировать', onClick: onDuplicate },
-    ...(lesson.is_owner ? [{ label: 'Удалить', onClick: onDelete, danger: true }] : []),
-  ];
+  const menuItems = readonly
+    ? [{ label: 'Открыть', onClick: onOpen }]
+    : [
+        { label: 'Открыть редактор', onClick: onOpen },
+        ...(isStaff ? [{ label: 'Начать урок', onClick: onStart }] : []),
+        ...(isStaff && onIssue ? [{ label: 'Выдать классу', onClick: onIssue }] : []),
+        { label: 'Дублировать', onClick: onDuplicate },
+        ...(lesson.is_owner ? [{ label: 'Удалить', onClick: onDelete, danger: true }] : []),
+      ];
 
   return (
     <>
       <div
-        draggable
-        onDragStart={e => { didDragRef.current = true; onDragStart(e); }}
+        draggable={!readonly}
+        onDragStart={e => { if (!readonly) { didDragRef.current = true; onDragStart(e); } }}
         onDragEnd={() => { setTimeout(() => { didDragRef.current = false; }, 100); }}
         onClick={() => { if (!didDragRef.current) onOpen(); }}
         className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer group flex flex-col"
@@ -376,7 +678,7 @@ function LessonCard({ lesson, showOwner, isStaff, onOpen, onDuplicate, onDelete,
               {lesson.title}
             </div>
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 flex-shrink-0 transition-all">
-              {isStaff && (
+              {isStaff && !readonly && (
                 <button
                   onClick={e => { e.stopPropagation(); onStart(); }}
                   className="p-1.5 rounded-md text-green-500 hover:bg-green-50 hover:text-green-700 transition-colors"
@@ -419,45 +721,187 @@ function LessonCard({ lesson, showOwner, isStaff, onOpen, onDuplicate, onDelete,
 // ─── Хлебные крошки ──────────────────────────────────────────────────────
 
 interface BreadcrumbsProps {
-  path: LessonFolder[];
-  onNavigate: (folder: LessonFolder | null) => void;
-  dropTarget: number | null; // -1 = root
-  onDragOver: (e: React.DragEvent, folderId: number | null) => void;
-  onDragLeave: () => void;
-  onDrop: (e: React.DragEvent, folderId: number | null) => void;
+  items: { label: string; onClick: () => void }[];
+  dropTarget?: number | null;
+  onDragOver?: (e: React.DragEvent, idx: number) => void;
+  onDragLeave?: () => void;
+  onDrop?: (e: React.DragEvent, idx: number) => void;
 }
 
-function Breadcrumbs({ path, onNavigate, dropTarget, onDragOver, onDragLeave, onDrop }: BreadcrumbsProps) {
+function Breadcrumbs({ items, dropTarget, onDragOver, onDragLeave, onDrop }: BreadcrumbsProps) {
   return (
     <nav className="flex items-center gap-1 text-sm text-gray-500 flex-wrap">
-      <button
-        onClick={() => onNavigate(null)}
-        onDragOver={e => onDragOver(e, null)}
-        onDragLeave={onDragLeave}
-        onDrop={e => onDrop(e, null)}
-        className={`hover:text-blue-600 transition-colors px-1.5 py-0.5 rounded ${dropTarget === -1 ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-300' : ''}`}
-      >
-        Мои уроки
-      </button>
-      {path.map((folder, i) => (
-        <span key={folder.id} className="flex items-center gap-1">
-          <IconChevronRight />
-          {i < path.length - 1 ? (
+      {items.map((item, i) => (
+        <span key={i} className="flex items-center gap-1">
+          {i > 0 && <IconChevronRight />}
+          {i < items.length - 1 ? (
             <button
-              onClick={() => onNavigate(folder)}
-              onDragOver={e => onDragOver(e, folder.id)}
+              onClick={item.onClick}
+              onDragOver={onDragOver ? e => onDragOver(e, i) : undefined}
               onDragLeave={onDragLeave}
-              onDrop={e => onDrop(e, folder.id)}
-              className={`hover:text-blue-600 transition-colors px-1.5 py-0.5 rounded ${dropTarget === folder.id ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-300' : ''}`}
+              onDrop={onDrop ? e => onDrop(e, i) : undefined}
+              className={`hover:text-blue-600 transition-colors px-1.5 py-0.5 rounded ${dropTarget === i ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-300' : ''}`}
             >
-              {folder.name}
+              {item.label}
             </button>
           ) : (
-            <span className="text-gray-900 font-medium px-1.5 py-0.5">{folder.name}</span>
+            <span className="text-gray-900 font-medium px-1.5 py-0.5">{item.label}</span>
           )}
         </span>
       ))}
     </nav>
+  );
+}
+
+// ─── Вкладка «Учебники» ──────────────────────────────────────────────────
+
+interface TextbooksTabProps {
+  isStaff: boolean;
+}
+
+function TextbooksTab({ isStaff }: TextbooksTabProps) {
+  const { user } = useAuth();
+  const [gradeLevels, setGradeLevels] = useState<TextbookGradeLevel[]>([]);
+  const [selectedGL, setSelectedGL] = useState<TextbookGradeLevel | null>(null);
+  const [textbooks, setTextbooks] = useState<Textbook[]>([]);
+  const [loadingGLs, setLoadingGLs] = useState(true);
+  const [loadingBooks, setLoadingBooks] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [viewingTextbook, setViewingTextbook] = useState<Textbook | null>(null);
+
+  // Загружаем параллели
+  useEffect(() => {
+    setLoadingGLs(true);
+    api.get('/lessons/textbooks/grade-levels/').then(res => {
+      const data: TextbookGradeLevel[] = res.data;
+      setGradeLevels(data);
+      // Ученик или родитель с одной параллелью — сразу переходим
+      if (data.length === 1) {
+        setSelectedGL(data[0]);
+      }
+    }).catch(() => {}).finally(() => setLoadingGLs(false));
+  }, []);
+
+  // Загружаем учебники при выборе параллели
+  useEffect(() => {
+    if (!selectedGL) return;
+    setLoadingBooks(true);
+    api.get(`/lessons/textbooks/?grade_level_id=${selectedGL.id}`).then(res => {
+      setTextbooks(res.data);
+    }).catch(() => {}).finally(() => setLoadingBooks(false));
+  }, [selectedGL]);
+
+  const handleDeleteTextbook = async (tb: Textbook) => {
+    if (!confirm(`Удалить учебник «${tb.title}»?`)) return;
+    await api.delete(`/lessons/textbooks/${tb.id}/`);
+    setTextbooks(prev => prev.filter(t => t.id !== tb.id));
+  };
+
+  const handleUploaded = (tb: Textbook) => {
+    setShowUploadModal(false);
+    if (selectedGL && tb.grade_levels_data.some(g => g.id === selectedGL.id)) {
+      setTextbooks(prev => [tb, ...prev]);
+    }
+  };
+
+  const breadcrumbItems = [
+    { label: 'Учебники', onClick: () => setSelectedGL(null) },
+    ...(selectedGL ? [{ label: selectedGL.name, onClick: () => {} }] : []),
+  ];
+
+  if (loadingGLs) {
+    return <div className="text-center text-gray-400 py-16">Загрузка...</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Шапка с хлебными крошками и кнопкой */}
+      <div className="flex items-center justify-between gap-4">
+        {selectedGL && gradeLevels.length > 1 ? (
+          <Breadcrumbs items={breadcrumbItems} />
+        ) : selectedGL ? (
+          <div className="text-sm text-gray-500">
+            Параллель: <span className="font-medium text-gray-900">{selectedGL.name}</span>
+          </div>
+        ) : (
+          <div />
+        )}
+        {isStaff && (
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <IconPlus />
+            Учебник
+          </button>
+        )}
+      </div>
+
+      {/* Список параллелей */}
+      {!selectedGL && (
+        gradeLevels.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="text-4xl mb-3">📚</div>
+            <p className="text-gray-500 text-sm">
+              {user?.is_student ? 'Вы не привязаны к классу' : 'Нет доступных параллелей'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {gradeLevels.map(gl => (
+              <GradeLevelCard key={gl.id} gradeLevel={gl} onClick={() => setSelectedGL(gl)} />
+            ))}
+          </div>
+        )
+      )}
+
+      {/* Список учебников */}
+      {selectedGL && (
+        loadingBooks ? (
+          <div className="text-center text-gray-400 py-16">Загрузка...</div>
+        ) : textbooks.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="text-4xl mb-3">📖</div>
+            <p className="text-gray-500 text-sm">Учебники для этой параллели ещё не загружены</p>
+            {isStaff && (
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="mt-4 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Загрузить учебник
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {textbooks.map(tb => (
+              <TextbookCard
+                key={tb.id}
+                textbook={tb}
+                isStaff={isStaff}
+                onDelete={() => handleDeleteTextbook(tb)}
+                onOpen={() => setViewingTextbook(tb)}
+              />
+            ))}
+          </div>
+        )
+      )}
+
+      {showUploadModal && (
+        <TextbookUploadModal
+          onSave={handleUploaded}
+          onClose={() => setShowUploadModal(false)}
+        />
+      )}
+
+      {viewingTextbook && viewingTextbook.file_url && (
+        <TextbookViewer
+          title={viewingTextbook.title}
+          fileUrl={viewingTextbook.file_url}
+          onClose={() => setViewingTextbook(null)}
+        />
+      )}
+    </div>
   );
 }
 
@@ -466,16 +910,20 @@ function Breadcrumbs({ path, onNavigate, dropTarget, onDragOver, onDragLeave, on
 export default function LessonsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isStaff = user?.is_admin || user?.is_teacher;
+  const isStaff = !!(user?.is_admin || user?.is_teacher);
 
-  // Вкладка: mine | all
-  const [tab, setTab] = useState<'mine' | 'all'>('mine');
+  // Вкладка
+  const [tab, setTab] = useState<'mine' | 'all' | 'textbooks' | 'assignments'>('mine');
 
-  // Навигация по папкам (стек пути)
+  // Навигация по папкам (стек пути) — для mine и all
   const [folderPath, setFolderPath] = useState<LessonFolder[]>([]);
   const currentFolder = folderPath[folderPath.length - 1] ?? null;
 
-  // Активные сессии (для студентов — их класс, для staff — все)
+  // Для вкладки «Все уроки» — выбранный учитель
+  const [allTabTeacher, setAllTabTeacher] = useState<{ id: number; name: string } | null>(null);
+  const [teachersOverview, setTeachersOverview] = useState<TeacherLessonsOverview[]>([]);
+
+  // Активные сессии
   const [activeSessions, setActiveSessions] = useState<LessonSession[]>([]);
 
   useEffect(() => {
@@ -498,6 +946,16 @@ export default function LessonsPage() {
   // Ошибка
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Задания (выданные уроки)
+  const [assignments, setAssignments] = useState<LessonAssignment[]>([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
+  const [issuingLesson, setIssuingLesson] = useState<Lesson | null>(null);
+  const [issueClasses, setIssueClasses] = useState<SchoolClass[]>([]);
+  const [issueTargetType, setIssueTargetType] = useState<'class' | 'student'>('class');
+  const [issueClassId, setIssueClassId] = useState<number | null>(null);
+  const [issueDueDate, setIssueDueDate] = useState('');
+  const [issueLoading, setIssueLoading] = useState(false);
+
   // Импорт презентации
   const importFileRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
@@ -505,36 +963,80 @@ export default function LessonsPage() {
   // Drag-and-drop
   const [dragItem, setDragItem] = useState<DragItem | null>(null);
   const [dropTargetFolderId, setDropTargetFolderId] = useState<number | null>(null);
-  // null = нет цели, -1 = корень, N = папка
   const [dropTargetBreadcrumb, setDropTargetBreadcrumb] = useState<number | null>(null);
 
+  // Load assignments
+  useEffect(() => {
+    if (tab !== 'assignments') return;
+    setAssignmentsLoading(true);
+    api.get('/lessons/assignments/').then(r => setAssignments(r.data)).catch(() => {}).finally(() => setAssignmentsLoading(false));
+  }, [tab]);
+
+  // Load classes for issue modal
+  useEffect(() => {
+    if (!issuingLesson) return;
+    api.get('/school/classes/').then(r => setIssueClasses(r.data)).catch(() => {});
+  }, [issuingLesson]);
+
+  const handleIssueLesson = async () => {
+    if (!issuingLesson || (!issueClassId && issueTargetType === 'class')) return;
+    setIssueLoading(true);
+    try {
+      await api.post('/lessons/assignments/', {
+        lesson: issuingLesson.id,
+        school_class: issueTargetType === 'class' ? issueClassId : null,
+        due_date: issueDueDate || null,
+      });
+      setIssuingLesson(null);
+      setIssueClassId(null);
+      setIssueDueDate('');
+    } catch { /* ignore */ } finally { setIssueLoading(false); }
+  };
+
   const load = useCallback(async () => {
+    if (tab === 'textbooks' || tab === 'assignments') return;
+    if (!isStaff) { setFolders([]); setLessons([]); setLoading(false); return; }
     setLoading(true);
     try {
       if (tab === 'all') {
-        const res = await api.get('/lessons/lessons/?tab=all');
-        setFolders([]);
-        setLessons(res.data);
-      } else if (currentFolder) {
-        const res = await api.get(`/lessons/folders/${currentFolder.id}/contents/`);
-        const data: FolderContents = res.data;
-        setFolders(data.subfolders);
-        setLessons(data.lessons);
+        if (!allTabTeacher) {
+          const res = await api.get('/lessons/school-overview/');
+          setTeachersOverview(res.data);
+          setFolders([]);
+          setLessons([]);
+        } else if (!currentFolder) {
+          const res = await api.get(`/lessons/teacher-root/?teacher_id=${allTabTeacher.id}`);
+          const data: TeacherRootContent = res.data;
+          setFolders(data.folders);
+          setLessons(data.lessons);
+        } else {
+          const res = await api.get(`/lessons/folders/${currentFolder.id}/contents/`);
+          const data: FolderContents = res.data;
+          setFolders(data.subfolders);
+          setLessons(data.lessons);
+        }
       } else {
-        // Корень — мои папки и уроки без папки
-        const [foldersRes, lessonsRes] = await Promise.all([
-          api.get('/lessons/folders/'),
-          api.get('/lessons/lessons/?tab=mine'),
-        ]);
-        setFolders(foldersRes.data);
-        setLessons(lessonsRes.data);
+        // mine
+        if (currentFolder) {
+          const res = await api.get(`/lessons/folders/${currentFolder.id}/contents/`);
+          const data: FolderContents = res.data;
+          setFolders(data.subfolders);
+          setLessons(data.lessons);
+        } else {
+          const [foldersRes, lessonsRes] = await Promise.all([
+            api.get('/lessons/folders/'),
+            api.get('/lessons/lessons/?tab=mine'),
+          ]);
+          setFolders(foldersRes.data);
+          setLessons(lessonsRes.data);
+        }
       }
     } catch {
       // ignore
     } finally {
       setLoading(false);
     }
-  }, [tab, currentFolder]);
+  }, [tab, allTabTeacher, currentFolder]);
 
   useEffect(() => {
     load();
@@ -543,6 +1045,8 @@ export default function LessonsPage() {
   // Сброс навигации при смене вкладки
   useEffect(() => {
     setFolderPath([]);
+    setAllTabTeacher(null);
+    setTeachersOverview([]);
   }, [tab]);
 
   // Навигация в папку
@@ -551,12 +1055,23 @@ export default function LessonsPage() {
   };
 
   // Навигация по хлебным крошкам
-  const navigateTo = (folder: LessonFolder | null) => {
-    if (!folder) {
+  const navigateTo = (idx: number) => {
+    if (idx === 0) {
+      // «Мои уроки» или «Все уроки» корень
+      if (tab === 'all' && allTabTeacher) {
+        setFolderPath([]);
+        // idx=0 — корень учителей, idx=1 — учитель
+        setAllTabTeacher(null);
+      } else {
+        setFolderPath([]);
+      }
+    } else if (tab === 'all' && allTabTeacher && idx === 1) {
+      // Перешли на уровень учителя
       setFolderPath([]);
     } else {
-      const idx = folderPath.findIndex(f => f.id === folder.id);
-      setFolderPath(folderPath.slice(0, idx + 1));
+      // Папка в стеке: idx в хлебных крошках соответствует folderPath[idx-offset]
+      const pathIdx = tab === 'all' && allTabTeacher ? idx - 2 : idx - 1;
+      setFolderPath(prev => prev.slice(0, pathIdx + 1));
     }
   };
 
@@ -659,7 +1174,7 @@ export default function LessonsPage() {
     const item = dragItem;
     setDragItem(null);
     if (!item) return;
-    if (item.type === 'folder' && item.id === targetFolderId) return; // нельзя в себя
+    if (item.type === 'folder' && item.id === targetFolderId) return;
     try {
       if (item.type === 'lesson') {
         await api.put(`/lessons/lessons/${item.id}/`, { folder: targetFolderId });
@@ -672,10 +1187,10 @@ export default function LessonsPage() {
     }
   };
 
-  const handleDragOverBreadcrumb = (e: React.DragEvent, folderId: number | null) => {
+  const handleDragOverBreadcrumb = (e: React.DragEvent, idx: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    setDropTargetBreadcrumb(folderId === null ? -1 : folderId);
+    setDropTargetBreadcrumb(idx);
     setDropTargetFolderId(null);
   };
 
@@ -683,17 +1198,20 @@ export default function LessonsPage() {
     setDropTargetBreadcrumb(null);
   };
 
-  const handleDropOnBreadcrumb = async (e: React.DragEvent, targetFolderId: number | null) => {
+  const handleDropOnBreadcrumb = async (e: React.DragEvent, idx: number) => {
     e.preventDefault();
     setDropTargetBreadcrumb(null);
     const item = dragItem;
     setDragItem(null);
     if (!item) return;
+    // idx=0 → корень (folder=null), idx>0 → папка в пути [idx-1]
+    const targetFolder = idx === 0 ? null : folderPath[idx - 1];
+    const targetFolderId = targetFolder?.id ?? null;
     try {
       if (item.type === 'lesson') {
-        await api.put(`/lessons/lessons/${item.id}/`, { folder: targetFolderId ?? null });
+        await api.put(`/lessons/lessons/${item.id}/`, { folder: targetFolderId });
       } else {
-        await api.put(`/lessons/folders/${item.id}/`, { parent: targetFolderId ?? null });
+        await api.put(`/lessons/folders/${item.id}/`, { parent: targetFolderId });
       }
       load();
     } catch {
@@ -701,7 +1219,44 @@ export default function LessonsPage() {
     }
   };
 
-  const isEmpty = !loading && folders.length === 0 && lessons.length === 0;
+  // Хлебные крошки для mine/all
+  const buildBreadcrumbs = () => {
+    if (tab === 'mine') {
+      return [
+        { label: 'Мои уроки', onClick: () => navigateTo(0) },
+        ...folderPath.map((f, i) => ({ label: f.name, onClick: () => navigateTo(i + 1) })),
+      ];
+    }
+    // all
+    const items = [{ label: 'Все уроки', onClick: () => navigateTo(0) }];
+    if (allTabTeacher) {
+      items.push({ label: allTabTeacher.name, onClick: () => navigateTo(1) });
+      folderPath.forEach((f, i) => items.push({ label: f.name, onClick: () => navigateTo(i + 2) }));
+    }
+    return items;
+  };
+
+  const breadcrumbs = buildBreadcrumbs();
+  const showBreadcrumbs = tab !== 'textbooks' && breadcrumbs.length > 1;
+  const isReadonlyView = tab === 'all'; // В «Все уроки» нет редактирования чужих папок
+
+  const isEmpty = !loading && folders.length === 0 && lessons.length === 0
+    && (tab !== 'all' || allTabTeacher !== null || teachersOverview.length === 0);
+
+  const isTeachersRoot = tab === 'all' && !allTabTeacher;
+
+  const tabs: { key: 'mine' | 'all' | 'textbooks' | 'assignments'; label: string }[] = isStaff
+    ? [
+        { key: 'mine', label: 'Мои уроки' },
+        { key: 'all', label: 'Все уроки' },
+        { key: 'textbooks', label: 'Учебники' },
+        { key: 'assignments', label: 'Выданные' },
+      ]
+    : [
+        { key: 'mine', label: 'Уроки' },
+        { key: 'assignments', label: 'Задания' },
+        { key: 'textbooks', label: 'Учебники' },
+      ];
 
   return (
     <div className="space-y-6">
@@ -735,9 +1290,7 @@ export default function LessonsPage() {
               className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
               title="Импорт PDF или PPTX"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-              </svg>
+              <IconDownload />
               {importing ? 'Импорт...' : 'Импорт'}
             </button>
             <input
@@ -759,36 +1312,82 @@ export default function LessonsPage() {
       </div>
 
       {/* Вкладки */}
-      {isStaff && (
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
-          {(['mine', 'all'] as const).map(t => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-4 py-1.5 text-sm rounded-md font-medium transition-colors ${
-                tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {t === 'mine' ? 'Мои уроки' : 'Все уроки'}
-            </button>
-          ))}
+      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+        {tabs.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-4 py-1.5 text-sm rounded-md font-medium transition-colors ${
+              tab === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Вкладка учебники */}
+      {tab === 'textbooks' && <TextbooksTab isStaff={isStaff} />}
+
+      {/* Вкладка задания */}
+      {tab === 'assignments' && (
+        <div>
+          {assignmentsLoading ? (
+            <div className="text-center text-gray-400 py-16">Загрузка…</div>
+          ) : assignments.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="text-4xl mb-3">📋</div>
+              <p className="text-gray-500">{isStaff ? 'Вы ещё не выдавали уроки' : 'Вам не выданы уроки'}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {assignments.map(a => (
+                <div key={a.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-sm transition-all">
+                  <div className="h-16 flex items-center justify-center" style={{ backgroundColor: a.lesson_cover_color }}>
+                    <span className="text-white opacity-60 text-2xl">📖</span>
+                  </div>
+                  <div className="p-4 space-y-1">
+                    <div className="font-medium text-gray-900 text-sm truncate">{a.lesson_title}</div>
+                    {a.school_class_name && <div className="text-xs text-gray-500">Класс: {a.school_class_name}</div>}
+                    {a.due_date && <div className="text-xs text-gray-500">Срок: {new Date(a.due_date).toLocaleString('ru', { day: 'numeric', month: 'long' })}</div>}
+                    {isStaff && <div className="text-xs text-gray-400">Выдано: {new Date(a.created_at).toLocaleDateString('ru')}</div>}
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={() => navigate(`/lessons/self-paced/${a.lesson}`)}
+                        className="flex-1 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+                      >
+                        {isStaff ? 'Открыть' : 'Начать'}
+                      </button>
+                      {isStaff && (
+                        <button
+                          onClick={async () => { await api.delete(`/lessons/assignments/${a.id}/`); setAssignments(prev => prev.filter(x => x.id !== a.id)); }}
+                          className="px-3 py-1.5 border border-red-200 text-red-500 text-xs font-medium rounded-lg hover:bg-red-50 transition-colors"
+                        >
+                          Отозвать
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Хлебные крошки (только для вкладки «Мои») */}
-      {tab === 'mine' && folderPath.length > 0 && (
+      {/* Хлебные крошки */}
+      {showBreadcrumbs && (
         <Breadcrumbs
-          path={folderPath}
-          onNavigate={navigateTo}
-          dropTarget={dropTargetBreadcrumb}
-          onDragOver={handleDragOverBreadcrumb}
-          onDragLeave={handleDragLeaveBreadcrumb}
-          onDrop={handleDropOnBreadcrumb}
+          items={breadcrumbs}
+          dropTarget={tab === 'mine' ? dropTargetBreadcrumb : undefined}
+          onDragOver={tab === 'mine' ? handleDragOverBreadcrumb : undefined}
+          onDragLeave={tab === 'mine' ? handleDragLeaveBreadcrumb : undefined}
+          onDrop={tab === 'mine' ? handleDropOnBreadcrumb : undefined}
         />
       )}
 
       {/* Активные уроки */}
-      {activeSessions.length > 0 && (
+      {tab !== 'textbooks' && activeSessions.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
             <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse inline-block" />
@@ -823,62 +1422,89 @@ export default function LessonsPage() {
         </div>
       )}
 
-      {/* Содержимое */}
-      {loading ? (
-        <div className="text-center text-gray-400 py-16">Загрузка...</div>
-      ) : isEmpty ? (
-        <div className="text-center py-16">
-          <div className="text-4xl mb-3">📂</div>
-          <p className="text-gray-500 text-sm">
-            {tab === 'all'
-              ? 'В школе ещё нет ни одного урока'
-              : currentFolder
-              ? 'Папка пуста'
-              : 'У вас пока нет уроков'}
-          </p>
-          {isStaff && tab === 'mine' && (
-            <button
-              onClick={() => setShowLessonModal(true)}
-              className="mt-4 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Создать первый урок
-            </button>
+      {/* Содержимое mine/all */}
+      {tab !== 'textbooks' && (
+        <>
+          {/* Корень «Все уроки» — карточки учителей */}
+          {isTeachersRoot && (
+            loading ? (
+              <div className="text-center text-gray-400 py-16">Загрузка...</div>
+            ) : teachersOverview.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="text-4xl mb-3">📂</div>
+                <p className="text-gray-500 text-sm">В школе ещё нет ни одного урока</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                {teachersOverview.map(t => (
+                  <TeacherCard
+                    key={t.teacher_id}
+                    teacher={t}
+                    onClick={() => setAllTabTeacher({ id: t.teacher_id, name: t.teacher_name })}
+                  />
+                ))}
+              </div>
+            )
           )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {/* Папки */}
-          {folders.map(folder => (
-            <FolderCard
-              key={`folder-${folder.id}`}
-              folder={folder}
-              isOwner={folder.owner === user?.id}
-              isDropTarget={dropTargetFolderId === folder.id}
-              onClick={() => openFolder(folder)}
-              onRename={() => setEditingFolder(folder)}
-              onDelete={() => handleDeleteFolder(folder)}
-              onDragStart={e => handleDragStart(e, { type: 'folder', id: folder.id })}
-              onDragOver={e => handleDragOverFolder(e, folder.id)}
-              onDragLeave={handleDragLeaveFolder}
-              onDrop={e => handleDropOnFolder(e, folder.id)}
-            />
-          ))}
 
-          {/* Уроки */}
-          {lessons.map(lesson => (
-            <LessonCard
-              key={`lesson-${lesson.id}`}
-              lesson={lesson}
-              showOwner={tab === 'all'}
-              isStaff={!!isStaff}
-              onOpen={() => navigate(`/lessons/${lesson.id}/edit`)}
-              onDuplicate={() => handleDuplicate(lesson)}
-              onDelete={() => handleDeleteLesson(lesson)}
-              onStart={() => setStartingLesson(lesson)}
-              onDragStart={e => handleDragStart(e, { type: 'lesson', id: lesson.id })}
-            />
-          ))}
-        </div>
+          {/* Папки и уроки (mine + all inside teacher) */}
+          {!isTeachersRoot && isStaff && (
+            loading ? (
+              <div className="text-center text-gray-400 py-16">Загрузка...</div>
+            ) : (folders.length === 0 && lessons.length === 0) ? (
+              <div className="text-center py-16">
+                <div className="text-4xl mb-3">📂</div>
+                <p className="text-gray-500 text-sm">
+                  {currentFolder ? 'Папка пуста' : 'У вас пока нет уроков'}
+                </p>
+                {isStaff && tab === 'mine' && (
+                  <button
+                    onClick={() => setShowLessonModal(true)}
+                    className="mt-4 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Создать первый урок
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                {/* Папки */}
+                {folders.map(folder => (
+                  <FolderCard
+                    key={`folder-${folder.id}`}
+                    folder={folder}
+                    isOwner={!isReadonlyView && folder.owner === user?.id}
+                    isDropTarget={dropTargetFolderId === folder.id}
+                    onClick={() => openFolder(folder)}
+                    onRename={() => setEditingFolder(folder)}
+                    onDelete={() => handleDeleteFolder(folder)}
+                    onDragStart={e => handleDragStart(e, { type: 'folder', id: folder.id })}
+                    onDragOver={e => handleDragOverFolder(e, folder.id)}
+                    onDragLeave={handleDragLeaveFolder}
+                    onDrop={e => handleDropOnFolder(e, folder.id)}
+                  />
+                ))}
+
+                {/* Уроки */}
+                {lessons.map(lesson => (
+                  <LessonCard
+                    key={`lesson-${lesson.id}`}
+                    lesson={lesson}
+                    showOwner={isReadonlyView}
+                    isStaff={isStaff}
+                    readonly={isReadonlyView}
+                    onOpen={() => navigate(`/lessons/${lesson.id}/edit`)}
+                    onDuplicate={() => handleDuplicate(lesson)}
+                    onDelete={() => handleDeleteLesson(lesson)}
+                    onStart={() => setStartingLesson(lesson)}
+                    onIssue={isStaff ? () => setIssuingLesson(lesson) : undefined}
+                    onDragStart={e => handleDragStart(e, { type: 'lesson', id: lesson.id })}
+                  />
+                ))}
+              </div>
+            )
+          )}
+        </>
       )}
 
       {/* Модалы */}
@@ -913,6 +1539,63 @@ export default function LessonsPage() {
           lessonTitle={startingLesson.title}
           onClose={() => setStartingLesson(null)}
         />
+      )}
+
+      {/* Модал "Выдать урок" */}
+      {issuingLesson && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setIssuingLesson(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold text-gray-900">Выдать урок</h2>
+            <p className="text-sm text-gray-500 truncate">📖 {issuingLesson.title}</p>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Получатель</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIssueTargetType('class')}
+                  className={`flex-1 py-1.5 text-sm rounded-lg border ${issueTargetType === 'class' ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Весь класс
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Класс</label>
+              <select
+                value={issueClassId ?? ''}
+                onChange={e => setIssueClassId(Number(e.target.value) || null)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+              >
+                <option value="">— выберите класс —</option>
+                {issueClasses.map(c => <option key={c.id} value={c.id}>{c.display_name}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Срок выполнения (опционально)</label>
+              <input
+                type="datetime-local"
+                value={issueDueDate}
+                onChange={e => setIssueDueDate(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setIssuingLesson(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
+                Отмена
+              </button>
+              <button
+                onClick={handleIssueLesson}
+                disabled={issueLoading || !issueClassId}
+                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                {issueLoading ? 'Выдаём…' : 'Выдать'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Оверлей импорта */}

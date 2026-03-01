@@ -20,7 +20,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'first_name', 'last_name', 'email', 'phone', 'birth_date',
-            'is_admin', 'is_teacher', 'is_parent', 'is_student',
+            'is_admin', 'is_teacher', 'is_parent', 'is_student', 'is_spps',
             'must_change_password', 'temp_password', 'roles', 'curated_classes',
         ]
         read_only_fields = ['id', 'must_change_password', 'temp_password']
@@ -36,7 +36,7 @@ class UserCreateSerializer(serializers.Serializer):
     phone = serializers.CharField(required=False, default='')
     birth_date = serializers.DateField(required=False, default=None, allow_null=True)
     roles = serializers.ListField(
-        child=serializers.ChoiceField(choices=['admin', 'teacher', 'parent', 'student']),
+        child=serializers.ChoiceField(choices=['admin', 'teacher', 'parent', 'student', 'spps']),
         required=False, default=[]
     )
 
@@ -51,7 +51,7 @@ class UserListSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'first_name', 'last_name', 'email', 'phone', 'birth_date',
-            'is_admin', 'is_teacher', 'is_parent', 'is_student',
+            'is_admin', 'is_teacher', 'is_parent', 'is_student', 'is_spps',
             'must_change_password', 'temp_password', 'roles', 'curated_classes',
         ]
 
@@ -70,10 +70,11 @@ class ParentChildSerializer(serializers.Serializer):
     student_profile_id = serializers.IntegerField(source='id')
     first_name = serializers.CharField(source='user.first_name')
     last_name = serializers.CharField(source='user.last_name')
+    school_class_id = serializers.IntegerField(source='school_class_id', allow_null=True)
     school_class_name = serializers.SerializerMethodField()
 
     def get_school_class_name(self, obj):
-        return str(obj.school_class)
+        return str(obj.school_class) if obj.school_class else ''
 
 
 class ParentSerializer(serializers.ModelSerializer):

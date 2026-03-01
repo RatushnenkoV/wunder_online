@@ -40,9 +40,12 @@ function useIsMobile(breakpoint = 768) {
 export default function SchedulePage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const isStudent = !!(user?.is_student && !user?.is_teacher && !user?.is_admin);
   const [mainTab, setMainTab] = useState<MainTab>('schedule');
   const [viewMode, setViewMode] = useState<ViewMode>(user?.is_teacher ? 'teacher' : 'class');
-  const [selectedId, setSelectedId] = useState<number | null>(user?.is_teacher ? user.id : null);
+  const [selectedId, setSelectedId] = useState<number | null>(
+    user?.is_teacher ? user.id : isStudent ? (user?.school_class_id ?? null) : null
+  );
   const [lessons, setLessons] = useState<ScheduleLesson[]>([]);
   const [allLessons, setAllLessons] = useState<ScheduleLesson[]>([]);
   const [editing, setEditing] = useState(false);
@@ -260,7 +263,7 @@ export default function SchedulePage() {
 
       {/* Main tabs */}
       <div className="flex gap-1 mb-6 border-b">
-        {([['schedule', 'Расписание'], ['substitutions', 'Замены']] as [MainTab, string][]).map(([key, label]) => (
+        {([['schedule', 'Расписание'], ...(!isStudent ? [['substitutions', 'Замены']] : [])] as [MainTab, string][]).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setMainTab(key)}
@@ -316,32 +319,38 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      <div className="flex gap-4 mb-6 flex-wrap">
-        <div className="flex rounded-lg overflow-hidden border">
-          {VIEW_MODES.map(m => (
-            <button
-              key={m.key}
-              onClick={() => { setViewMode(m.key); setSelectedId(null); setEditing(false); }}
-              className={`px-4 py-2 text-sm ${
-                viewMode === m.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
+      {isStudent ? (
+        <div className="mb-4 text-sm text-gray-600">
+          Расписание класса: <strong>{user?.school_class_name ?? '—'}</strong>
         </div>
+      ) : (
+        <div className="flex gap-4 mb-6 flex-wrap">
+          <div className="flex rounded-lg overflow-hidden border">
+            {VIEW_MODES.map(m => (
+              <button
+                key={m.key}
+                onClick={() => { setViewMode(m.key); setSelectedId(null); setEditing(false); }}
+                className={`px-4 py-2 text-sm ${
+                  viewMode === m.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
 
-        <select
-          value={selectedId ?? ''}
-          onChange={e => { setSelectedId(e.target.value ? Number(e.target.value) : null); setEditing(false); }}
-          className="border rounded px-3 py-2 text-sm min-w-[200px]"
-        >
-          <option value="">-- Выберите --</option>
-          {currentOptions.map(o => (
-            <option key={o.id} value={o.id}>{o.label}</option>
-          ))}
-        </select>
-      </div>
+          <select
+            value={selectedId ?? ''}
+            onChange={e => { setSelectedId(e.target.value ? Number(e.target.value) : null); setEditing(false); }}
+            className="border rounded px-3 py-2 text-sm min-w-[200px]"
+          >
+            <option value="">-- Выберите --</option>
+            {currentOptions.map(o => (
+              <option key={o.id} value={o.id}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {displayMode === 'day' && selectedId && (
         <div className="flex gap-1 mb-4">

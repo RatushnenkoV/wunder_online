@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Lesson, LessonFolder, Slide, LessonMedia, LessonSession
+from .models import Lesson, LessonFolder, Slide, LessonMedia, LessonSession, Textbook, LessonAssignment
 
 
 class LessonFolderSerializer(serializers.ModelSerializer):
@@ -126,3 +126,73 @@ class LessonMediaSerializer(serializers.ModelSerializer):
         if request:
             return request.build_absolute_uri(obj.file.url)
         return obj.file.url
+
+
+class TextbookSerializer(serializers.ModelSerializer):
+    subject_name = serializers.SerializerMethodField()
+    grade_levels_data = serializers.SerializerMethodField()
+    file_url = serializers.SerializerMethodField()
+    uploaded_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Textbook
+        fields = [
+            'id', 'title', 'file_url', 'original_name', 'file_size',
+            'subject', 'subject_name',
+            'grade_levels_data',
+            'uploaded_by', 'uploaded_by_name',
+            'created_at',
+        ]
+        read_only_fields = ['uploaded_by', 'created_at']
+
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+        if obj.file:
+            return request.build_absolute_uri(obj.file.url) if request else obj.file.url
+        return None
+
+    def get_subject_name(self, obj):
+        return obj.subject.name if obj.subject else None
+
+    def get_grade_levels_data(self, obj):
+        return [{'id': gl.id, 'number': gl.number, 'name': str(gl)} for gl in obj.grade_levels.all()]
+
+    def get_uploaded_by_name(self, obj):
+        if obj.uploaded_by:
+            return f'{obj.uploaded_by.last_name} {obj.uploaded_by.first_name}'.strip()
+        return ''
+
+
+class LessonAssignmentSerializer(serializers.ModelSerializer):
+    lesson_title = serializers.CharField(source='lesson.title', read_only=True)
+    lesson_cover_color = serializers.CharField(source='lesson.cover_color', read_only=True)
+    lesson_slides_count = serializers.SerializerMethodField()
+    assigned_by_name = serializers.SerializerMethodField()
+    school_class_name = serializers.SerializerMethodField()
+    student_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LessonAssignment
+        fields = [
+            'id', 'lesson', 'lesson_title', 'lesson_cover_color', 'lesson_slides_count',
+            'school_class', 'school_class_name',
+            'student', 'student_name',
+            'assigned_by', 'assigned_by_name',
+            'due_date', 'created_at',
+        ]
+        read_only_fields = ['assigned_by', 'created_at']
+
+    def get_lesson_slides_count(self, obj):
+        return obj.lesson.slides.count() if obj.lesson else 0
+
+    def get_assigned_by_name(self, obj):
+        u = obj.assigned_by
+        return f'{u.last_name} {u.first_name}'.strip() if u else ''
+
+    def get_school_class_name(self, obj):
+        return str(obj.school_class) if obj.school_class else None
+
+    def get_student_name(self, obj):
+        if obj.student:
+            return f'{obj.student.last_name} {obj.student.first_name}'.strip()
+        return None

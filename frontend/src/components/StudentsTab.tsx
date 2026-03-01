@@ -31,7 +31,7 @@ interface ParentForm {
   birth_date: string;
 }
 
-export default function StudentsTab() {
+export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }) {
   const [students, setStudents] = useState<StudentUser[]>([]);
   const [pagination, setPagination] = useState({ page: 1, per_page: 25, total: 0, pages: 1 });
   const [filters, setFilters] = useState({ last_name: '', first_name: '', email: '', phone: '', school_class: '' });
@@ -339,9 +339,11 @@ export default function StudentsTab() {
             </button>
           ))}
         </div>
-        <button onClick={() => { setRows([emptyRow()]); setShowCreate(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
-          + Добавить
-        </button>
+        {!readOnly && (
+          <button onClick={() => { setRows([emptyRow()]); setShowCreate(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+            + Добавить
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -377,42 +379,46 @@ export default function StudentsTab() {
                   {classes.map(c => <option key={c.id} value={c.id}>{c.display_name}</option>)}
                 </select>
               </th>
-              <th className="px-4 py-2 text-left font-medium text-gray-600">Врем. пароль</th>
-              <th className="w-10"></th>
+              {!readOnly && <th className="px-4 py-2 text-left font-medium text-gray-600">Врем. пароль</th>}
+              {!readOnly && <th className="w-10"></th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {students.map(u => (
               <tr
                 key={u.id}
-                className="hover:bg-gray-50 cursor-pointer"
-                onClick={() => openEdit(u)}
-                onContextMenu={e => { e.preventDefault(); openContextMenu(u, e.clientX, e.clientY); }}
+                className={`hover:bg-gray-50 ${!readOnly ? 'cursor-pointer' : ''}`}
+                onClick={() => !readOnly && openEdit(u)}
+                onContextMenu={e => { e.preventDefault(); if (!readOnly) openContextMenu(u, e.clientX, e.clientY); }}
               >
                 <td className="px-4 py-2">{u.last_name}</td>
                 <td className="px-4 py-2">{u.first_name}</td>
                 <td className="px-4 py-2 text-gray-500">{u.email || '—'}</td>
                 <td className="px-4 py-2 text-gray-500">{u.phone || '—'}</td>
                 <td className="px-4 py-2 text-gray-500">{u.school_class_name || '—'}</td>
-                <td className="px-4 py-2" onClick={e => e.stopPropagation()}>
-                  {u.must_change_password && u.temp_password ? (
+                {!readOnly && (
+                  <td className="px-4 py-2" onClick={e => e.stopPropagation()}>
+                    {u.must_change_password && u.temp_password ? (
+                      <button
+                        onClick={() => copyToClipboard(u.temp_password!, `temp_${u.id}`)}
+                        className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs font-mono hover:bg-yellow-100 transition-colors cursor-copy"
+                        title="Нажмите, чтобы скопировать"
+                      >
+                        {copiedField === `temp_${u.id}` ? '✓ Скопировано' : u.temp_password}
+                      </button>
+                    ) : '—'}
+                  </td>
+                )}
+                {!readOnly && (
+                  <td className="px-2 py-2 text-center">
                     <button
-                      onClick={() => copyToClipboard(u.temp_password!, `temp_${u.id}`)}
-                      className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs font-mono hover:bg-yellow-100 transition-colors cursor-copy"
-                      title="Нажмите, чтобы скопировать"
+                      onClick={e => { e.stopPropagation(); openContextMenu(u, e.clientX, e.clientY); }}
+                      className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
                     >
-                      {copiedField === `temp_${u.id}` ? '✓ Скопировано' : u.temp_password}
+                      &#8942;
                     </button>
-                  ) : '—'}
-                </td>
-                <td className="px-2 py-2 text-center">
-                  <button
-                    onClick={e => { e.stopPropagation(); openContextMenu(u, e.clientX, e.clientY); }}
-                    className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
-                  >
-                    &#8942;
-                  </button>
-                </td>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

@@ -66,6 +66,14 @@ def change_password_view(request):
 def me_view(request):
     if request.method == 'GET':
         data = UserSerializer(request.user).data
+        if request.user.is_student:
+            try:
+                sp = request.user.student_profile
+                data['school_class_id'] = sp.school_class_id
+                data['school_class_name'] = str(sp.school_class) if sp.school_class else ''
+            except Exception:
+                data['school_class_id'] = None
+                data['school_class_name'] = ''
         if request.user.is_parent:
             try:
                 children_qs = request.user.parent_profile.children.select_related(
@@ -151,6 +159,7 @@ def staff_list_create(request):
                 'admin': {'is_admin': True},
                 'teacher': {'is_teacher': True},
                 'parent': {'is_parent': True},
+                'spps': {'is_spps': True},
             }
             if role in filter_map:
                 users = users.filter(**filter_map[role])
@@ -201,8 +210,10 @@ def staff_list_create(request):
 # --- Students (ученики) ---
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAdmin, PasswordChanged])
+@permission_classes([IsAdminOrTeacher, PasswordChanged])
 def student_list_create(request):
+    if request.method == 'POST' and not request.user.is_admin:
+        return Response({'detail': 'Недостаточно прав.'}, status=status.HTTP_403_FORBIDDEN)
     if request.method == 'GET':
         users = User.objects.filter(is_student=True)
         users = _apply_user_filters(users, request)
@@ -339,6 +350,7 @@ def user_detail_view(request, pk):
             user.is_teacher = 'teacher' in roles
             user.is_parent = 'parent' in roles
             user.is_student = 'student' in roles
+            user.is_spps = 'spps' in roles
             user.is_staff = user.is_admin
 
         user.save()

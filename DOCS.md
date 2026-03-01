@@ -44,13 +44,16 @@ WunderOnline/
 │   │   │   ├── PeoplePage.tsx       # Управление персоналом/учениками
 │   │   │   ├── SchoolPage.tsx       # Структура школы (вкладки: Классы, Ученики, Родители)
 │   │   │   ├── SettingsPage.tsx     # Настройки (праздники)
-│   │   │   ├── LessonsPage.tsx           # Уроки: папки + список (Фаза 1)
+│   │   │   ├── LessonsPage.tsx           # Уроки: 3 вкладки (Мои/Все/Учебники), иерархия учителей, TextbooksTab
 │   │   │   ├── LessonEditorPage.tsx      # Редактор урока (canvas, Фазы 2-3)
 │   │   │   ├── LessonPresenterPage.tsx   # Живая презентация (учитель + студент)
 │   │   │   ├── ProjectsPage.tsx          # Список проектов
-│   │   │   └── ProjectDetailPage.tsx     # Детали проекта (лента + задания)
+│   │   │   ├── ProjectDetailPage.tsx     # Детали проекта (лента + задания)
+│   │   │   └── CuratorReportPage.tsx     # Полностраничная форма кураторской таблицы (/people/curator/:studentId)
 │   │   └── components/
 │   │       ├── Layout.tsx           # Навбар + обёртка
+│   │       ├── TextbookViewer.tsx   # Полноэкранный PDF-читалка (react-pdf, навигация, зум)
+│   │       ├── DrawingCanvas.tsx    # Canvas-рисовалка поверх PDF (аннотации, нормализованные coords)
 │   │       ├── StaffTab.tsx         # CRUD сотрудников (+ бейджи куратора, birth_date)
 │   │       ├── ParentsTab.tsx       # CRUD родителей + привязка детей + кросс-навигация к ученику
 │   │       ├── StudentsTab.tsx      # CRUD учеников (список, birth_date, родители, кросс-навигация)
@@ -64,6 +67,8 @@ WunderOnline/
 │   │       ├── projects/
 │       │   ├── ProjectFeed.tsx         # Лента проекта (WebSocket чат)
 │       │   └── ProjectAssignments.tsx  # Задания (список + модалы)
+│       ├── curator/
+│       │   └── CuratorTab.tsx          # Список учеников класса куратора
 │       └── school/
 │   │           ├── ClassesGrid.tsx   # Список классов
 │   │           ├── ClassDetail.tsx   # Детали класса (вкладки)
@@ -77,7 +82,9 @@ WunderOnline/
     │   └── schedule_import.py       # Парсер Excel для импорта расписания
     ├── ktp/                         # КТП, темы, файлы, праздники
     ├── lessons/                     # Интерактивные уроки (Nearpod-аналог)
-    └── projects/                    # Проекты (Google Classroom-аналог)
+    ├── projects/                    # Проекты (Google Classroom-аналог)
+    ├── curator/                     # Кураторская таблица
+    └── yellow_list/                 # Жёлтый список (заявки по ученикам, СППС)
 ```
 
 ---
@@ -92,8 +99,9 @@ WunderOnline/
 | `/ktp` | KTPListPage | Авторизованные |
 | `/ktp/:id` | KTPDetailPage | Авторизованные |
 | `/schedule` | SchedulePage | Авторизованные |
-| `/admin/people` | PeoplePage | Только admin |
-| `/admin/school` | SchoolPage | Только admin |
+| `/people` | PeoplePage | Сотрудники (staffOnly, readOnly для учителей) |
+| `/school` | SchoolPage | Ученики: Классы+Ученики+Родители+Куратор (staffOnly) |
+| `/admin/school` | SchoolPage | Алиас /school |
 | `/admin/settings` | SettingsPage | Только admin |
 | `/account` | AccountPage | Авторизованные |
 | `/tasks` | TasksPage | Авторизованные (включая студентов — видят только свои задачи) |
@@ -101,9 +109,11 @@ WunderOnline/
 | `/lessons` | LessonsPage | Авторизованные |
 | `/lessons/:id/edit` | LessonEditorPage | Авторизованные |
 | `/lessons/sessions/:id/present` | LessonPresenterPage | Авторизованные |
+| `/people/curator/:studentId` | CuratorReportPage | Учитель-куратор |
 | `/chats` | ChatsPage | Авторизованные |
 | `/projects` | ProjectsPage | Авторизованные |
 | `/projects/:id` | ProjectDetailPage | Авторизованные (только участники) |
+| `/yellow-list` | YellowListPage | Сотрудники (staffOnly); вкладка «Список» — только is_spps |
 
 ---
 
@@ -112,7 +122,7 @@ WunderOnline/
 ### Auth (`/api/auth/`)
 - `POST /api/auth/login/` — вход по имени+фамилии+паролю (кастомный бэкенд)
 - `POST /api/auth/change-password/` — смена пароля
-- `GET /api/auth/me/` — текущий пользователь
+- `GET /api/auth/me/` — текущий пользователь (для студента доп. поля: `school_class_id`, `school_class_name`; для родителя: `children[].school_class_id`)
 
 ### Пользователи (`/api/admin/`)
 - `GET/POST /api/admin/staff/` — сотрудники
@@ -158,7 +168,7 @@ WunderOnline/
 ### Уроки (`/api/lessons/`)
 - `GET/POST /api/lessons/folders/` — папки (GET: мои корневые; POST: создать)
 - `GET/PUT/DELETE /api/lessons/folders/:id/` — CRUD папки
-- `GET /api/lessons/folders/:id/contents/` — содержимое папки (subfolders + lessons)
+- `GET /api/lessons/folders/:id/contents/` — содержимое папки (subfolders + lessons) — доступно всем авторизованным
 - `GET /api/lessons/lessons/?tab=mine|all&folder=<id>` — список уроков
 - `POST /api/lessons/lessons/` — создать урок
 - `GET/PUT/DELETE /api/lessons/lessons/:id/` — CRUD урока
@@ -172,6 +182,13 @@ WunderOnline/
 - `POST /api/lessons/sessions/` — создать сессию `{lesson, school_class?}` (только teacher/admin)
 - `GET/PATCH/DELETE /api/lessons/sessions/:id/` — CRUD сессии; PATCH: `{is_active, current_slide}`
 - `GET /api/lessons/sessions/:id/slides/:sid/form-results/` — результаты формы для учителя (только staff)
+- `GET /api/lessons/school-overview/` — учителя с уроками `[{teacher_id, teacher_name, folders_count, lessons_count}]`
+- `GET /api/lessons/teacher-root/?teacher_id=<id>` — корневые папки + уроки учителя `{teacher_id, teacher_name, folders, lessons}`
+- `GET/POST /api/lessons/textbooks/` — учебники (GET: `?grade_level_id=` фильтр; POST: загрузить, только staff, multipart: file, title, subject?, grade_level_ids[])
+- `GET /api/lessons/textbooks/grade-levels/` — параллели для учебников (staff: все; ученик: своя; родитель: параллели детей)
+- `GET/PUT/DELETE /api/lessons/textbooks/:id/` — CRUD учебника
+- `GET /api/lessons/sessions/:id/slides/:sid/textbook-annotations/` — аннотации страниц (текущий студент, все страницы)
+- `PUT /api/lessons/sessions/:id/slides/:sid/textbook-annotations/` — сохранить аннотацию `{page_number, strokes}` (PUT = upsert)
 - **WebSocket** `ws://…/ws/discussion/<slide_id>/?token=<jwt>` — доска обсуждений (DiscussionConsumer)
 - **WebSocket** `ws://…/ws/session/<session_id>/?token=<jwt>` — синхронизация живой презентации (LessonSessionConsumer)
   - **Quiz-команды**: `quiz_start {slide_id, question_idx}` (учитель→сервер), `quiz_answer {slide_id, question_idx, option_index, elapsed_ms}` (студент→сервер), `quiz_show_results {slide_id, question_idx}` (учитель→сервер)
@@ -226,6 +243,25 @@ WunderOnline/
   - client→server: `send_post {text}`, `typing`
   - server→client: `post_new {post}`, `post_deleted {post_id}`, `post_updated {post}`, `user_typing {user_id, display_name}`
 
+### Кураторская таблица (`/api/curator/`)
+- `GET /api/curator/structure/` — разделы + поля + подсказки (все авторизованные)
+- `GET /api/curator/my-class/` — ученики класса, куратором которого является текущий учитель
+- `GET /api/curator/reports/<student_id>/` — отчёт ученика за текущий (или ?academic_year=) год
+- `PUT /api/curator/reports/<student_id>/` — upsert отчёта `{values: [{field, value}, ...], academic_year}`
+- `GET /api/curator/hints/` — список подсказок (admin; ?field= для фильтра)
+- `POST /api/curator/hints/` — создать подсказку `{field, text}` (admin)
+- `PUT /api/curator/hints/<id>/` — обновить подсказку (admin)
+- `DELETE /api/curator/hints/<id>/` — удалить подсказку (admin)
+
+### Жёлтый список (`/api/yellow-list/`)
+- `GET /api/yellow-list/students/?q=` — поиск учеников (all staff); поиск по имени, фамилии, классу; возвращает compact-список
+- `GET /api/yellow-list/unread-count/` — `{count: N}` непрочитанных заявок (только is_spps)
+- `GET /api/yellow-list/` — все заявки (только is_spps), сгруппированы по ученикам на фронте
+- `POST /api/yellow-list/` — подать заявку `{date, student_profile_id, fact, lesson}` (все сотрудники: admin/teacher/spps)
+- `GET /api/yellow-list/<id>/` — деталь заявки (только is_spps); автоматически помечает как прочитанную (`is_read_by_spps=True`)
+- `POST /api/yellow-list/<id>/comments/` — добавить комментарий `{text}` (только is_spps)
+- `POST /api/yellow-list/<id>/create-task/` — создать Task из заявки `{title?, due_date?}` (только is_spps; исполнитель не указывается)
+
 ### КТП (`/api/ktp/`)
 - `GET/POST /api/ktp/ctps/` — список КТП
 - `GET/PUT/DELETE /api/ktp/ctps/:id/` — КТП
@@ -247,6 +283,7 @@ User
   is_teacher: bool
   is_parent: bool
   is_student: bool
+  is_spps: bool      # СППС (комбинируется с is_teacher)
   must_change_password: bool  # принудительная смена при первом входе
   phone: str
   birth_date: date (null)     # дата рождения (для сотрудников и учеников)
@@ -312,6 +349,35 @@ Substitution  # замена на конкретную дату
   # unique: [date, lesson_number, school_class, group] (если group задан)
 ```
 
+### curator/
+```python
+CuratorSection      # Сфера развития: name, order
+CuratorField        # Что оцениваем: section -> CuratorSection, name, order
+CuratorHint         # Подсказка: field -> CuratorField, text
+CuratorReport       # Отчёт по ученику: student -> User, academic_year ("2025-2026"), created_by, updated_at
+                    # unique_together: [student, academic_year]
+CuratorReportValue  # Значение поля: report -> CuratorReport, field -> CuratorField, value: text
+                    # unique_together: [report, field]
+```
+
+### yellow_list/
+```python
+YellowListEntry        # Заявка по ученику
+  date: date
+  student -> StudentProfile
+  fact: TextField
+  lesson: str (blank)  # на каком уроке
+  submitted_by -> User (null)
+  created_at: datetime
+  is_read_by_spps: bool (default=False)  # True после первого GET от СППС
+
+YellowListComment      # Комментарий СППС к заявке
+  entry -> YellowListEntry (related_name='comments')
+  text: TextField
+  created_by -> User (null)
+  created_at: datetime
+```
+
 ### ktp/
 ```python
 CTP              # КТП: teacher + school_class + subject
@@ -354,13 +420,15 @@ Lesson
 Slide
   lesson -> Lesson
   order: int
-  slide_type: content | image | poll | quiz | open_question | video | form | discussion
+  slide_type: content | image | poll | quiz | open_question | video | form | discussion | vocab | textbook
   title: str (blank)
   content: JSON  # структура зависит от slide_type:
     # content  → {blocks: [SlideBlock, ...]}
     # form     → {questions: [FormQuestion, ...]}
     # video    → {url, embed_url, caption}
     # discussion → {stickers: [...], strokes: [...]}
+    # vocab    → {targetLang, words, tasks, repetitions}
+    # textbook → {textbook_id, page_from, page_to}
   image: FileField (null)  # upload_to='lesson_images/%Y/%m/'
   created_at: datetime
   updated_at: datetime
@@ -369,6 +437,16 @@ LessonMedia
   lesson -> Lesson
   file: FileField  # upload_to='lesson_media/%Y/%m/'
   uploaded_at: datetime
+
+Textbook
+  title: str
+  file: FileField  # upload_to='textbooks/%Y/'
+  original_name: str (blank)
+  file_size: BigInt
+  subject -> Subject (null)
+  grade_levels -> [GradeLevel] (M2M)
+  uploaded_by -> User (null, SET_NULL)
+  created_at: datetime
 
 LessonSession
   lesson -> Lesson
@@ -386,6 +464,15 @@ FormAnswer          # ответы студентов на форму-слайд
   answers: JSON     # [{question_id, value}, ...]
   submitted_at: datetime (auto_now)
   # unique_together: [session, slide, student] → upsert
+
+TextbookAnnotation  # рисунки ученика поверх страниц учебника (приватные, session-scoped)
+  session -> LessonSession
+  slide -> Slide
+  student -> User
+  page_number: PositiveInt
+  strokes: JSON     # [AnnotationStroke, ...] — normalized [0-1] coords
+  updated_at: datetime (auto_now)
+  # unique_together: [session, slide, student, page_number] → upsert
 ```
 
 ### projects/
@@ -684,12 +771,13 @@ TaskFile         # файл, прикреплённый к задаче
 - Страница `/lessons/:id/edit` — двухпанельный интерфейс: шапка + левая панель слайдов + холст
 - **npm-зависимости**: `react-rnd` (drag блоков), `@tiptap/react` + `@tiptap/starter-kit` + `@tiptap/extension-text-style` (rich text, цвет, размер шрифта)
 - **Фаза 3**: SlideTypePicker (5 типов: content/form/quiz/video/discussion), FormEditor, QuizEditor, VideoEditor, DiscussionBoard (WebSocket)
+- **Фаза 5 (Учебник)**: SlideTypePicker расширен до 7 типов (+vocab, +textbook). TextbookSlideEditor: выбор учебника из списка + диапазон страниц (page_from/page_to), debounced save 400мс
 - **QuizEditor**: редактирование quiz-слайда — список вопросов (QuizQuestion[]), каждый с текстом, 2–6 вариантами (кнопка-буква = правильный), временем (10/15/20/30/45/60с); кнопка "Добавить вопрос"
 - **QuizContent**: `{questions: [{id, text, options, correct, time_limit}]}` — НЕ плоская структура
 - **FormAnswer.answers**: для quiz — dict по `str(question_idx)`: `{"0": {option_index, elapsed_ms, points}, "1": {...}}`
 - **Фикс image-блока**: при перетаскивании пустого image-блока диалог загрузки файла не открывается (отслеживаем mouseDownPos)
 - **WS Discussion** (редактор): URL `${proto}://${window.location.host}/ws/discussion/<slide_id>/?token=<jwt>`
-- **Иконки типов**: 📄 content, 📋 form, 📹 video, 💬 discussion — отображаются в SlideThumb
+- **Иконки типов**: 📄 content, 📋 form, 📹 video, 💬 discussion, 📖 textbook — отображаются в SlideThumb
 
 #### Шапка
 - Кнопка «← Уроки», редактируемый заголовок урока (сохранение на blur)
@@ -776,6 +864,13 @@ TaskFile         # файл, прикреплённый к задаче
 - `form` → `FormResultsView` (учитель) или `FormAnswerView` (студент)
 - `video` → `VideoSlideView` с YouTube postMessage API (`enablejsapi=1`)
 - `discussion` → `DiscussionSlideView` (WS Discussion, те же стикеры/стрелки)
+- `textbook` → `TextbookSlideView`: react-pdf `<Document>/<Page>` + DrawingCanvas (только для студентов), собственная навигация по страницам (page_from..page_to), аннотации сохраняются через PUT textbook-annotations с debounce 800мс
+
+#### DrawingCanvas (`frontend/src/components/DrawingCanvas.tsx`)
+- Props: `{ width, height, strokes, onStrokesChange, readOnly? }`
+- Хранит strokes нормализованными [0–1] → аннотации не зависят от размера экрана
+- Инструменты: 5 цветов (чёрный/красный/синий/зелёный/оранжевый), ластик (destination-out), отменить (Undo), очистить всё
+- Touch-события: onTouchStart/Move/End с `e.preventDefault()`, `touchAction: none`
 
 #### FormResultsView (вкладка «Общий план»)
 - Для single/multiple: полосы с кол-вом выборов (A/B/C нейтральные буквы, синие полосы) — правильные ответы **не подсвечиваются**
@@ -803,18 +898,35 @@ TaskFile         # файл, прикреплённый к задаче
 - Когда учитель переходит на form-слайд: `GET /lessons/sessions/:id/slides/:sid/form-results/` (если ещё не загружено)
 - Живые обновления: WS `form_results_updated` → `setFormResults(prev => ({...prev, [slide_id]: results}))`
 
-### Уроки (LessonsPage.tsx) — Фаза 1
-- Страница `/lessons` — интерактивные уроки в стиле Nearpod
-- **Вкладки**: «Мои уроки» (созданные мной) / «Все уроки» (все в школе, только staff/admin)
+### Уроки (LessonsPage.tsx) — Фазы 1-5
+- Страница `/lessons` — интерактивные уроки в стиле Nearpod + учебники
+- **Три вкладки**: «Мои уроки» / «Все уроки» / «Учебники». Default: staff → «Мои уроки», студент/родитель → «Учебники»
+
+#### Вкладка «Мои уроки» / «Все уроки»
 - **Папочная навигация**: иерархические папки, breadcrumbs, переход внутрь по клику
 - **Карточки папок**: название, счётчик вложенных папок и уроков, контекстное меню (переименовать, удалить)
 - **Карточки уроков**: цветная шапка (cover_color), название, автор (в «Все»), кол-во слайдов; меню (открыть, дублировать, удалить)
+- **«Все уроки»**: корень — карточки учителей (`TeacherCard`, `GET /lessons/school-overview/`); клик → корневые папки и уроки учителя (`GET /lessons/teacher-root/?teacher_id=`); далее — стандартная папочная навигация через `/lessons/folders/:id/contents/`
 - **Drag-and-drop**: папки и уроки перетаскиваются в другие папки (HTML5 DnD). Drop на FolderCard — перемещение внутрь. Drop на breadcrumbs — перемещение вверх по иерархии. Бэкенд: PUT с `{folder: id}` для урока, `{parent: id}` для папки.
 - **Удаление папок**: проверяется рекурсивно — если в папке или подпапках есть уроки, удаление запрещено (400 от бэкенда), ошибка показывается пользователю
 - **Создание папки**: модал с вводом названия
 - **Создание урока**: модал с названием, описанием и выбором цвета → редирект в редактор
 - **Дублирование**: копия урока создаётся в той же папке
 - Пункт «Уроки» добавлен в сайдбар с иконкой монитора
+
+#### Вкладка «Учебники»
+- Учебники сгруппированы по **параллелям** (GradeLevel): папки «5 класс», «6 класс» и т.д.
+- **Ролевой доступ к параллелям** (`GET /lessons/textbooks/grade-levels/`): staff — все; ученик — своя параллель (авто-вход); родитель с 1 ребёнком — авто-вход; с несколькими — список карточек с именами детей
+- **Карточки учебников** (`TextbookCard`): цветная шапка, название, предмет, размер файла
+  - PDF: кнопка «Открыть» на hover → открывает `TextbookViewer`; кнопка «Скачать»
+  - Не-PDF: только «Скачать»
+- **Загрузка** (только staff): multipart: `file`, `title`, `subject?`, `grade_level_ids[]` → `POST /lessons/textbooks/`
+- **TextbookViewer** (`components/TextbookViewer.tsx`): полноэкранный PDF-ридер (z-50):
+  - Библиотека: `react-pdf` v10 + `pdfjs-dist` v5, воркер: `new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url)`
+  - Навигация: кнопки ←/→, ввод номера страницы, клавиши ←→ и Escape
+  - Зум: 0.5× – 3× (шаг 0.25), ResponsiveObserver для ширины
+  - Тулбар: название, навигация, зум, кнопка скачать, закрыть
+  - Нижняя панель: «В начало», прогресс-бар, «В конец», процент
 
 ### Аккаунт (AccountPage.tsx)
 - Карточка профиля: аватар (инициалы), имя, роли
