@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
-import type { CTPDetail, Topic, TopicFile, SchoolClass, Lesson } from '../types';
+import type { CTPDetail, Topic, SchoolClass, Lesson } from '../types';
 import ContextMenu from '../components/ContextMenu';
 import type { MenuItem } from '../components/ContextMenu';
 

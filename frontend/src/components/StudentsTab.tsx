@@ -290,6 +290,7 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
       first_name: s.first_name,
       last_name: s.last_name,
       school_class_name: s.school_class_name || '',
+      school_class_id: null,
     }]);
     setCrossNavChildSearch('');
     setCrossNavChildResults([]);

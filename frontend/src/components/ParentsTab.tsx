@@ -96,6 +96,7 @@ export default function ParentsTab() {
       first_name: s.first_name,
       last_name: s.last_name,
       school_class_name: s.school_class_name || '',
+      school_class_id: null,
     }]);
     setChildSearch('');
     setChildSearchResults([]);
@@ -144,6 +145,7 @@ export default function ParentsTab() {
       first_name: s.first_name,
       last_name: s.last_name,
       school_class_name: s.school_class_name || '',
+      school_class_id: null,
     }]);
     setEditChildSearch('');
     setEditChildResults([]);
