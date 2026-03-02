@@ -30,6 +30,38 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+const URL_REGEX = /https?:\/\/[^\s<>"]+[^\s<>".,;!?)/]/g;
+
+function renderTextWithLinks(text: string, isMine: boolean) {
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+  URL_REGEX.lastIndex = 0;
+  while ((match = URL_REGEX.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    const url = match[0];
+    parts.push(
+      <a
+        key={match.index}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`underline break-all ${isMine ? 'text-blue-100 hover:text-white' : 'text-blue-600 hover:text-blue-800'}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {url}
+      </a>
+    );
+    lastIndex = match.index + url.length;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts;
+}
+
 export default function ChatMessageBubble({ message, currentUser, isGroup, onReply, onDelete, onVotePoll, onTakeTask }: Props) {
   const isMine = currentUser && message.sender?.id === currentUser.id;
   const [revoting, setRevoting] = useState(false);
@@ -331,7 +363,7 @@ export default function ChatMessageBubble({ message, currentUser, isGroup, onRep
           {/* Текст */}
           {message.text && (
             <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-              {message.text}
+              {renderTextWithLinks(message.text, !!isMine)}
             </p>
           )}
 

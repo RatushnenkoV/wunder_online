@@ -33,11 +33,8 @@ class ChatRoomListView(APIView):
     permission_classes = [PasswordChanged]
 
     def get(self, request):
-        if request.user.is_admin:
-            rooms = ChatRoom.objects.filter(is_archived=False)
-        else:
-            room_ids = ChatMember.objects.filter(user=request.user).values_list('room_id', flat=True)
-            rooms = ChatRoom.objects.filter(id__in=room_ids, is_archived=False)
+        room_ids = ChatMember.objects.filter(user=request.user).values_list('room_id', flat=True)
+        rooms = ChatRoom.objects.filter(id__in=room_ids, is_archived=False)
 
         # Сортируем: комнаты с сообщениями — по последнему сообщению, без сообщений — в конец
         rooms = rooms.prefetch_related('messages', 'members_rel__user')
@@ -473,17 +470,27 @@ class ChatTaskTakeView(APIView):
         from tasks.models import Task
         template = msg.task
 
-        # Создать личную копию задачи для этого пользователя
-        task_copy = Task.objects.create(
-            title=template.title,
-            description=template.description,
-            due_date=template.due_date,
-            created_by=template.created_by,
-            assigned_to=request.user,
-            taken_by=request.user,
-            status='in_progress',
-        )
-        ChatTaskTake.objects.create(message=msg, user=request.user, task=task_copy)
+        is_first_take = not ChatTaskTake.objects.filter(message=msg).exists()
+
+        if is_first_take:
+            # Первый берёт — переносим оригинальную задачу, без клонирования
+            template.assigned_to = request.user
+            template.taken_by = request.user
+            template.status = 'in_progress'
+            template.save(update_fields=['assigned_to', 'taken_by', 'status'])
+            user_task = template
+        else:
+            # Следующие участники — создаём личную копию
+            user_task = Task.objects.create(
+                title=template.title,
+                description=template.description,
+                due_date=template.due_date,
+                created_by=template.created_by,
+                assigned_to=request.user,
+                taken_by=request.user,
+                status='in_progress',
+            )
+        ChatTaskTake.objects.create(message=msg, user=request.user, task=user_task)
 
         # Актуальный список взявших
         takers = [

@@ -198,7 +198,7 @@ WunderOnline/
 
 ### Чаты (`/api/chat/`)
 
-**Модель прав:** Admin — всё. Teacher — группы (самовступление) + DM учителям/студентам/admin. Student — только назначенные группы + DM своим учителям и куратору. Parent — только DM куратору(ам) детей.
+**Модель прав:** Все видят только те чаты, в которых состоят (включая admin). Teacher — вступает в группы сам; DM учителям/студентам/admin. Student — только назначенные группы + DM своим учителям и куратору. Parent — только DM куратору(ам) детей. Admin создаёт группы и добавляет кого угодно.
 
 **Файлы вложений**: `MessageAttachmentSerializer.get_file_url()` возвращает **относительный URL** (`/media/chat_files/...`) — Vite-прокси пробрасывает его на Django, работает с любого устройства в сети.
 
@@ -225,7 +225,7 @@ WunderOnline/
   - server→client: `message_new {message}`, `message_deleted {message_id}`, `user_typing {user_id, display_name}`, `room_read {user_id, last_read_at}`, `poll_updated {poll_id, options, total_votes}`, `chat_task_taken {task_id, taken_by_id, taken_by_name}`
 
 ### Проекты (`/api/projects/`)
-- `GET/POST /api/projects/` — список моих проектов / создать (только is_teacher/is_admin)
+- `GET/POST /api/projects/` — список проектов, где я участник / создать (только is_teacher/is_admin); admin тоже видит только свои
 - `GET/PUT/DELETE /api/projects/:id/` — детали / редактировать / удалить (только teacher проекта)
 - `GET /api/projects/users/?q=&project_id=` — поиск пользователей для приглашения
 - `GET/POST /api/projects/:id/members/` — участники / добавить участника `{user_id, role}`
@@ -760,19 +760,26 @@ TaskFile         # файл, прикреплённый к задаче
 
 ### Чат (ChatWindow.tsx + ChatMessageBubble.tsx)
 
+#### Ссылки в чате
+- URL в тексте сообщений автоматически кликабельны (regex `https?://...`)
+- У своих сообщений ссылки светло-синие, у чужих — синие; открываются в новой вкладке
+
 #### Опросы в чате
 - Кнопка-скрепка заменена меню **"Прикрепить"**: Файл / Опрос / Задача
 - **Создание опроса** (`PollCreatorModal`): вопрос, варианты (2–10), чекбокс мультивыбора
 - **Карточка опроса**: все варианты серые, прогресс-бар синий (виден на любом варианте); выбранный вариант — галочка слева + синий текст, проценты справа
 - **Голосование**: до голосования — клик на вариант; после — кнопки заблокированы, проценты показаны
+- **user_voted**: при WS-broadcast `poll_updated` сохраняется из локального state (не перезаписывается данными голосующего); после своего голосования — обновляется из ответа API (правильный `user_voted` для текущего пользователя)
 - **Переголосовать**: ПКМ по карточке опроса → контекстное меню → "Переголосовать" (сбрасывает локальное состояние, разрешает выбор снова; бэкенд для single удаляет старый голос)
 - **Результаты**: кнопка "Результаты" внизу карточки → модал с прогресс-барами и списком проголосовавших по каждому варианту
 
 #### Задачи из чата
-- **Создание** (`TaskCreatorModal`, только teacher/admin): название, описание, срок → создаётся Task-шаблон + ChatMessage
+- **Создание** (`TaskCreatorModal`, только teacher/admin): название, описание, срок → создаётся Task-шаблон (без исполнителя, status=new) + ChatMessage
 - **Карточка задачи**: заголовок, описание, срок, разделитель, кнопка «Взять задачу» + секция «Ещё никто не взял» / «Взяли (N): [бейджи]»
-- **Взятие задачи**: любой участник чата нажимает «Взять задачу» → создаётся **личная копия Task** для него (assigned_to=user, status=in_progress) + запись ChatTaskTake; повторное нажатие заблокировано
-- **Несколько исполнителей**: разные люди берут задачу независимо — каждый получает свою копию в `/tasks`
+- **Взятие задачи (новая логика)**:
+  - **Первый берёт** → оригинальная задача обновляется (assigned_to=user, taken_by=user, status=in_progress), не клонируется
+  - **Следующие берут** → создаётся личная копия Task для каждого (assigned_to=user, status=in_progress)
+  - В обоих случаях: запись ChatTaskTake; повторное нажатие заблокировано
 - **Твой бейдж** — синий с галочкой, остальные — белые с синей рамкой
 - **WS**: `chat_task_taken` → обновляет список `takers` у всех в комнате в реальном времени
 
@@ -1023,3 +1030,59 @@ start.bat
 - `TIME_ZONE = 'Europe/Moscow'`
 - Интерфейс — русский
 - Кастомный auth backend — вход по имени и фамилии
+
+---
+
+## Подготовка к продакшену
+
+### Конфигурация через переменные окружения
+
+`settings.py` использует `python-decouple`. Файл конфига — `backend/.env` (не коммитится в git).
+
+| Переменная | Dev-значение | Prod-значение |
+|---|---|---|
+| `SECRET_KEY` | insecure-ключ | длинный случайный ключ |
+| `DEBUG` | `True` | `False` |
+| `ALLOWED_HOSTS` | `localhost,127.0.0.1` | `yourdomain.com` |
+| `CORS_ALLOW_ALL_ORIGINS` | `True` | `False` |
+| `CORS_ALLOWED_ORIGINS` | — | `https://yourdomain.com` |
+| `DB_ENGINE` | sqlite3 (default) | `django.db.backends.postgresql` |
+| `DB_NAME/USER/PASSWORD/HOST/PORT` | — | данные PostgreSQL |
+| `REDIS_URL` | `redis://127.0.0.1:6379` | `redis://127.0.0.1:6379` |
+
+Шаблон: `backend/.env.example`. Для dev скопировать как `backend/.env`.
+
+### Статические файлы
+
+- `STATIC_ROOT = BASE_DIR / 'staticfiles'` — папка для `collectstatic`
+- `whitenoise` в MIDDLEWARE — раздача статики без Nginx (опционально)
+- `backend/staticfiles/` исключён из git
+
+### Архитектура продакшена
+
+```
+Браузер → HTTPS (443) → Nginx
+    ├── /static/   → backend/staticfiles/
+    ├── /media/    → backend/media/
+    └── /api/ /ws/ → Daphne :8001 (ASGI)
+                         ↓
+                    Django + DRF
+                         ↓
+                 PostgreSQL    Redis
+```
+
+### Команды деплоя (на сервере)
+
+```bash
+# Backend
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py collectstatic --noinput
+
+# Запуск
+daphne -b 0.0.0.0 -p 8001 config.asgi:application
+
+# Frontend
+npm install && npm run build
+# → dist/ раздаётся Nginx как статика
+```

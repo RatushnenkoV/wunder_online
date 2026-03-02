@@ -102,15 +102,12 @@ class ProjectListView(APIView):
     permission_classes = [PasswordChanged]
 
     def get(self, request):
-        if request.user.is_admin:
-            projects = Project.objects.prefetch_related('members_rel__user').all()
-        else:
-            project_ids = ProjectMember.objects.filter(
-                user=request.user
-            ).values_list('project_id', flat=True)
-            projects = Project.objects.filter(
-                id__in=project_ids
-            ).prefetch_related('members_rel__user')
+        project_ids = ProjectMember.objects.filter(
+            user=request.user
+        ).values_list('project_id', flat=True)
+        projects = Project.objects.filter(
+            id__in=project_ids
+        ).prefetch_related('members_rel__user')
         serializer = ProjectSerializer(projects, many=True, context={'request': request})
         return Response(serializer.data)
 

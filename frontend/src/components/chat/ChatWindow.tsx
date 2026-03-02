@@ -122,9 +122,22 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
               prev.map((m) => m.id === data.message_id ? { ...m, is_deleted: true, text: '' } : m)
             );
           } else if (data.type === 'poll_updated') {
+            // Сохраняем user_voted из текущего state — broadcast содержит данные голосующего, а не нашего пользователя
             setMessages((prev) => prev.map((m) =>
               m.poll?.id === data.poll_id
-                ? { ...m, poll: { ...m.poll!, options: data.options, total_votes: data.total_votes } as ChatPoll }
+                ? {
+                    ...m,
+                    poll: {
+                      ...m.poll!,
+                      total_votes: data.total_votes,
+                      options: m.poll!.options.map((opt) => {
+                        const upd = (data.options as ChatPoll['options']).find((o) => o.id === opt.id);
+                        return upd
+                          ? { ...upd, user_voted: opt.user_voted }  // сохраняем свой user_voted
+                          : opt;
+                      }),
+                    } as ChatPoll,
+                  }
                 : m
             ));
           } else if (data.type === 'chat_task_taken') {
@@ -273,7 +286,14 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
 
   const handleVotePoll = async (pollId: number, optionId: number) => {
     try {
-      await api.post(`/chat/polls/${pollId}/vote/`, { option_id: optionId });
+      const res = await api.post(`/chat/polls/${pollId}/vote/`, { option_id: optionId });
+      // Ответ API содержит правильный user_voted для текущего пользователя — обновляем state
+      const updatedPoll: ChatPoll = res.data;
+      setMessages((prev) => prev.map((m) =>
+        m.poll?.id === pollId
+          ? { ...m, poll: updatedPoll }
+          : m
+      ));
     } catch { /* ignore */ }
   };
 
