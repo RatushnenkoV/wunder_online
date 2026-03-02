@@ -1568,7 +1568,7 @@ function TextbookSlideView({
   isPresenter: boolean;
   sessionId: number;
 }) {
-  const content = slide.content as TextbookSlideContent;
+  const content = slide.content as unknown as TextbookSlideContent;
   const { textbook_id, page_from, page_to } = content;
 
   const navH = 44;
@@ -1642,7 +1642,7 @@ function TextbookSlideView({
         setAnnotations(map);
         const loaded = new Set(r.data.map((a: { page_number: number }) => a.page_number as number));
         loaded.add(currentPage);
-        setLoadedPages(loaded);
+        setLoadedPages(loaded as Set<number>);
       })
       .catch(() => setLoadedPages(prev => new Set([...prev, currentPage])));
   }, [currentPage, slide.id, sessionId, isPresenter]); // eslint-disable-line
@@ -2083,7 +2083,6 @@ function SlideView({
     return (
       <TextbookSlideView
         slide={slide}
-        scale={scale}
         isPresenter={isPresenter}
         sessionId={sessionId}
       />

@@ -553,7 +553,7 @@ export default function ScheduleImportModal({ onClose, onImported }: {
                     {loading ? 'Анализирую...' : 'Проверить →'}
                   </button>
                 )}
-                {step !== 'upload' && step !== 'confirm' && step !== 'done' && (
+                {step !== 'upload' && step !== 'confirm' && (
                   <button onClick={nextStep} disabled={loading}
                     className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
                     Далее →

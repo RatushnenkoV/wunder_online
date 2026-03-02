@@ -24,7 +24,7 @@ const PEN_SIZES   = [2, 4, 8];
 const ZOOM_MIN = 0.2, ZOOM_MAX = 4.0;
 
 function TextbookSelfView({ slide }: { slide: Slide }) {
-  const content = slide.content as TextbookSlideContent;
+  const content = slide.content as unknown as TextbookSlideContent;
   const { textbook_id, page_from, page_to } = content;
 
   const navH = 44;
