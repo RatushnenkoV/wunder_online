@@ -8,6 +8,7 @@ interface StudentUser extends User {
   school_class_id: number | null;
   school_class_name: string;
   student_profile_id: number | null;
+  personal_file_number?: string;
 }
 
 interface StudentRow {
@@ -67,7 +68,7 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
 
   // Student edit modal
   const [editUser, setEditUser] = useState<StudentUser | null>(null);
-  const [editForm, setEditForm] = useState({ first_name: '', last_name: '', email: '', phone: '', birth_date: '', school_class: '' as string | number });
+  const [editForm, setEditForm] = useState({ first_name: '', last_name: '', email: '', phone: '', birth_date: '', school_class: '' as string | number, personal_file_number: '' });
   const [studentParents, setStudentParents] = useState<Parent[]>([]);
   const [showAddParent, setShowAddParent] = useState(false);
   const [parentSearch, setParentSearch] = useState('');
@@ -84,6 +85,31 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
   const [crossNavChildResults, setCrossNavChildResults] = useState<StudentUser[]>([]);
 
   const [ctxMenu, setCtxMenu] = useState<{ user: StudentUser; x: number; y: number } | null>(null);
+
+  // Excel import
+  const [importResult, setImportResult] = useState<{ created: number; updated: number; errors: string[] } | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await api.post('/school/students/import-excel/', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setImportResult(res.data);
+      loadList(1);
+    } catch (err: any) {
+      setMessage(err.response?.data?.detail || 'Ошибка импорта');
+    } finally {
+      setImporting(false);
+    }
+  };
 
   useEffect(() => {
     api.get('/school/classes/').then(r => setClasses(r.data));
@@ -156,6 +182,7 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
       phone: user.phone || '',
       birth_date: user.birth_date || '',
       school_class: user.school_class_id || '',
+      personal_file_number: user.personal_file_number || '',
     });
     setShowAddParent(false);
     setParentSearch('');
@@ -185,6 +212,7 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
         phone: editForm.phone,
         birth_date: editForm.birth_date || null,
         school_class: editForm.school_class || null,
+        personal_file_number: editForm.personal_file_number,
       });
       setEditUser(null);
       setMessage('Данные обновлены');
@@ -329,6 +357,23 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
         </div>
       )}
 
+      {importResult && (
+        <div className={`p-3 rounded mb-4 text-sm ${importResult.errors.length > 0 ? 'bg-yellow-50' : 'bg-green-50'}`}>
+          <div className="flex justify-between">
+            <span className={importResult.errors.length > 0 ? 'text-yellow-800' : 'text-green-800'}>
+              Импорт завершён: создано {importResult.created}, обновлено {importResult.updated}
+              {importResult.errors.length > 0 && `, ошибок: ${importResult.errors.length}`}
+            </span>
+            <button onClick={() => setImportResult(null)} className="text-gray-400 hover:text-gray-600 ml-4">×</button>
+          </div>
+          {importResult.errors.length > 0 && (
+            <ul className="mt-2 space-y-0.5 text-yellow-700 text-xs max-h-32 overflow-y-auto">
+              {importResult.errors.map((e, i) => <li key={i}>{e}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2 text-sm text-gray-500">
           По:
@@ -340,9 +385,15 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
           ))}
         </div>
         {!readOnly && (
-          <button onClick={() => { setRows([emptyRow()]); setShowCreate(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
-            + Добавить
-          </button>
+          <div className="flex gap-2">
+            <label className={`cursor-pointer bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm ${importing ? 'opacity-50 pointer-events-none' : ''}`}>
+              {importing ? 'Импорт...' : 'Импорт из Excel'}
+              <input type="file" accept=".xlsx" className="hidden" onChange={handleImportExcel} disabled={importing} />
+            </label>
+            <button onClick={() => { setRows([emptyRow()]); setShowCreate(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+              + Добавить
+            </button>
+          </div>
         )}
       </div>
 
@@ -379,6 +430,7 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
                   {classes.map(c => <option key={c.id} value={c.id}>{c.display_name}</option>)}
                 </select>
               </th>
+              {!readOnly && <th className="px-4 py-2 text-left font-medium text-gray-600">Номер Л/Д</th>}
               {!readOnly && <th className="px-4 py-2 text-left font-medium text-gray-600">Врем. пароль</th>}
               {!readOnly && <th className="w-10"></th>}
             </tr>
@@ -396,6 +448,9 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
                 <td className="px-4 py-2 text-gray-500">{u.email || '—'}</td>
                 <td className="px-4 py-2 text-gray-500">{u.phone || '—'}</td>
                 <td className="px-4 py-2 text-gray-500">{u.school_class_name || '—'}</td>
+                {!readOnly && (
+                  <td className="px-4 py-2 text-gray-500 font-mono text-xs">{u.personal_file_number || '—'}</td>
+                )}
                 {!readOnly && (
                   <td className="px-4 py-2" onClick={e => e.stopPropagation()}>
                     {u.must_change_password && u.temp_password ? (
@@ -529,6 +584,10 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
                   <option value="">Без класса</option>
                   {classes.map(c => <option key={c.id} value={c.id}>{c.display_name}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Номер личного дела</label>
+                <input value={editForm.personal_file_number} onChange={e => setEditForm(f => ({ ...f, personal_file_number: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm font-mono" placeholder="Б-31" />
               </div>
 
               {/* Родители */}

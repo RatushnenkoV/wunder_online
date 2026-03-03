@@ -61,6 +61,7 @@ class GradeLevelSubject(models.Model):
 class StudentProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='student_profile')
     school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='students')
+    personal_file_number = models.CharField('Номер личного дела', max_length=20, blank=True, default='')
 
     class Meta:
         verbose_name = 'Профиль ученика'

@@ -237,10 +237,12 @@ def student_list_create(request):
                 item['school_class_id'] = sp.school_class_id
                 item['school_class_name'] = str(sp.school_class)
                 item['student_profile_id'] = sp.id
+                item['personal_file_number'] = sp.personal_file_number
             except StudentProfile.DoesNotExist:
                 item['school_class_id'] = None
                 item['school_class_name'] = ''
                 item['student_profile_id'] = None
+                item['personal_file_number'] = ''
 
         return Response({
             'results': data,
@@ -355,19 +357,21 @@ def user_detail_view(request, pk):
 
         user.save()
 
-        # Update student class if provided
-        school_class_id = data.get('school_class')
-        if user.is_student and school_class_id is not None:
-            if school_class_id:
-                try:
-                    sc = SchoolClass.objects.get(pk=school_class_id)
-                    sp, _ = StudentProfile.objects.get_or_create(user=user)
-                    sp.school_class = sc
-                    sp.save()
-                except SchoolClass.DoesNotExist:
-                    pass
-            else:
-                StudentProfile.objects.filter(user=user).update(school_class=None)
+        # Update student profile if provided
+        if user.is_student:
+            school_class_id = data.get('school_class')
+            personal_file_number = data.get('personal_file_number')
+            if school_class_id is not None or personal_file_number is not None:
+                sp, _ = StudentProfile.objects.get_or_create(user=user)
+                if school_class_id:
+                    try:
+                        sc = SchoolClass.objects.get(pk=school_class_id)
+                        sp.school_class = sc
+                    except SchoolClass.DoesNotExist:
+                        pass
+                if personal_file_number is not None:
+                    sp.personal_file_number = personal_file_number
+                sp.save()
 
         return Response(UserListSerializer(user).data)
 

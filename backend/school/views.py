@@ -18,7 +18,7 @@ from .serializers import (
     ClassGroupSerializer, ClassSubjectSerializer, RoomSerializer,
     ScheduleLessonSerializer, SubstitutionSerializer, AhoRequestSerializer,
 )
-from .services import import_classes
+from .services import import_classes, import_students_from_excel
 from . import schedule_import as sched_import
 
 
@@ -222,6 +222,30 @@ def import_classes_view(request):
     return Response({
         'students_count': len(result['students']),
         'parents_count': len(result['parents']),
+        'errors': result['errors'],
+    })
+
+
+# --- Import students from Excel ---
+
+@api_view(['POST'])
+@permission_classes([IsAdmin, PasswordChanged])
+@parser_classes([MultiPartParser])
+def import_students_excel_view(request):
+    file = request.FILES.get('file')
+    if not file:
+        return Response({'detail': 'Файл не загружен'}, status=status.HTTP_400_BAD_REQUEST)
+    if not file.name.lower().endswith('.xlsx'):
+        return Response({'detail': 'Поддерживается только формат .xlsx'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        result = import_students_from_excel(file)
+    except Exception as e:
+        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({
+        'created': result['created'],
+        'updated': result['updated'],
         'errors': result['errors'],
     })
 

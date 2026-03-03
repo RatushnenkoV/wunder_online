@@ -65,7 +65,7 @@ class StudentProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StudentProfile
-        fields = ['id', 'user', 'school_class', 'school_class_name']
+        fields = ['id', 'user', 'school_class', 'school_class_name', 'personal_file_number']
 
     def get_school_class_name(self, obj):
         return str(obj.school_class)
