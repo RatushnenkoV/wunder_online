@@ -256,9 +256,9 @@ WantedBy=multi-user.target
 Запусти сервис:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable wunder
-sudo systemctl start wunder
-sudo systemctl status wunder
+sudo systemctl enable daphne
+sudo systemctl start daphne
+sudo systemctl status daphne
 ```
 
 Убедись что статус `active (running)`.
@@ -365,7 +365,7 @@ sudo certbot renew --dry-run
 Проверь логи если что-то не работает:
 ```bash
 # Логи Django/Daphne
-sudo journalctl -u wunder -f
+sudo journalctl -u daphne -f
 
 # Логи Nginx
 sudo tail -f /var/log/nginx/error.log
@@ -386,7 +386,7 @@ pip install -r backend/requirements.txt
 cd backend
 python manage.py migrate
 python manage.py collectstatic --noinput
-sudo systemctl restart wunder
+sudo systemctl restart daphne
 
 # Frontend (если были изменения)
 cd /var/www/wunder/frontend
@@ -524,10 +524,10 @@ tar -xzf /var/backups/wunder/media_2026-03-01_03-00.tar.gz -C /var/www/wunder/ba
 
 | Действие | Команда |
 |---|---|
-| Статус сервиса | `sudo systemctl status wunder` |
-| Перезапуск Django | `sudo systemctl restart wunder` |
+| Статус сервиса | `sudo systemctl status daphne` |
+| Перезапуск Django | `sudo systemctl restart daphne` |
 | Перезапуск Nginx | `sudo systemctl reload nginx` |
-| Логи Django | `sudo journalctl -u wunder -f` |
+| Логи Django | `sudo journalctl -u daphne -f` |
 | Логи Nginx | `sudo tail -f /var/log/nginx/error.log` |
 | Консоль Django | `cd /var/www/wunder/backend && source ../venv/bin/activate && python manage.py shell` |
 | Бэкап БД | `pg_dump -U wunder_user wunder_db > backup.sql` |
