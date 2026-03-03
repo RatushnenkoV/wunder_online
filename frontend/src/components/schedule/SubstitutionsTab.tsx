@@ -54,6 +54,22 @@ function formatWeekRange(monday: Date): string {
   return `${monday.toLocaleDateString('ru-RU', opts)} — ${friday.toLocaleDateString('ru-RU', { ...opts, year: 'numeric' })}`;
 }
 
+const MONTHS_RU = [
+  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+];
+
+function ruDay(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getDate()} ${MONTHS_RU[d.getMonth()]}`;
+}
+
+function formatExportFilename(from: string, to: string): string {
+  const year = new Date(to + 'T00:00:00').getFullYear();
+  if (from === to) return `${ruDay(from)} ${year}`;
+  return `${ruDay(from)} - ${ruDay(to)} ${year}`;
+}
+
 /** Shared print styles injected into generated print pages */
 const PRINT_STYLES = `
   * { box-sizing: border-box; }
@@ -105,7 +121,7 @@ function buildPairs(
   });
 }
 
-/** Generate a single print row for a lesson/sub pair. */
+/** Generate a single print row for a lesson/sub pair (class-centric view). */
 function buildRow(
   num: number,
   lesson: ScheduleLesson | null,
@@ -136,6 +152,32 @@ function buildRow(
   </tr>`;
 }
 
+/** Generate a single print row for teacher-centric view (no teacher column). */
+function buildTeacherRow(
+  num: number,
+  lesson: ScheduleLesson | null,
+  sub: Substitution | null,
+): string {
+  const isSub = !!sub;
+  const className = lesson?.class_name ?? sub?.class_name ?? '—';
+  const groupName = lesson?.group_name ?? sub?.group_name;
+  const subject = sub ? sub.subject_name : (lesson?.subject_name ?? '—');
+  const room = sub ? (sub.room_name ?? '—') : (lesson?.room_name ?? '—');
+  const classCell = `<td>${className}${groupName ? ` <span class="group">(${groupName})</span>` : ''}</td>`;
+  const subjectCell = `<td>${subject}${isSub ? ' <span class="badge">ЗАМЕНА</span>' : ''}</td>`;
+  const origCell = isSub
+    ? `<td class="orig">${sub!.original_subject_name ?? '—'}<br>${sub!.original_teacher_name ?? ''}</td>`
+    : '<td class="orig">—</td>';
+
+  return `<tr class="${isSub ? 'sub-row' : ''}">
+    <td class="num">${num}</td>
+    ${classCell}
+    ${subjectCell}
+    <td>${room}</td>
+    ${origCell}
+  </tr>`;
+}
+
 /** Open a new window, write HTML and trigger print. */
 function openPrintWindow(html: string) {
   const win = window.open('', '_blank');
@@ -145,6 +187,16 @@ function openPrintWindow(html: string) {
     win.print();
   }
 }
+
+const CARD_STYLES = `
+  ${PRINT_STYLES}
+  .class-card { padding: 16px 20px; }
+  .page-break { page-break-before: always; }
+  .card-header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 10px; }
+  .class-name { font-size: 22px; font-weight: bold; }
+  .card-date { font-size: 12px; color: #555; }
+  @media print { body { margin: 0; } .class-card { padding: 12px 16px; } }
+`;
 
 interface Props {
   classes: SchoolClass[];
@@ -176,6 +228,17 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
   const [printAllDate, setPrintAllDate] = useState(todayISO);
   const printAllMenuRef = useRef<HTMLDivElement>(null);
 
+  // Print-all-teachers menu state
+  const [showPrintTeachersMenu, setShowPrintTeachersMenu] = useState(false);
+  const [printTeachersDate, setPrintTeachersDate] = useState(todayISO);
+  const printTeachersMenuRef = useRef<HTMLDivElement>(null);
+
+  // Export menu state
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exportDateFrom, setExportDateFrom] = useState(todayISO);
+  const [exportDateTo, setExportDateTo] = useState(todayISO);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
   const weekDates = getWeekDates(monday);
   const dateFrom = toISODate(weekDates[0]);
   const dateTo = toISODate(weekDates[4]);
@@ -195,17 +258,36 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
 
   useEffect(() => { loadSubstitutions(); }, [loadSubstitutions]);
 
-  // Close print-all dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     if (!showPrintAllMenu) return;
     const handler = (e: MouseEvent) => {
-      if (printAllMenuRef.current && !printAllMenuRef.current.contains(e.target as Node)) {
+      if (printAllMenuRef.current && !printAllMenuRef.current.contains(e.target as Node))
         setShowPrintAllMenu(false);
-      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [showPrintAllMenu]);
+
+  useEffect(() => {
+    if (!showPrintTeachersMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (printTeachersMenuRef.current && !printTeachersMenuRef.current.contains(e.target as Node))
+        setShowPrintTeachersMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showPrintTeachersMenu]);
+
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node))
+        setShowExportMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showExportMenu]);
 
   // Load class subjects + groups when class changes
   useEffect(() => {
@@ -371,7 +453,7 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
     openPrintWindow(html);
   };
 
-  /** Print per-class schedule cards for a given date (for distributing to classrooms). */
+  /** Print per-class schedule cards for a given date. Only prints classes that have substitutions. */
   const handlePrintAll = async () => {
     setShowPrintAllMenu(false);
 
@@ -388,11 +470,8 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     });
 
-    // Collect all class IDs that appear in lessons or subs for this day
-    const classIds = [...new Set([
-      ...dayLessons.map(l => l.school_class),
-      ...dateSubs.map(s => s.school_class),
-    ])];
+    // Only classes that have at least one substitution
+    const classIds = [...new Set(dateSubs.map(s => s.school_class))];
 
     const classMap = new Map(classes.map(c => [c.id, c]));
     classIds.sort((a, b) =>
@@ -434,22 +513,105 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
     }).filter(Boolean);
 
     if (sections.length === 0) {
-      alert('Нет уроков для выбранной даты');
+      alert('Нет замен для выбранной даты');
       return;
     }
 
     const html = `<!DOCTYPE html><html lang="ru"><head>
   <meta charset="UTF-8">
   <title>Расписание по классам — ${dateLabel}</title>
-  <style>
-    ${PRINT_STYLES}
-    .class-card { padding: 16px 20px; }
-    .page-break { page-break-before: always; }
-    .card-header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 10px; }
-    .class-name { font-size: 22px; font-weight: bold; }
-    .card-date { font-size: 12px; color: #555; }
-    @media print { body { margin: 0; } .class-card { padding: 12px 16px; } }
-  </style>
+  <style>${CARD_STYLES}</style>
+</head><body>
+  ${sections.join('')}
+</body></html>`;
+
+    openPrintWindow(html);
+  };
+
+  /** Print per-teacher schedule cards for a given date. Only prints teachers that have substitutions. */
+  const handlePrintAllTeachers = async () => {
+    setShowPrintTeachersMenu(false);
+
+    const date = new Date(printTeachersDate + 'T00:00:00');
+    const weekday = date.getDay();
+
+    const res = await api.get('/school/substitutions/', {
+      params: { date_from: printTeachersDate, date_to: printTeachersDate },
+    });
+    const dateSubs: Substitution[] = res.data;
+    const dayLessons = allLessons.filter(l => l.weekday === weekday);
+
+    const dateLabel = date.toLocaleDateString('ru-RU', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    });
+
+    // Collect teacher IDs involved in substitutions (replacement or original)
+    const teacherIdSet = new Set<number>();
+    dateSubs.forEach(s => {
+      if (s.teacher != null) teacherIdSet.add(s.teacher);
+      const origTeacher = dayLessons.find(l => l.id === s.original_lesson)?.teacher;
+      if (origTeacher != null) teacherIdSet.add(origTeacher);
+    });
+
+    const teacherMap = new Map(teachers.map(t => [t.id, t]));
+    const teacherIds = [...teacherIdSet].sort((a, b) => {
+      const ta = teacherMap.get(a);
+      const tb = teacherMap.get(b);
+      return (ta ? `${ta.last_name} ${ta.first_name}` : '').localeCompare(
+        tb ? `${tb.last_name} ${tb.first_name}` : '', 'ru',
+      );
+    });
+
+    const sections = teacherIds.map((teacherId, idx) => {
+      const teacher = teacherMap.get(teacherId);
+      const teacherLessons = dayLessons.filter(l => l.teacher === teacherId);
+      const teacherSubs = dateSubs.filter(s =>
+        s.teacher === teacherId ||
+        dayLessons.find(l => l.id === s.original_lesson)?.teacher === teacherId,
+      );
+
+      const rows: string[] = [];
+      for (const num of LESSON_NUMBERS) {
+        const numLessons = teacherLessons.filter(l => l.lesson_number === num);
+        const numSubs = teacherSubs.filter(s => s.lesson_number === num);
+        if (numLessons.length === 0 && numSubs.length === 0) continue;
+        buildPairs(numLessons, numSubs).forEach(({ lesson, sub }) => {
+          rows.push(buildTeacherRow(num, lesson, sub));
+        });
+      }
+
+      if (rows.length === 0) return '';
+
+      const teacherName = teacher
+        ? `${teacher.last_name} ${teacher.first_name}`
+        : `Учитель ${teacherId}`;
+
+      return `<div class="class-card${idx > 0 ? ' page-break' : ''}">
+  <div class="card-header">
+    <span class="class-name">${teacherName}</span>
+    <span class="card-date">${dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)}</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th class="num">№</th><th>Класс</th><th>Предмет</th>
+        <th>Кабинет</th><th>Отменённый урок</th>
+      </tr>
+    </thead>
+    <tbody>${rows.join('')}</tbody>
+  </table>
+</div>`;
+    }).filter(Boolean);
+
+    if (sections.length === 0) {
+      alert('Нет замен для выбранной даты');
+      return;
+    }
+
+    const html = `<!DOCTYPE html><html lang="ru"><head>
+  <meta charset="UTF-8">
+  <title>Расписание по учителям — ${dateLabel}</title>
+  <style>${CARD_STYLES}</style>
 </head><body>
   ${sections.join('')}
 </body></html>`;
@@ -458,12 +620,13 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
   };
 
   const handleExport = async () => {
-    const params = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
+    setShowExportMenu(false);
+    const params = new URLSearchParams({ date_from: exportDateFrom, date_to: exportDateTo });
     const response = await api.get(`/school/substitutions/export/?${params}`, { responseType: 'blob' });
     const url = URL.createObjectURL(response.data);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `substitutions_${dateFrom}_${dateTo}.xlsx`;
+    a.download = `${formatExportFilename(exportDateFrom, exportDateTo)}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -517,11 +680,12 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
         />
 
         {user?.is_admin && (
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2 flex-wrap">
+
             {/* Print all classes by date */}
             <div className="relative" ref={printAllMenuRef}>
               <button
-                onClick={() => setShowPrintAllMenu(v => !v)}
+                onClick={() => { setShowPrintAllMenu(v => !v); setShowPrintTeachersMenu(false); setShowExportMenu(false); }}
                 className="px-3 py-1.5 rounded border bg-white text-gray-700 hover:bg-gray-50 text-sm flex items-center gap-1.5"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -559,13 +723,86 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
               )}
             </div>
 
-            {/* Export Excel */}
-            <button
-              onClick={handleExport}
-              className="px-3 py-1.5 rounded border bg-white text-gray-700 hover:bg-gray-50 text-sm flex items-center gap-1.5"
-            >
-              <span>Экспорт Excel</span>
-            </button>
+            {/* Print all teachers by date */}
+            <div className="relative" ref={printTeachersMenuRef}>
+              <button
+                onClick={() => { setShowPrintTeachersMenu(v => !v); setShowPrintAllMenu(false); setShowExportMenu(false); }}
+                className="px-3 py-1.5 rounded border bg-white text-gray-700 hover:bg-gray-50 text-sm flex items-center gap-1.5"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9"/>
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                  <rect x="6" y="14" width="12" height="8"/>
+                </svg>
+                <span>Печать по учителям</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+
+              {showPrintTeachersMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg p-3 z-20 min-w-[210px]">
+                  <label className="block text-xs text-gray-500 mb-1 font-medium">Дата</label>
+                  <input
+                    type="date"
+                    value={printTeachersDate}
+                    onChange={e => setPrintTeachersDate(e.target.value)}
+                    className="border rounded px-2 py-1.5 text-sm w-full mb-3"
+                  />
+                  <button
+                    onClick={handlePrintAllTeachers}
+                    className="w-full px-3 py-1.5 rounded bg-gray-800 text-white text-sm hover:bg-gray-900 flex items-center justify-center gap-1.5"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 6 2 18 2 18 9"/>
+                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                      <rect x="6" y="14" width="12" height="8"/>
+                    </svg>
+                    Распечатать
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Export Excel with date range */}
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                onClick={() => { setShowExportMenu(v => !v); setShowPrintAllMenu(false); setShowPrintTeachersMenu(false); }}
+                className="px-3 py-1.5 rounded border bg-white text-gray-700 hover:bg-gray-50 text-sm flex items-center gap-1.5"
+              >
+                <span>Экспорт Excel</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+
+              {showExportMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg p-3 z-20 min-w-[230px]">
+                  <label className="block text-xs text-gray-500 mb-1 font-medium">С даты</label>
+                  <input
+                    type="date"
+                    value={exportDateFrom}
+                    onChange={e => setExportDateFrom(e.target.value)}
+                    className="border rounded px-2 py-1.5 text-sm w-full mb-2"
+                  />
+                  <label className="block text-xs text-gray-500 mb-1 font-medium">По дату</label>
+                  <input
+                    type="date"
+                    value={exportDateTo}
+                    min={exportDateFrom}
+                    onChange={e => setExportDateTo(e.target.value)}
+                    className="border rounded px-2 py-1.5 text-sm w-full mb-3"
+                  />
+                  <button
+                    onClick={handleExport}
+                    className="w-full px-3 py-1.5 rounded bg-green-700 text-white text-sm hover:bg-green-800 flex items-center justify-center gap-1.5"
+                  >
+                    Скачать
+                  </button>
+                </div>
+              )}
+            </div>
+
           </div>
         )}
       </div>
@@ -650,3 +887,4 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
     </div>
   );
 }
+
