@@ -1,12 +1,17 @@
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
+from django.db.models import Prefetch
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.core.exceptions import ValidationError
 from accounts.permissions import PasswordChanged
+from core.validators import validate_file_mime, ALLOWED_IMAGES, ALLOWED_PDF, ALLOWED_EXCEL
 from .models import ChatRoom, ChatMember, ChatMessage, MessageAttachment, ChatPoll, ChatPollOption, ChatPollVote, ChatTaskTake
+
+ALLOWED_CHAT_FILES = ALLOWED_IMAGES + ALLOWED_PDF + ALLOWED_EXCEL
 from .permissions import can_start_direct, get_available_dm_users
 from .serializers import (
     ChatRoomSerializer, ChatRoomDetailSerializer,
@@ -34,14 +39,21 @@ class ChatRoomListView(APIView):
 
     def get(self, request):
         room_ids = ChatMember.objects.filter(user=request.user).values_list('room_id', flat=True)
-        rooms = ChatRoom.objects.filter(id__in=room_ids, is_archived=False)
-
-        # Сортируем: комнаты с сообщениями — по последнему сообщению, без сообщений — в конец
-        rooms = rooms.prefetch_related('messages', 'members_rel__user')
+        # Prefetch только активные сообщения (не удалённые), отсортированные по убыванию.
+        # to_attr='active_messages' кладёт результат в атрибут объекта — без лишних DB-запросов.
+        rooms = ChatRoom.objects.filter(id__in=room_ids, is_archived=False).prefetch_related(
+            'members_rel__user',
+            Prefetch(
+                'messages',
+                queryset=ChatMessage.objects.filter(is_deleted=False).order_by('-created_at'),
+                to_attr='active_messages',
+            ),
+        )
+        # Сортируем в Python по first элементу active_messages (новейшее сообщение).
+        # Комнаты без сообщений уходят в конец по дате создания.
         rooms_list = sorted(
             rooms,
-            key=lambda r: r.messages.filter(is_deleted=False).last().created_at
-            if r.messages.filter(is_deleted=False).exists() else r.created_at,
+            key=lambda r: r.active_messages[0].created_at if r.active_messages else r.created_at,
             reverse=True,
         )
         serializer = ChatRoomSerializer(rooms_list, many=True, context={'request': request})
@@ -251,6 +263,11 @@ class ChatFileUploadView(APIView):
         uploaded = request.FILES.get('file')
         if not uploaded:
             return Response({'detail': 'Файл не прикреплён.'}, status=400)
+
+        try:
+            validate_file_mime(uploaded, ALLOWED_CHAT_FILES, label='файл чата')
+        except ValidationError as e:
+            return Response({'detail': str(e)}, status=400)
 
         msg = ChatMessage.objects.create(room=room, sender=request.user, text='')
         MessageAttachment.objects.create(

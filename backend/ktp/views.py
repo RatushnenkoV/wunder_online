@@ -14,6 +14,10 @@ from .serializers import (
     TopicFileSerializer, TopicByDateSerializer,
 )
 from .services import autofill_dates, import_topics, get_schedule_info, get_required_lessons_count
+from core.validators import validate_file_mime, ALLOWED_EXCEL, ALLOWED_IMAGES, ALLOWED_PDF
+from django.core.exceptions import ValidationError
+
+ALLOWED_TOPIC_FILES = ALLOWED_IMAGES + ALLOWED_PDF + ALLOWED_EXCEL
 
 
 def _get_user_classes(user):
@@ -316,6 +320,11 @@ def topic_import(request, ctp_id):
         return Response({'detail': 'Файл не загружен'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
+        validate_file_mime(file, ALLOWED_EXCEL, label='файл импорта тем')
+    except ValidationError as e:
+        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
         created, errors = import_topics(ctp, file)
     except ValueError as e:
         return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -410,6 +419,11 @@ def topic_file_upload(request, pk):
     file = request.FILES.get('file')
     if not file:
         return Response({'detail': 'Файл не загружен'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        validate_file_mime(file, ALLOWED_TOPIC_FILES, label='файл темы')
+    except ValidationError as e:
+        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     topic_file = TopicFile.objects.create(
         topic=topic,

@@ -37,7 +37,7 @@ class Topic(models.Model):
     ctp = models.ForeignKey(CTP, on_delete=models.CASCADE, related_name='topics')
     order = models.PositiveIntegerField('Порядок', default=0)
     title = models.CharField('Тема', max_length=500)
-    date = models.DateField('Дата', null=True, blank=True)
+    date = models.DateField('Дата', null=True, blank=True, db_index=True)
     homework = models.TextField('Домашнее задание', blank=True, default='')
     resources = models.JSONField('Ссылки на материалы', default=list, blank=True)
     lesson = models.ForeignKey(

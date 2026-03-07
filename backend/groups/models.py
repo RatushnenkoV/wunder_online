@@ -83,7 +83,7 @@ class ChatMessage(models.Model):
         blank=True,
         related_name='chat_messages',
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
 

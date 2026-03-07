@@ -176,7 +176,7 @@ class ScheduleLesson(models.Model):
 
 
 class Substitution(models.Model):
-    date = models.DateField('Дата')
+    date = models.DateField('Дата', db_index=True)
     lesson_number = models.PositiveSmallIntegerField('Номер урока')
     school_class = models.ForeignKey(
         SchoolClass, on_delete=models.CASCADE, related_name='substitutions', verbose_name='Класс',
@@ -220,6 +220,20 @@ class Substitution(models.Model):
 
     def __str__(self):
         return f'{self.school_class} {self.date} урок {self.lesson_number}'
+
+
+class LessonTimeSlot(models.Model):
+    lesson_number = models.PositiveSmallIntegerField('Номер урока', unique=True)
+    time_start = models.CharField('Начало', max_length=5)
+    time_end = models.CharField('Конец', max_length=5)
+
+    class Meta:
+        verbose_name = 'Время урока'
+        verbose_name_plural = 'Время уроков'
+        ordering = ['lesson_number']
+
+    def __str__(self):
+        return f'Урок {self.lesson_number}: {self.time_start}–{self.time_end}'
 
 
 class AhoRequest(models.Model):

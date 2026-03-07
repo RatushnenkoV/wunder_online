@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import api from '../../api/client';
-import type { Holiday, Room } from '../../types';
+import type { Holiday, Room, LessonTimeSlot } from '../../types';
 
-type Section = 'rooms' | 'holidays' | 'curator_hints';
+type Section = 'rooms' | 'lesson_times' | 'holidays' | 'curator_hints';
 
 const SECTIONS: { key: Section; label: string }[] = [
   { key: 'rooms', label: 'Кабинеты' },
+  { key: 'lesson_times', label: 'Расписание звонков' },
   { key: 'holidays', label: 'Выходные' },
   { key: 'curator_hints', label: 'Подсказки куратора' },
 ];
@@ -33,6 +34,7 @@ export default function ExtraTab() {
       </div>
       <div className="flex-1">
         {section === 'rooms' && <RoomsSection />}
+        {section === 'lesson_times' && <LessonTimesSection />}
         {section === 'holidays' && <HolidaysSection />}
         {section === 'curator_hints' && <CuratorHintsSection />}
       </div>
@@ -76,6 +78,112 @@ function RoomsSection() {
         ))}
         {rooms.length === 0 && <p className="text-gray-400 text-sm py-4">Кабинеты не добавлены</p>}
       </div>
+    </div>
+  );
+}
+
+function LessonTimesSection() {
+  const [slots, setSlots] = useState<LessonTimeSlot[]>([]);
+  const [editing, setEditing] = useState<Record<number, { time_start: string; time_end: string }>>({});
+  const [newSlot, setNewSlot] = useState({ lesson_number: '', time_start: '', time_end: '' });
+
+  const load = async () => {
+    const res = await api.get('/school/lesson-times/');
+    setSlots(res.data);
+  };
+  useEffect(() => { load(); }, []);
+
+  const startEdit = (slot: LessonTimeSlot) => {
+    setEditing(e => ({ ...e, [slot.id]: { time_start: slot.time_start, time_end: slot.time_end } }));
+  };
+
+  const cancelEdit = (id: number) => {
+    setEditing(e => { const n = { ...e }; delete n[id]; return n; });
+  };
+
+  const saveEdit = async (slot: LessonTimeSlot) => {
+    const vals = editing[slot.id];
+    if (!vals) return;
+    await api.put(`/school/lesson-times/${slot.id}/`, vals);
+    cancelEdit(slot.id);
+    load();
+  };
+
+  const handleDelete = async (id: number) => {
+    await api.delete(`/school/lesson-times/${id}/`);
+    load();
+  };
+
+  const handleAdd = async (e: FormEvent) => {
+    e.preventDefault();
+    const { lesson_number, time_start, time_end } = newSlot;
+    if (!lesson_number || !time_start || !time_end) return;
+    await api.post('/school/lesson-times/', { lesson_number: Number(lesson_number), time_start, time_end });
+    setNewSlot({ lesson_number: '', time_start: '', time_end: '' });
+    load();
+  };
+
+  return (
+    <div className="max-w-lg">
+      <p className="text-sm text-gray-500 mb-4">
+        Время начала и конца каждого урока используется при экспорте расписания замен.
+      </p>
+      <div className="space-y-2 mb-4">
+        {slots.map(slot => (
+          <div key={slot.id} className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-lg shadow-sm">
+            <span className="text-sm font-medium w-16 shrink-0">Урок {slot.lesson_number}</span>
+            {editing[slot.id] ? (
+              <>
+                <input
+                  value={editing[slot.id].time_start}
+                  onChange={e => setEditing(ed => ({ ...ed, [slot.id]: { ...ed[slot.id], time_start: e.target.value } }))}
+                  className="border rounded px-2 py-1 text-sm w-20"
+                  placeholder="8:15"
+                />
+                <span className="text-gray-400">–</span>
+                <input
+                  value={editing[slot.id].time_end}
+                  onChange={e => setEditing(ed => ({ ...ed, [slot.id]: { ...ed[slot.id], time_end: e.target.value } }))}
+                  className="border rounded px-2 py-1 text-sm w-20"
+                  placeholder="9:00"
+                />
+                <button onClick={() => saveEdit(slot)} className="text-blue-600 text-sm hover:text-blue-800">Сохранить</button>
+                <button onClick={() => cancelEdit(slot.id)} className="text-gray-400 text-sm hover:text-gray-600">Отмена</button>
+              </>
+            ) : (
+              <>
+                <span className="text-sm text-gray-700 flex-1">{slot.time_start} – {slot.time_end}</span>
+                <button onClick={() => startEdit(slot)} className="text-blue-400 hover:text-blue-600 text-sm">Изменить</button>
+                <button onClick={() => handleDelete(slot.id)} className="text-red-400 hover:text-red-600 text-sm">Удалить</button>
+              </>
+            )}
+          </div>
+        ))}
+        {slots.length === 0 && <p className="text-gray-400 text-sm py-4">Нет данных о звонках</p>}
+      </div>
+      <form onSubmit={handleAdd} className="flex gap-2 items-center">
+        <input
+          type="number" min="1" max="20"
+          placeholder="№ урока" value={newSlot.lesson_number}
+          onChange={e => setNewSlot(s => ({ ...s, lesson_number: e.target.value }))}
+          className="border rounded px-3 py-2 text-sm w-24"
+          required
+        />
+        <input
+          placeholder="8:15" value={newSlot.time_start}
+          onChange={e => setNewSlot(s => ({ ...s, time_start: e.target.value }))}
+          className="border rounded px-3 py-2 text-sm w-20"
+          required
+        />
+        <span className="text-gray-400">–</span>
+        <input
+          placeholder="9:00" value={newSlot.time_end}
+          onChange={e => setNewSlot(s => ({ ...s, time_end: e.target.value }))}
+          className="border rounded px-3 py-2 text-sm w-20"
+          required
+        />
+        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Добавить</button>
+      </form>
     </div>
   );
 }

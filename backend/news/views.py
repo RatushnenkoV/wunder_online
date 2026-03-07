@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.permissions import PasswordChanged
+from accounts.permissions import IsAdmin, PasswordChanged
 from .models import NewsPost, NewsImage, NewsRead
 from .serializers import NewsPostSerializer
 
@@ -92,11 +92,8 @@ def post_detail(request, pk):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, PasswordChanged])
+@permission_classes([IsAdmin, PasswordChanged])
 def publish_toggle(request, pk):
-    if not request.user.is_admin:
-        return Response({'detail': 'Недостаточно прав.'}, status=status.HTTP_403_FORBIDDEN)
-
     try:
         post = NewsPost.objects.get(pk=pk)
     except NewsPost.DoesNotExist:
@@ -114,11 +111,8 @@ def publish_toggle(request, pk):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, PasswordChanged])
+@permission_classes([IsAdmin, PasswordChanged])
 def upload_image(request):
-    if not request.user.is_admin:
-        return Response({'detail': 'Недостаточно прав.'}, status=status.HTTP_403_FORBIDDEN)
-
     file = request.FILES.get('image')
     if not file:
         return Response({'detail': 'Файл не передан.'}, status=status.HTTP_400_BAD_REQUEST)

@@ -3,7 +3,10 @@ import logging
 import uuid
 
 from asgiref.sync import sync_to_async
+from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.contrib.auth.models import AnonymousUser
+from django.db import models
 
 from .models import Slide, LessonSession, FormAnswer
 from .utils import compute_form_results
@@ -24,6 +27,10 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
         slide = await self.get_slide()
         if slide is None:
             await self.close(code=4004)
+            return
+
+        if not await self._can_access_slide(self.user, slide):
+            await self.close(code=4403)
             return
 
         try:
@@ -280,6 +287,51 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
         except Slide.DoesNotExist:
             pass
 
+    @database_sync_to_async
+    def _can_access_slide(self, user, slide):
+        """Проверяет доступ пользователя к слайду.
+
+        Разрешено:
+        - is_admin
+        - is_teacher (любой учитель, владелец урока или нет — педагогам разрешён просмотр)
+        - ученик из класса, для которого есть активная сессия этого урока
+        - ученик, у которого есть назначение (LessonAssignment) на этот урок
+        """
+        if user.is_admin or user.is_teacher:
+            return True
+
+        if not user.is_student:
+            return False
+
+        lesson = slide.lesson
+
+        # Проверяем активную сессию: есть ли сессия урока для класса ученика
+        try:
+            from school.models import StudentProfile
+            profile = StudentProfile.objects.select_related('school_class').get(user=user)
+            student_class = profile.school_class
+        except Exception:
+            # Нет профиля ученика — нет доступа
+            return False
+
+        active_session_exists = LessonSession.objects.filter(
+            lesson=lesson,
+            school_class=student_class,
+            is_active=True,
+        ).exists()
+        if active_session_exists:
+            return True
+
+        # Проверяем назначение урока (самостоятельное прохождение)
+        from .models import LessonAssignment
+        assignment_exists = LessonAssignment.objects.filter(
+            lesson=lesson,
+        ).filter(
+            # назначение на класс ученика ИЛИ напрямую на ученика
+            models.Q(school_class=student_class) | models.Q(student=user)
+        ).exists()
+        return assignment_exists
+
 
 # ─── LessonSessionConsumer ────────────────────────────────────────────────────
 
@@ -301,6 +353,15 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
         # Студентам нельзя подключаться к завершённой сессии
         is_presenter = session.teacher_id == self.user.id or self.user.is_admin
         if not session.is_active and not is_presenter:
+            await self.close(code=4403)
+            return
+
+        # Проверяем членство: учитель/admin — пропускаем, студент — только из класса сессии
+        if not await self._can_access_session(self.user, session):
+            logger.warning(
+                '[LessonSession] user %s denied access to session %s (not a member)',
+                self.user.id, self.session_id,
+            )
             await self.close(code=4403)
             return
 
@@ -549,6 +610,35 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
         }))
 
     # ── DB helpers ────────────────────────────────────────────────────────────
+
+    @database_sync_to_async
+    def _can_access_session(self, user, session):
+        """Проверяет доступ пользователя к сессии урока.
+
+        Разрешено:
+        - is_admin
+        - учитель сессии (session.teacher)
+        - любой другой учитель (педагогам разрешён просмотр)
+        - ученик из класса сессии (session.school_class)
+        """
+        if user.is_admin or user.is_teacher:
+            return True
+
+        if not user.is_student:
+            return False
+
+        if session.school_class_id is None:
+            # Сессия без класса — разрешаем всем аутентифицированным
+            return True
+
+        try:
+            from school.models import StudentProfile
+            return StudentProfile.objects.filter(
+                user=user,
+                school_class_id=session.school_class_id,
+            ).exists()
+        except Exception:
+            return False
 
     @sync_to_async
     def get_session(self):

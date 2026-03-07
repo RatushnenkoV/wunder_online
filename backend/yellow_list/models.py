@@ -19,7 +19,7 @@ class YellowListEntry(models.Model):
         related_name='yellow_submitted',
         verbose_name='Кто подал',
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     is_read_by_spps = models.BooleanField(default=False, verbose_name='Прочитано СППС')
 
     class Meta:
