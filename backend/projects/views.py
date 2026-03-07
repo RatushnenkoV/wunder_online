@@ -3,6 +3,7 @@ import mimetypes
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -10,6 +11,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import PasswordChanged
+from core.validators import validate_file_mime, ALLOWED_IMAGES, ALLOWED_PDF, ALLOWED_EXCEL
+
+ALLOWED_PROJECT_FILES = ALLOWED_IMAGES + ALLOWED_PDF + ALLOWED_EXCEL
 from tasks.models import Task
 from .models import (
     Project, ProjectMember, ProjectPost, PostAttachment,
@@ -320,6 +324,10 @@ class ProjectPostFileView(APIView):
         f = request.FILES.get('file')
         if not f:
             return Response({'detail': 'Файл обязателен.'}, status=400)
+        try:
+            validate_file_mime(f, ALLOWED_PROJECT_FILES, label='вложение поста')
+        except ValidationError as e:
+            return Response({'detail': str(e)}, status=400)
         mime = mimetypes.guess_type(f.name)[0] or 'application/octet-stream'
         attachment = PostAttachment.objects.create(
             post=post,
@@ -432,6 +440,10 @@ class AssignmentFileView(APIView):
         f = request.FILES.get('file')
         if not f:
             return Response({'detail': 'Файл обязателен.'}, status=400)
+        try:
+            validate_file_mime(f, ALLOWED_PROJECT_FILES, label='вложение задания')
+        except ValidationError as e:
+            return Response({'detail': str(e)}, status=400)
         mime = mimetypes.guess_type(f.name)[0] or 'application/octet-stream'
         attachment = AssignmentAttachment.objects.create(
             assignment=assignment,
@@ -617,6 +629,10 @@ class SubmissionFileView(APIView):
         f = request.FILES.get('file')
         if not f:
             return Response({'detail': 'Файл обязателен.'}, status=400)
+        try:
+            validate_file_mime(f, ALLOWED_PROJECT_FILES, label='файл сдачи')
+        except ValidationError as e:
+            return Response({'detail': str(e)}, status=400)
         mime = mimetypes.guess_type(f.name)[0] or 'application/octet-stream'
         sub_file = SubmissionFile.objects.create(
             submission=submission,

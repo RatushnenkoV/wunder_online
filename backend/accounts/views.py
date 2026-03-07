@@ -1,11 +1,22 @@
+import logging
+
 from django.contrib.auth import authenticate
+from django.db import IntegrityError
 from django.db.models import Q
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes, throttle_classes
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
+
+logger = logging.getLogger('accounts')
+
+
+class LoginRateThrottle(AnonRateThrottle):
+    """Максимум 5 попыток входа в минуту с одного IP."""
+    scope = 'login'
 
 from school.models import StudentProfile, SchoolClass, ParentProfile
 from .models import User
@@ -16,10 +27,13 @@ from .serializers import (
     ParentSerializer, ParentChildSerializer,
 )
 from .services import create_user_with_temp_password, reset_user_password, import_users
+from core.validators import validate_file_mime, ALLOWED_EXCEL
+from django.core.exceptions import ValidationError
 
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([LoginRateThrottle])
 def login_view(request):
     serializer = LoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -31,6 +45,12 @@ def login_view(request):
         password=serializer.validated_data['password'],
     )
     if not user:
+        logger.warning(
+            'Failed login attempt: %s %s from %s',
+            serializer.validated_data['first_name'],
+            serializer.validated_data['last_name'],
+            request.META.get('REMOTE_ADDR', 'unknown'),
+        )
         return Response({'detail': 'Неверные имя, фамилия или пароль'}, status=status.HTTP_401_UNAUTHORIZED)
 
     refresh = RefreshToken.for_user(user)
@@ -71,7 +91,7 @@ def me_view(request):
                 sp = request.user.student_profile
                 data['school_class_id'] = sp.school_class_id
                 data['school_class_name'] = str(sp.school_class) if sp.school_class else ''
-            except Exception:
+            except AttributeError:
                 data['school_class_id'] = None
                 data['school_class_name'] = ''
         if request.user.is_parent:
@@ -80,7 +100,7 @@ def me_view(request):
                     'user', 'school_class', 'school_class__grade_level'
                 )
                 data['children'] = ParentChildSerializer(children_qs, many=True).data
-            except Exception:
+            except AttributeError:
                 data['children'] = []
         return Response(data)
 
@@ -197,8 +217,11 @@ def staff_list_create(request):
                 entry.get('email', ''), entry.get('phone', ''),
             )
             created.append(user)
-        except Exception as e:
+        except (IntegrityError, ValueError, KeyError) as e:
             errors.append(f'Запись {i+1}: {str(e)}')
+        except Exception as e:
+            logger.exception('Unexpected error at row processing (staff): row %d', i + 1)
+            errors.append(f'Запись {i+1}: непредвиденная ошибка')
 
     return Response({
         'created': UserListSerializer(created, many=True).data,
@@ -277,8 +300,11 @@ def student_list_create(request):
                 except SchoolClass.DoesNotExist:
                     errors.append(f'Запись {i+1}: класс {class_id} не найден')
             created.append(user)
-        except Exception as e:
+        except (IntegrityError, ValueError, KeyError) as e:
             errors.append(f'Запись {i+1}: {str(e)}')
+        except Exception as e:
+            logger.exception('Unexpected error at row processing (students): row %d', i + 1)
+            errors.append(f'Запись {i+1}: непредвиденная ошибка')
 
     return Response({
         'created': UserListSerializer(created, many=True).data,
@@ -399,6 +425,11 @@ def import_users_view(request):
     file = request.FILES.get('file')
     if not file:
         return Response({'detail': 'Файл не загружен'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        validate_file_mime(file, ALLOWED_EXCEL, label='файл импорта')
+    except ValidationError as e:
+        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         created, errors = import_users(file)

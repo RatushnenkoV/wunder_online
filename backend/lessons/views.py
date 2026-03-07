@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models as django_models
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
@@ -6,6 +7,9 @@ from rest_framework.response import Response
 
 from django.utils import timezone
 from accounts.permissions import PasswordChanged
+from core.validators import validate_file_mime, ALLOWED_IMAGES, ALLOWED_PDF, ALLOWED_EXCEL
+
+ALLOWED_PRESENTATION_FILES = ALLOWED_PDF + ['application/zip']  # PDF + PPTX (zip)
 from .models import Lesson, LessonFolder, Slide, LessonMedia, LessonSession, FormAnswer, VocabProgress, Textbook, TextbookAnnotation, LessonAssignment
 from .serializers import LessonFolderSerializer, LessonSerializer, SlideSerializer, LessonMediaSerializer, LessonSessionSerializer, TextbookSerializer, LessonAssignmentSerializer
 from .utils import compute_form_results
@@ -755,6 +759,11 @@ def import_presentation(request):
     if ext not in ('pdf', 'pptx', 'ppt'):
         return Response({'error': 'Поддерживаются только файлы PDF и PPTX'}, status=400)
 
+    try:
+        validate_file_mime(file, ALLOWED_PRESENTATION_FILES, label='файл презентации')
+    except ValidationError as e:
+        return Response({'error': str(e)}, status=400)
+
     title = (request.data.get('title') or file.name.rsplit('.', 1)[0])[:300]
     folder_id = request.data.get('folder') or None
     cover_color = request.data.get('cover_color', '#6366f1')
@@ -863,6 +872,11 @@ def slide_image_upload(request, lesson_id, slide_id):
     if not img:
         return Response({'error': 'Файл не передан'}, status=400)
 
+    try:
+        validate_file_mime(img, ALLOWED_IMAGES, label='изображение слайда')
+    except ValidationError as e:
+        return Response({'error': str(e)}, status=400)
+
     if slide.image:
         slide.image.delete(save=False)
     slide.image = img
@@ -883,6 +897,11 @@ def upload_media(request, lesson_id):
     f = request.FILES.get('file')
     if not f:
         return Response({'error': 'Файл не передан'}, status=400)
+
+    try:
+        validate_file_mime(f, ALLOWED_IMAGES, label='медиафайл урока')
+    except ValidationError as e:
+        return Response({'error': str(e)}, status=400)
 
     media = LessonMedia.objects.create(lesson=lesson, file=f)
     return Response(LessonMediaSerializer(media, context=_ctx(request)).data, status=201)
@@ -1143,6 +1162,11 @@ def textbook_list_create(request):
     file = request.FILES.get('file')
     if not file:
         return Response({'error': 'Файл обязателен'}, status=400)
+
+    try:
+        validate_file_mime(file, ALLOWED_PDF, label='учебник')
+    except ValidationError as e:
+        return Response({'error': str(e)}, status=400)
 
     title = request.data.get('title', '').strip() or file.name
     subject_id = request.data.get('subject') or None

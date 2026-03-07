@@ -12,7 +12,7 @@ class NewsPost(models.Model):
         related_name='news_posts',
         verbose_name='Автор',
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=False, verbose_name='Опубликована')
     for_staff = models.BooleanField(default=False, verbose_name='Для сотрудников')

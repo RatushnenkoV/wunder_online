@@ -175,6 +175,13 @@ export interface Room {
   name: string;
 }
 
+export interface LessonTimeSlot {
+  id: number;
+  lesson_number: number;
+  time_start: string;
+  time_end: string;
+}
+
 export interface Substitution {
   id: number;
   date: string; // YYYY-MM-DD
@@ -250,6 +257,8 @@ export interface Task {
   updated_at: string;
   completed_at: string | null;
 }
+
+export type StaffUser = { id: number; first_name: string; last_name: string };
 
 export interface TasksCount {
   new: number;
@@ -404,6 +413,34 @@ export interface DiscussionArrow {
   author_name: string;
 }
 
+// ─── Quiz slide ───────────────────────────────────────────────────────────────
+
+export interface QuizQuestion {
+  id: string;
+  text: string;
+  options: string[];
+  correct: number;
+  time_limit: number;
+}
+
+export interface QuizContent {
+  questions: QuizQuestion[];
+}
+
+export interface QuizLeaderboardEntry {
+  id: number;
+  name: string;
+  points: number;
+}
+
+export interface QuizLeaderboardData {
+  slide_id: number;
+  question_idx: number;
+  correct_index: number;
+  leaderboard: QuizLeaderboardEntry[];
+  answer_stats: Record<string, number>;
+}
+
 // ─── Vocab slide ─────────────────────────────────────────────────────────────
 
 export interface VocabWord {
@@ -429,6 +466,14 @@ export interface VocabContent {
   words: VocabWord[];
   tasks: VocabTasks;
   repetitions: number | 'until_correct';
+}
+
+export type VocabTaskKey = keyof VocabTasks;
+
+export interface VocabExercise {
+  wordId: string;
+  taskKey: VocabTaskKey;
+  attempt: number;
 }
 
 export interface VocabProgressRecord {

@@ -141,7 +141,10 @@ class ChatRoomSerializer(serializers.ModelSerializer):
                   'last_message', 'unread_count', 'other_user', 'members_count']
 
     def get_last_message(self, obj):
-        msg = obj.messages.filter(is_deleted=False).last()
+        # Используем prefetch-кэш active_messages если доступен (ChatRoomListView),
+        # иначе fallback на DB-запрос (ChatRoomDetailView, ChatDirectView).
+        active = getattr(obj, 'active_messages', None)
+        msg = active[0] if active else obj.messages.filter(is_deleted=False).last()
         if not msg:
             return None
         if msg.is_deleted:
@@ -173,17 +176,30 @@ class ChatRoomSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if not request:
             return 0
-        member = obj.members_rel.filter(user=request.user).first()
-        qs = obj.messages.filter(is_deleted=False).exclude(sender=request.user)
-        if member and member.last_read_at:
-            qs = qs.filter(created_at__gt=member.last_read_at)
-        return qs.count()
+        # members_rel__user prefetch-нут в ChatRoomListView — .all() использует кэш.
+        member = next((m for m in obj.members_rel.all() if m.user_id == request.user.id), None)
+        if not member:
+            return 0
+        active = getattr(obj, 'active_messages', None)
+        if active is None:
+            # Fallback для views без prefetch (ChatRoomDetailView и др.)
+            qs = obj.messages.filter(is_deleted=False).exclude(sender=request.user)
+            if member.last_read_at:
+                qs = qs.filter(created_at__gt=member.last_read_at)
+            return qs.count()
+        # Фильтруем в Python по уже загруженным данным — 0 DB-запросов.
+        return sum(
+            1 for m in active
+            if m.sender_id != request.user.id
+            and (not member.last_read_at or m.created_at > member.last_read_at)
+        )
 
     def get_other_user(self, obj):
         request = self.context.get('request')
         if not request or obj.room_type != ChatRoom.TYPE_DIRECT:
             return None
-        member = obj.members_rel.exclude(user=request.user).select_related('user').first()
+        # members_rel__user prefetch-нут — .all() использует кэш, не идёт в DB.
+        member = next((m for m in obj.members_rel.all() if m.user_id != request.user.id), None)
         if not member:
             return None
         u = member.user
@@ -198,7 +214,8 @@ class ChatRoomSerializer(serializers.ModelSerializer):
         }
 
     def get_members_count(self, obj):
-        return obj.members_rel.count()
+        # .all() использует prefetch-кэш, не делает COUNT-запрос.
+        return len(obj.members_rel.all())
 
 
 class ChatRoomDetailSerializer(ChatRoomSerializer):

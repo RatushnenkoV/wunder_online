@@ -5,7 +5,7 @@ from .models import (
     GradeLevel, SchoolClass, Subject, GradeLevelSubject,
     StudentProfile, ParentProfile, TeacherProfile,
     ClassGroup, ClassSubject, Room, ScheduleLesson, Substitution,
-    AhoRequest,
+    LessonTimeSlot, AhoRequest,
 )
 
 
@@ -206,6 +206,12 @@ class SubstitutionSerializer(serializers.ModelSerializer):
 
     def get_group_name(self, obj):
         return obj.group.name if obj.group else None
+
+
+class LessonTimeSlotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LessonTimeSlot
+        fields = ['id', 'lesson_number', 'time_start', 'time_end']
 
 
 class AhoRequestSerializer(serializers.ModelSerializer):

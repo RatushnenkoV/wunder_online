@@ -3,12 +3,23 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.permissions import PasswordChanged
+from accounts.permissions import IsAdminOrTeacher, PasswordChanged
 from .models import Task, TaskFile, TaskGroup
 from .serializers import TaskFileSerializer, TaskGroupSerializer, TaskSerializer
+from core.validators import validate_file_mime, ALLOWED_IMAGES, ALLOWED_PDF, ALLOWED_EXCEL
+from django.core.exceptions import ValidationError
+
+ALLOWED_TASK_FILES = ALLOWED_IMAGES + ALLOWED_PDF + ALLOWED_EXCEL
+
+
+class TaskPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 200
 
 User = get_user_model()
 
@@ -45,10 +56,8 @@ def _serialize_groups(qs, request):
 # ─── Сотрудники ───────────────────────────────────────────────────────────────
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, PasswordChanged])
+@permission_classes([IsAdminOrTeacher, PasswordChanged])
 def staff_list(request):
-    if not (request.user.is_admin or request.user.is_teacher):
-        return Response({'error': 'Нет доступа'}, status=403)
     users = User.objects.filter(
         Q(is_admin=True) | Q(is_teacher=True)
     ).order_by('last_name', 'first_name')
@@ -100,11 +109,8 @@ def group_detail(request, group_id):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, PasswordChanged])
+@permission_classes([IsAdminOrTeacher, PasswordChanged])
 def group_members(request, group_id):
-    if not (request.user.is_admin or request.user.is_teacher):
-        return Response({'error': 'Нет доступа'}, status=403)
-
     group = get_object_or_404(TaskGroup, id=group_id)
     action = request.data.get('action')
 
@@ -136,6 +142,10 @@ def task_list_create(request):
         tasks = _my_tasks_qs(request.user)
         if request.query_params.get('status'):
             tasks = tasks.filter(status=request.query_params['status'])
+        paginator = TaskPagination()
+        page = paginator.paginate_queryset(tasks, request)
+        if page is not None:
+            return paginator.get_paginated_response(_serialize_tasks(page, request))
         return Response(_serialize_tasks(tasks, request))
 
     if not (request.user.is_admin or request.user.is_teacher):
@@ -287,6 +297,11 @@ def task_file_upload(request, task_id):
     f = request.FILES.get('file')
     if not f:
         return Response({'error': 'Файл не передан'}, status=400)
+
+    try:
+        validate_file_mime(f, ALLOWED_TASK_FILES, label='вложение задачи')
+    except ValidationError as e:
+        return Response({'error': str(e)}, status=400)
 
     task_file = TaskFile.objects.create(
         task=task,

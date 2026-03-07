@@ -17,6 +17,14 @@ interface Props {
   onPrintDay?: (date: string) => void;
 }
 
+/** In teacher view: should we show the substitute's name?
+ *  Yes — when the selected teacher is the ORIGINAL (their lesson is cancelled),
+ *  so the viewer needs to see who replaced them.
+ *  No  — when the selected teacher IS the replacement (showing own name is redundant). */
+function showSubstituteInTeacherView(sub: Substitution, selectedId: number | null): boolean {
+  return sub.teacher !== selectedId;
+}
+
 function formatDate(d: Date): string {
   return d.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' });
 }
@@ -115,6 +123,7 @@ export default function SubstitutionsGrid({
                       regularLessons={regularLessons}
                       subs={subs}
                       viewMode={viewMode}
+                      selectedId={selectedId}
                       onCellClick={onCellClick}
                     />
                   </td>
@@ -134,10 +143,11 @@ interface CellContentProps {
   regularLessons: ScheduleLesson[];
   subs: Substitution[];
   viewMode: 'class' | 'teacher' | 'room';
+  selectedId: number | null;
   onCellClick: (date: string, lessonNumber: number, originalLesson: ScheduleLesson | null, sub: Substitution | null) => void;
 }
 
-function CellContent({ dateStr, lessonNumber, regularLessons, subs, viewMode, onCellClick }: CellContentProps) {
+function CellContent({ dateStr, lessonNumber, regularLessons, subs, viewMode, selectedId, onCellClick }: CellContentProps) {
   // Split layout only for class view: in teacher/room view each participant has exactly one lesson per slot
   const isSplit = viewMode === 'class' && (regularLessons.length > 1 || regularLessons.some(l => l.group !== null));
 
@@ -164,6 +174,7 @@ function CellContent({ dateStr, lessonNumber, regularLessons, subs, viewMode, on
             sub={pair.sub}
             side={pairs.length === 2 ? (i === 0 ? 'left' : 'right') : 'full'}
             viewMode={viewMode}
+            selectedId={selectedId}
             onClick={() => onCellClick(dateStr, lessonNumber, pair.lesson, pair.sub)}
           />
         ))}
@@ -174,6 +185,7 @@ function CellContent({ dateStr, lessonNumber, regularLessons, subs, viewMode, on
             sub={sub}
             side="full"
             viewMode={viewMode}
+            selectedId={selectedId}
             onClick={() => onCellClick(dateStr, lessonNumber, null, sub)}
           />
         ))}
@@ -210,7 +222,9 @@ function CellContent({ dateStr, lessonNumber, regularLessons, subs, viewMode, on
           <div className="text-[10px] font-medium text-amber-600 mb-0.5">ЗАМЕНА</div>
           <div className="font-medium text-amber-900 truncate">{sub.subject_name}</div>
           {viewMode !== 'class' && <div className="text-amber-700 truncate">{sub.class_name}</div>}
-          {viewMode !== 'teacher' && sub.teacher_name && <div className="text-amber-700 truncate">{sub.teacher_name}</div>}
+          {sub.teacher_name && (viewMode !== 'teacher' || showSubstituteInTeacherView(sub, selectedId)) && (
+            <div className="text-amber-700 truncate">{sub.teacher_name}</div>
+          )}
           {viewMode !== 'room' && sub.room_name && <div className="text-amber-600 truncate">каб. {sub.room_name}</div>}
         </>
       ) : (
@@ -230,10 +244,11 @@ interface HalfCardProps {
   sub: Substitution | null;
   side: 'left' | 'right' | 'full';
   viewMode: 'class' | 'teacher' | 'room';
+  selectedId: number | null;
   onClick: () => void;
 }
 
-function HalfCard({ lesson, sub, side, viewMode, onClick }: HalfCardProps) {
+function HalfCard({ lesson, sub, side, viewMode, selectedId, onClick }: HalfCardProps) {
   const roundedClass = side === 'left' ? 'rounded-l-lg' : side === 'right' ? 'rounded-r-lg' : 'rounded-lg';
 
   if (!lesson && !sub) {
@@ -257,7 +272,7 @@ function HalfCard({ lesson, sub, side, viewMode, onClick }: HalfCardProps) {
           {lesson?.group_name ?? sub.group_name ?? 'ЗАМЕНА'}
         </div>
         <div className="font-medium text-amber-900 truncate">{sub.subject_name}</div>
-        {viewMode !== 'teacher' && sub.teacher_name && (
+        {sub.teacher_name && (viewMode !== 'teacher' || showSubstituteInTeacherView(sub, selectedId)) && (
           <div className="text-amber-700 truncate">{sub.teacher_name}</div>
         )}
         {viewMode !== 'room' && sub.room_name && (

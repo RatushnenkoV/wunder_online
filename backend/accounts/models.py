@@ -43,6 +43,10 @@ class User(AbstractUser):
     class Meta:
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
+        indexes = [
+            # Составной индекс ускоряет поиск по фамилии+имени и по фамилии отдельно.
+            models.Index(fields=['last_name', 'first_name']),
+        ]
 
     def __str__(self):
         return f'{self.last_name} {self.first_name}'

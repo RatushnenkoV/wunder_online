@@ -10,16 +10,18 @@ from .models import (
     GradeLevel, SchoolClass, Subject, GradeLevelSubject,
     StudentProfile, ParentProfile, TeacherProfile,
     ClassGroup, ClassSubject, Room, ScheduleLesson, Substitution,
-    AhoRequest,
+    LessonTimeSlot, AhoRequest,
 )
 from .serializers import (
     GradeLevelSerializer, SchoolClassSerializer, SubjectSerializer,
     GradeLevelSubjectSerializer, StudentProfileSerializer, ParentProfileSerializer,
     ClassGroupSerializer, ClassSubjectSerializer, RoomSerializer,
-    ScheduleLessonSerializer, SubstitutionSerializer, AhoRequestSerializer,
+    ScheduleLessonSerializer, SubstitutionSerializer, LessonTimeSlotSerializer, AhoRequestSerializer,
 )
 from .services import import_classes, import_students_from_excel
 from . import schedule_import as sched_import
+from core.validators import validate_file_mime, ALLOWED_EXCEL
+from django.core.exceptions import ValidationError
 
 
 # --- Grade Levels ---
@@ -213,6 +215,11 @@ def import_classes_view(request):
     file = request.FILES.get('file')
     if not file:
         return Response({'detail': 'Файл не загружен'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        validate_file_mime(file, ALLOWED_EXCEL, label='файл импорта')
+    except ValidationError as e:
+        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         result = import_classes(file)
@@ -620,6 +627,17 @@ def schedule_import_preview(request):
         return Response({'detail': 'Файл расписания по классам обязателен'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
+        validate_file_mime(classes_file, ALLOWED_EXCEL, label='файл расписания по классам')
+    except ValidationError as e:
+        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    if teachers_file:
+        try:
+            validate_file_mime(teachers_file, ALLOWED_EXCEL, label='файл расписания по учителям')
+        except ValidationError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
         class_lessons = sched_import.parse_classes_file(classes_file.read())
     except Exception as e:
         return Response({'detail': f'Ошибка парсинга файла классов: {e}'}, status=status.HTTP_400_BAD_REQUEST)
@@ -669,8 +687,9 @@ def schedule_import_confirm(request):
 @api_view(['GET'])
 @permission_classes([IsAdmin, PasswordChanged])
 def substitution_export(request):
-    """Export substitutions to Excel."""
+    """Export substitutions to Excel — one sheet per day."""
     from io import BytesIO
+    from collections import defaultdict
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment
     from django.http import HttpResponse
@@ -681,56 +700,65 @@ def substitution_export(request):
     subs = Substitution.objects.select_related(
         'school_class__grade_level', 'subject', 'teacher', 'room',
         'original_lesson__subject', 'original_lesson__teacher', 'original_lesson__room',
-    ).order_by('date', 'teacher__last_name', 'teacher__first_name', 'lesson_number')
+    ).order_by('date', 'lesson_number', 'school_class__grade_level__number', 'school_class__letter')
 
     if date_from:
         subs = subs.filter(date__gte=date_from)
     if date_to:
         subs = subs.filter(date__lte=date_to)
 
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = 'Замены'
+    time_slots = {
+        slot.lesson_number: f'{slot.time_start}–{slot.time_end}'
+        for slot in LessonTimeSlot.objects.all()
+    }
 
-    headers = [
-        'Дата', 'Урок', 'Класс',
-        'Было: предмет', 'Было: учитель', 'Было: кабинет',
-        'Стало: предмет', 'Стало: учитель', 'Стало: кабинет',
+    by_date = defaultdict(list)
+    for sub in subs:
+        by_date[sub.date].append(sub)
+
+    HEADERS = [
+        'Номер урока', 'Время',
+        'Заменяемый учитель', 'Урок, который НЕ состоится',
+        'Замещающий учитель', 'Урок, который СОСТОИТСЯ',
     ]
-    ws.append(headers)
-
     header_font = Font(bold=True)
     header_fill = PatternFill(start_color='D0E8FF', end_color='D0E8FF', fill_type='solid')
-    for cell in ws[1]:
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = Alignment(horizontal='center')
 
-    for sub in subs:
-        orig_subject = sub.original_lesson.subject.name if sub.original_lesson else ''
-        orig_teacher = ''
-        if sub.original_lesson and sub.original_lesson.teacher:
-            t = sub.original_lesson.teacher
-            orig_teacher = f'{t.last_name} {t.first_name}'
-        orig_room = (sub.original_lesson.room.name if sub.original_lesson and sub.original_lesson.room else '')
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)
 
-        new_teacher = f'{sub.teacher.last_name} {sub.teacher.first_name}' if sub.teacher else ''
+    for date in sorted(by_date.keys()):
+        ws = wb.create_sheet(title=date.strftime('%d.%m.%Y'))
+        ws.append(HEADERS)
+        for cell in ws[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center', wrap_text=True)
 
-        ws.append([
-            sub.date.strftime('%d.%m.%Y'),
-            sub.lesson_number,
-            str(sub.school_class),
-            orig_subject,
-            orig_teacher,
-            orig_room,
-            sub.subject.name,
-            new_teacher,
-            sub.room.name if sub.room else '',
-        ])
+        for sub in by_date[date]:
+            orig_teacher = ''
+            if sub.original_lesson and sub.original_lesson.teacher:
+                t = sub.original_lesson.teacher
+                orig_teacher = f'{t.last_name} {t.first_name}'
+            orig_subject = sub.original_lesson.subject.name if sub.original_lesson else ''
+            new_teacher = f'{sub.teacher.last_name} {sub.teacher.first_name}' if sub.teacher else ''
 
-    for col in ws.columns:
-        max_len = max(len(str(cell.value or '')) for cell in col)
-        ws.column_dimensions[col[0].column_letter].width = max(12, min(max_len + 2, 40))
+            ws.append([
+                sub.lesson_number,
+                time_slots.get(sub.lesson_number, ''),
+                orig_teacher,
+                orig_subject,
+                new_teacher,
+                sub.subject.name,
+            ])
+
+        for col in ws.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            ws.column_dimensions[col[0].column_letter].width = max(12, min(max_len + 2, 50))
+
+    if not wb.sheetnames:
+        ws = wb.create_sheet(title='Замены')
+        ws.append(HEADERS)
 
     output = BytesIO()
     wb.save(output)
@@ -742,6 +770,49 @@ def substitution_export(request):
     )
     response['Content-Disposition'] = 'attachment; filename="zameny.xlsx"'
     return response
+
+
+# --- Lesson Time Slots ---
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def lesson_time_list_create(request):
+    if request.method == 'GET':
+        slots = LessonTimeSlot.objects.all()
+        return Response(LessonTimeSlotSerializer(slots, many=True).data)
+
+    if not request.user.is_admin:
+        return Response({'detail': 'Недостаточно прав'}, status=status.HTTP_403_FORBIDDEN)
+
+    lesson_number = request.data.get('lesson_number')
+    time_start = request.data.get('time_start', '').strip()
+    time_end = request.data.get('time_end', '').strip()
+    if not lesson_number or not time_start or not time_end:
+        return Response({'detail': 'lesson_number, time_start и time_end обязательны'}, status=status.HTTP_400_BAD_REQUEST)
+
+    slot, created = LessonTimeSlot.objects.update_or_create(
+        lesson_number=lesson_number,
+        defaults={'time_start': time_start, 'time_end': time_end},
+    )
+    return Response(LessonTimeSlotSerializer(slot).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+@api_view(['PUT', 'DELETE'])
+@permission_classes([IsAdmin, PasswordChanged])
+def lesson_time_detail(request, pk):
+    try:
+        slot = LessonTimeSlot.objects.get(pk=pk)
+    except LessonTimeSlot.DoesNotExist:
+        return Response({'detail': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        slot.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    slot.time_start = request.data.get('time_start', slot.time_start).strip()
+    slot.time_end = request.data.get('time_end', slot.time_end).strip()
+    slot.save()
+    return Response(LessonTimeSlotSerializer(slot).data)
 
 
 # --- АХО ---
