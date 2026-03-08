@@ -362,7 +362,7 @@ export default function Layout() {
         {/* Логотип */}
         <div className="px-6 py-5 border-b border-white/10">
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold text-white tracking-tight">Wunder<span className="text-brand-400">Online</span></span>
+            <span className="text-xl font-bold text-white tracking-tight">Wunder<span className="text-brand-400">OS</span></span>
           </Link>
         </div>
 
@@ -458,7 +458,7 @@ export default function Layout() {
           >
             <IconMenu />
           </button>
-          <span className="text-lg font-bold text-white">Wunder<span className="text-brand-400">Online</span></span>
+          <span className="text-lg font-bold text-white">Wunder<span className="text-brand-400">OS</span></span>
         </header>
 
         <main className={
