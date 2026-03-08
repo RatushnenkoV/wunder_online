@@ -1186,7 +1186,7 @@ def textbook_list_create(request):
     return Response(TextbookSerializer(textbook, context=_ctx(request)).data, status=201)
 
 
-@api_view(['GET', 'PUT', 'DELETE'])
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 @permission_classes([IsAuthenticated, PasswordChanged])
 def textbook_detail(request, textbook_id):
     textbook = get_object_or_404(
@@ -1200,10 +1200,18 @@ def textbook_detail(request, textbook_id):
     if not _is_staff(request.user):
         return Response({'error': 'Нет доступа'}, status=403)
 
+    if request.method == 'PATCH':
+        title = (request.data.get('title') or '').strip()
+        if title:
+            textbook.title = title
+            textbook.save(update_fields=['title'])
+        return Response(TextbookSerializer(textbook, context=_ctx(request)).data)
+
     if request.method == 'PUT':
         title = request.data.get('title', textbook.title).strip() or textbook.title
         subject_id = request.data.get('subject') or None
-        grade_level_ids = request.data.getlist('grade_level_ids')
+        raw_ids = request.data.get('grade_level_ids', [])
+        grade_level_ids = raw_ids if isinstance(raw_ids, list) else request.data.getlist('grade_level_ids')
 
         textbook.title = title
         textbook.subject_id = subject_id
