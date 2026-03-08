@@ -820,7 +820,7 @@ function TextbooksTab({ isStaff }: TextbooksTabProps) {
 
   const handleRenameTextbook = async (title: string) => {
     if (!renamingTextbook) return;
-    await api.put(`/lessons/textbooks/${renamingTextbook.id}/`, { title });
+    await api.patch(`/lessons/textbooks/${renamingTextbook.id}/`, { title });
     setTextbooks(prev => prev.map(t => t.id === renamingTextbook.id ? { ...t, title } : t));
     setRenamingTextbook(null);
   };
