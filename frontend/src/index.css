@@ -26,8 +26,9 @@
   color: rgb(226 232 240);           /* slate-200 */
 }
 
-/* Инпуты, textarea, select — без явного bg остаются белыми */
-.dark input:not([class*="bg-"]),
+/* Инпуты, textarea, select — без явного bg остаются белыми.
+   Исключение: страница логина (bg-brand-950) — у неё свой стиль */
+.dark input:not([class*="bg-"]):not(.b24-form-control),
 .dark textarea:not([class*="bg-"]),
 .dark select:not([class*="bg-"]) {
   background-color: rgb(30 41 59);   /* slate-800 */
