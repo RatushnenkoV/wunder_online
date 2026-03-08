@@ -278,6 +278,9 @@ server {
     listen 80;
     server_name yourdomain.com www.yourdomain.com;
 
+    # Максимальный размер загружаемых файлов (учебники могут быть до 500 MB)
+    client_max_body_size 500M;
+
     # Фронтенд (React SPA)
     root /var/www/wunder/frontend/dist;
     index index.html;
@@ -313,7 +316,6 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        client_max_body_size 100M;
     }
 
     # Django admin

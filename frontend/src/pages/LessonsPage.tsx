@@ -264,6 +264,7 @@ function TextbookUploadModal({ onSave, onClose }: TextbookUploadModalProps) {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [gradeLevels, setGradeLevels] = useState<TextbookGradeLevel[]>([]);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
     Promise.all([
@@ -293,6 +294,7 @@ function TextbookUploadModal({ onSave, onClose }: TextbookUploadModalProps) {
     e.preventDefault();
     if (!file || !title.trim()) return;
     setSaving(true);
+    setUploadProgress(0);
     try {
       const fd = new FormData();
       fd.append('file', file);
@@ -301,15 +303,19 @@ function TextbookUploadModal({ onSave, onClose }: TextbookUploadModalProps) {
       selectedGLIds.forEach(id => fd.append('grade_level_ids', String(id)));
       const res = await api.post('/lessons/textbooks/', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => {
+          if (e.total) setUploadProgress(Math.round((e.loaded / e.total) * 100));
+        },
       });
       onSave(res.data);
     } finally {
       setSaving(false);
+      setUploadProgress(0);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={saving ? undefined : onClose}>
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Загрузить учебник</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -365,9 +371,23 @@ function TextbookUploadModal({ onSave, onClose }: TextbookUploadModalProps) {
               )}
             </div>
           </div>
+          {saving && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-gray-500 dark:text-slate-400">
+                <span>{uploadProgress < 100 ? 'Загрузка файла...' : 'Обработка...'}</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
           <div className="flex gap-2 justify-end pt-2">
-            <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+            <button type="button" onClick={onClose} disabled={saving}
+              className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50">
               Отмена
             </button>
             <button type="submit" disabled={saving || !file || !title.trim()}
@@ -529,10 +549,11 @@ interface TextbookCardProps {
   textbook: Textbook;
   isStaff: boolean;
   onDelete: () => void;
+  onRename: () => void;
   onOpen: () => void;
 }
 
-function TextbookCard({ textbook, isStaff, onDelete, onOpen }: TextbookCardProps) {
+function TextbookCard({ textbook, isStaff, onDelete, onRename, onOpen }: TextbookCardProps) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
 
   const ext = textbook.original_name.split('.').pop()?.toLowerCase() ?? '';
@@ -544,7 +565,10 @@ function TextbookCard({ textbook, isStaff, onDelete, onOpen }: TextbookCardProps
     : `${Math.round(textbook.file_size / 1024)} КБ`;
 
   const menuItems = isStaff
-    ? [{ label: 'Удалить', onClick: onDelete, danger: true }]
+    ? [
+        { label: 'Переименовать', onClick: onRename },
+        { label: 'Удалить', onClick: onDelete, danger: true },
+      ]
     : [];
 
   return (
@@ -763,6 +787,7 @@ function TextbooksTab({ isStaff }: TextbooksTabProps) {
   const [loadingGLs, setLoadingGLs] = useState(true);
   const [loadingBooks, setLoadingBooks] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [renamingTextbook, setRenamingTextbook] = useState<Textbook | null>(null);
   const [viewingTextbook, setViewingTextbook] = useState<Textbook | null>(null);
 
   // Загружаем параллели
@@ -791,6 +816,13 @@ function TextbooksTab({ isStaff }: TextbooksTabProps) {
     if (!confirm(`Удалить учебник «${tb.title}»?`)) return;
     await api.delete(`/lessons/textbooks/${tb.id}/`);
     setTextbooks(prev => prev.filter(t => t.id !== tb.id));
+  };
+
+  const handleRenameTextbook = async (title: string) => {
+    if (!renamingTextbook) return;
+    await api.put(`/lessons/textbooks/${renamingTextbook.id}/`, { title });
+    setTextbooks(prev => prev.map(t => t.id === renamingTextbook.id ? { ...t, title } : t));
+    setRenamingTextbook(null);
   };
 
   const handleUploaded = (tb: Textbook) => {
@@ -876,6 +908,7 @@ function TextbooksTab({ isStaff }: TextbooksTabProps) {
                 textbook={tb}
                 isStaff={isStaff}
                 onDelete={() => handleDeleteTextbook(tb)}
+                onRename={() => setRenamingTextbook(tb)}
                 onOpen={() => setViewingTextbook(tb)}
               />
             ))}
@@ -887,6 +920,15 @@ function TextbooksTab({ isStaff }: TextbooksTabProps) {
         <TextbookUploadModal
           onSave={handleUploaded}
           onClose={() => setShowUploadModal(false)}
+        />
+      )}
+
+      {renamingTextbook && (
+        <FolderModal
+          title="Переименовать учебник"
+          initial={renamingTextbook.title}
+          onSave={handleRenameTextbook}
+          onClose={() => setRenamingTextbook(null)}
         />
       )}
 
