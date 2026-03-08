@@ -269,6 +269,7 @@ Unique together: (school_class, name)
 | `is_active` | BooleanField |
 | `started_at` | DateTimeField |
 | `ended_at` | DateTimeField nullable |
+| `discussion_data` | JSONField | Данные досок обсуждений per-slide: `{str(slide_id): board_data}` |
 
 ### FormAnswer (ответ студента на форму/тест)
 | Поле | Тип | Описание |
@@ -389,6 +390,20 @@ Unique together: (school_class, name)
 | `user` | FK → User |
 Unique together: (option, user)
 
+### StudentChatRestriction (ограничения ученика в чате)
+| Поле | Тип |
+|------|-----|
+| `student` | OneToOneField → User (is_student) |
+| `set_by` | FK → User nullable |
+| `message_cooldown` | PositiveIntegerField (сек, 0=нет) |
+| `muted_until` | DateTimeField nullable |
+| `no_links` | BooleanField |
+| `no_files` | BooleanField |
+| `no_polls` | BooleanField |
+| `updated_at` | DateTimeField auto |
+
+Управляется любым взрослым (is_admin/is_teacher/is_parent). Применяется глобально ко всем чатам.
+
 ### ChatTaskTake (взятие задачи через чат)
 | Поле | Тип |
 |------|-----|
@@ -397,6 +412,21 @@ Unique together: (option, user)
 | `task` | FK → Task |
 | `taken_at` | DateTimeField |
 Unique together: (message, user, task)
+
+### ChatAllowedEmoji (разрешённые эмодзи-реакции)
+| Поле | Тип |
+|------|-----|
+| `emoji` | CharField |
+| `order` | PositiveSmallIntegerField |
+Defaults: `['👍', '❤️', '😂', '😮', '😢', '👏']` (заданы в коде при пустом списке)
+
+### ChatReaction (реакции на сообщения)
+| Поле | Тип |
+|------|-----|
+| `message` | FK → ChatMessage |
+| `user` | FK → User |
+| `emoji` | CharField |
+Unique together: (message, user, emoji)
 
 ---
 

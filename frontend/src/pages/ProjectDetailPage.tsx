@@ -2,11 +2,236 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
-import type { ProjectDetail, ProjectMember, ProjectUser } from '../types';
+import type { ProjectDetail, ProjectMember, ProjectUser, ChatRestriction } from '../types';
 import ProjectFeed from '../components/projects/ProjectFeed';
 import ProjectAssignments from '../components/projects/ProjectAssignments';
 
 type Tab = 'feed' | 'assignments';
+
+const COLORS = [
+  '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
+  '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6',
+];
+
+// ─── Restriction Modal (копия из ChatMembersPanel) ─────────────────────────────
+
+function RestrictionModal({ student, onClose }: { student: ProjectUser; onClose: () => void }) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [restriction, setRestriction] = useState<ChatRestriction>({
+    student_id: student.id,
+    message_cooldown: 0,
+    muted_until: null,
+    no_links: false,
+    no_files: false,
+    no_polls: false,
+  });
+  const [muteMinutes, setMuteMinutes] = useState('');
+
+  useEffect(() => {
+    api.get(`/chat/restrictions/${student.id}/`)
+      .then(res => {
+        setRestriction(res.data);
+        if (res.data.muted_until) {
+          const remaining = Math.max(0, Math.round(
+            (new Date(res.data.muted_until).getTime() - Date.now()) / 60000
+          ));
+          setMuteMinutes(remaining > 0 ? String(remaining) : '');
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [student.id]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      let muted_until: string | null = null;
+      if (muteMinutes && parseInt(muteMinutes) > 0) {
+        const until = new Date(Date.now() + parseInt(muteMinutes) * 60 * 1000);
+        muted_until = until.toISOString();
+      }
+      await api.put(`/chat/restrictions/${student.id}/`, { ...restriction, muted_until });
+      onClose();
+    } catch { /* ignore */ } finally { setSaving(false); }
+  };
+
+  const isMuted = restriction.muted_until && new Date(restriction.muted_until) > new Date();
+  const displayName = `${student.last_name || ''} ${student.first_name || ''}`.trim();
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-gray-800 text-sm">Ограничения в чате</h3>
+            <p className="text-xs text-gray-500 mt-0.5">{displayName}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        {loading ? (
+          <div className="text-center py-6 text-gray-400 text-sm">Загрузка...</div>
+        ) : (
+          <>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Пауза между сообщениями (сек)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number" min={0}
+                  value={restriction.message_cooldown}
+                  onChange={e => setRestriction(r => ({ ...r, message_cooldown: Math.max(0, +e.target.value) }))}
+                  className="w-24 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                <span className="text-xs text-gray-400">0 — без ограничений</span>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Мьют на (минут)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number" min={0}
+                  value={muteMinutes}
+                  onChange={e => setMuteMinutes(e.target.value)}
+                  placeholder="0"
+                  className="w-24 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                <span className="text-xs text-gray-400">0 — снять мьют</span>
+              </div>
+              {isMuted && (
+                <p className="text-xs text-orange-500 mt-1">
+                  Мьют до {new Date(restriction.muted_until!).toLocaleString('ru-RU')}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col gap-3">
+              {([
+                { key: 'no_links' as const, label: 'Запрет ссылок' },
+                { key: 'no_files' as const, label: 'Запрет файлов' },
+                { key: 'no_polls' as const, label: 'Запрет опросов' },
+              ]).map(({ key, label }) => (
+                <label key={key} className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm text-gray-700">{label}</span>
+                  <div
+                    onClick={() => setRestriction(r => ({ ...r, [key]: !r[key] }))}
+                    className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${restriction[key] ? 'bg-red-500' : 'bg-gray-200'}`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${restriction[key] ? 'left-[22px]' : 'left-0.5'}`} />
+                  </div>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2 justify-end mt-1">
+              <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">Отмена</button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-4 py-2 text-sm bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-40"
+              >
+                {saving ? 'Сохранение...' : 'Сохранить'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Edit Project Modal ────────────────────────────────────────────────────────
+
+function EditProjectModal({
+  project,
+  onClose,
+  onSave,
+}: {
+  project: ProjectDetail;
+  onClose: () => void;
+  onSave: (name: string, description: string, color: string) => void;
+}) {
+  const [name, setName] = useState(project.name);
+  const [description, setDescription] = useState(project.description);
+  const [color, setColor] = useState(project.cover_color);
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      await api.put(`/projects/${project.id}/`, { name: name.trim(), description, cover_color: color });
+      onSave(name.trim(), description, color);
+    } catch { /* ignore */ } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Редактировать проект</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Название</label>
+            <input
+              autoFocus
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Цвет</label>
+            <div className="flex gap-2 flex-wrap">
+              {COLORS.map(c => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor(c)}
+                  className={`w-7 h-7 rounded-full transition-transform ${color === c ? 'ring-2 ring-offset-2 ring-gray-400 scale-110' : ''}`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Отмена
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !name.trim()}
+              className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {saving ? 'Сохранение...' : 'Сохранить'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 // ─── Invite Modal ─────────────────────────────────────────────────────────────
 
@@ -25,7 +250,8 @@ function InviteMembersModal({
   const [results, setResults] = useState<ProjectUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState<number | null>(null);
-  const existingIds = new Set(existingMembers.map(m => m.user.id));
+  // Отслеживаем добавленных в этой сессии модала
+  const [addedIds, setAddedIds] = useState<Set<number>>(new Set(existingMembers.map(m => m.user.id)));
 
   useEffect(() => {
     if (query.trim().length < 2) { setResults([]); return; }
@@ -42,11 +268,11 @@ function InviteMembersModal({
     setAdding(user.id);
     try {
       const role = user.is_teacher || user.is_admin ? 'teacher' : 'student';
-      const res = await api.post(`/projects/${projectId}/members/`, {
-        user_id: user.id,
-        role,
-      });
+      const res = await api.post(`/projects/${projectId}/members/`, { user_id: user.id, role });
       onAdded(res.data);
+      setAddedIds(prev => new Set(prev).add(user.id));
+      // Убираем из результатов поиска
+      setResults(prev => prev.filter(u => u.id !== user.id));
     } catch { /* ignore */ } finally { setAdding(null); }
   };
 
@@ -72,7 +298,7 @@ function InviteMembersModal({
           {loading && <p className="text-xs text-gray-400 text-center">Поиск...</p>}
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {results.map(u => {
-              const isAlready = existingIds.has(u.id);
+              const isAlready = addedIds.has(u.id);
               return (
                 <div key={u.id} className="flex items-center justify-between gap-2 py-1">
                   <div>
@@ -82,7 +308,7 @@ function InviteMembersModal({
                     </p>
                   </div>
                   {isAlready ? (
-                    <span className="text-xs text-gray-400">уже в проекте</span>
+                    <span className="text-xs text-green-600 font-medium">добавлен ✓</span>
                   ) : (
                     <button
                       onClick={() => handleAdd(u)}
@@ -99,6 +325,14 @@ function InviteMembersModal({
               <p className="text-sm text-gray-400 text-center py-2">Не найдено</p>
             )}
           </div>
+          <div className="pt-2">
+            <button
+              onClick={onClose}
+              className="w-full border border-gray-300 text-gray-700 rounded-lg py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              Готово
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -110,18 +344,21 @@ function InviteMembersModal({
 function MembersModal({
   project,
   isTeacher,
+  isAdult,
   onClose,
   onRemove,
   onInvite,
 }: {
   project: ProjectDetail;
   isTeacher: boolean;
+  isAdult: boolean;
   onClose: () => void;
   onRemove: (uid: number) => void;
   onInvite: () => void;
 }) {
   const { user } = useAuth();
   const [removing, setRemoving] = useState<number | null>(null);
+  const [restrictionTarget, setRestrictionTarget] = useState<ProjectUser | null>(null);
 
   const handleRemove = async (uid: number) => {
     setRemoving(uid);
@@ -132,51 +369,72 @@ function MembersModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
-        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Участники ({project.members.length})
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div className="p-4 max-h-80 overflow-y-auto">
-          {project.members.map(m => (
-            <div key={m.id} className="flex items-center justify-between gap-2 py-2">
-              <div>
-                <p className="text-sm font-medium text-gray-900">{m.user.display_name}</p>
-                <p className="text-xs text-gray-400">
-                  {m.role === 'teacher' ? 'Педагог' : 'Ученик'}
-                </p>
-              </div>
-              {isTeacher && m.user.id !== user?.id && (
-                <button
-                  onClick={() => handleRemove(m.user.id)}
-                  disabled={removing === m.user.id}
-                  className="text-xs text-red-500 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50"
-                >
-                  {removing === m.user.id ? '...' : 'Удалить'}
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-        {isTeacher && (
-          <div className="px-4 pb-4">
-            <button
-              onClick={onInvite}
-              className="w-full border border-blue-600 text-blue-600 rounded-lg py-2 text-sm font-medium hover:bg-blue-50 transition-colors"
-            >
-              + Пригласить участника
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+          <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Участники ({project.members.length})
+            </h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
-        )}
+          <div className="p-4 max-h-80 overflow-y-auto">
+            {project.members.map(m => (
+              <div key={m.id} className="flex items-center justify-between gap-2 py-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{m.user.display_name}</p>
+                  <p className="text-xs text-gray-400">
+                    {m.role === 'teacher' ? 'Педагог' : 'Ученик'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {/* Ограничения: для взрослых (admin/teacher/parent) если участник — ученик */}
+                  {isAdult && m.role === 'student' && (
+                    <button
+                      onClick={() => setRestrictionTarget(m.user)}
+                      className="text-xs text-orange-500 hover:bg-orange-50 px-2 py-1 rounded"
+                      title="Ограничения"
+                    >
+                      🚫
+                    </button>
+                  )}
+                  {isTeacher && m.user.id !== user?.id && (
+                    <button
+                      onClick={() => handleRemove(m.user.id)}
+                      disabled={removing === m.user.id}
+                      className="text-xs text-red-500 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50"
+                    >
+                      {removing === m.user.id ? '...' : 'Удалить'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          {isTeacher && (
+            <div className="px-4 pb-4">
+              <button
+                onClick={onInvite}
+                className="w-full border border-blue-600 text-blue-600 rounded-lg py-2 text-sm font-medium hover:bg-blue-50 transition-colors"
+              >
+                + Пригласить участника
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {restrictionTarget && (
+        <RestrictionModal
+          student={restrictionTarget}
+          onClose={() => setRestrictionTarget(null)}
+        />
+      )}
+    </>
   );
 }
 
@@ -193,6 +451,7 @@ export default function ProjectDetailPage() {
   const [tab, setTab] = useState<Tab>('feed');
   const [showMembers, setShowMembers] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   useEffect(() => {
     api.get(`/projects/${projectId}/`)
@@ -202,14 +461,12 @@ export default function ProjectDetailPage() {
   }, [projectId, navigate]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center flex-1 text-gray-400">Загрузка...</div>
-    );
+    return <div className="flex items-center justify-center flex-1 text-gray-400">Загрузка...</div>;
   }
-
   if (!project) return null;
 
   const isTeacher = project.my_role === 'teacher' || !!user?.is_admin;
+  const isAdult = !!(user?.is_admin || user?.is_teacher || user?.is_parent);
 
   const handleMemberRemoved = (uid: number) => {
     setProject(prev => prev ? {
@@ -225,6 +482,11 @@ export default function ProjectDetailPage() {
       members: [...prev.members, member],
       members_count: prev.members_count + 1,
     } : prev);
+  };
+
+  const handleProjectSaved = (name: string, description: string, cover_color: string) => {
+    setProject(prev => prev ? { ...prev, name, description, cover_color } : prev);
+    setShowEdit(false);
   };
 
   return (
@@ -248,6 +510,18 @@ export default function ProjectDetailPage() {
             <p className="text-white/70 text-xs truncate">{project.description}</p>
           )}
         </div>
+        {/* Кнопка редактирования (только для педагогов) */}
+        {isTeacher && (
+          <button
+            onClick={() => setShowEdit(true)}
+            className="text-white/70 hover:text-white transition-colors flex-shrink-0"
+            title="Редактировать проект"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
+        )}
         <button
           onClick={() => setShowMembers(true)}
           className="flex items-center gap-1.5 text-white/90 hover:text-white text-sm transition-colors flex-shrink-0"
@@ -264,9 +538,7 @@ export default function ProjectDetailPage() {
         <button
           onClick={() => setTab('feed')}
           className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-            tab === 'feed'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-500 hover:text-gray-700'
+            tab === 'feed' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
           Лента
@@ -274,9 +546,7 @@ export default function ProjectDetailPage() {
         <button
           onClick={() => setTab('assignments')}
           className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-            tab === 'assignments'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-500 hover:text-gray-700'
+            tab === 'assignments' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
           Задания
@@ -286,17 +556,26 @@ export default function ProjectDetailPage() {
       {/* Content */}
       <div className="flex flex-col min-h-0 flex-1 overflow-hidden bg-gray-50">
         {tab === 'feed' ? (
-          <ProjectFeed projectId={projectId} isTeacher={isTeacher} />
+          <ProjectFeed projectId={projectId} isTeacher={isTeacher} isAdult={isAdult} />
         ) : (
           <ProjectAssignments projectId={projectId} isTeacher={isTeacher} />
         )}
       </div>
 
       {/* Modals */}
+      {showEdit && (
+        <EditProjectModal
+          project={project}
+          onClose={() => setShowEdit(false)}
+          onSave={handleProjectSaved}
+        />
+      )}
+
       {showMembers && (
         <MembersModal
           project={project}
           isTeacher={isTeacher}
+          isAdult={isAdult}
           onClose={() => setShowMembers(false)}
           onRemove={handleMemberRemoved}
           onInvite={() => { setShowMembers(false); setShowInvite(true); }}
@@ -308,10 +587,7 @@ export default function ProjectDetailPage() {
           projectId={projectId}
           existingMembers={project.members}
           onClose={() => setShowInvite(false)}
-          onAdded={member => {
-            handleMemberAdded(member);
-            setShowInvite(false);
-          }}
+          onAdded={handleMemberAdded}
         />
       )}
     </div>

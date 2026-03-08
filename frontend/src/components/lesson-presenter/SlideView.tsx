@@ -276,7 +276,7 @@ export default function SlideView({
   }
 
   if (slide.slide_type === 'discussion' && user) {
-    return <DiscussionSlideView slide={slide} scale={scale} user={user} />;
+    return <DiscussionSlideView slide={slide} scale={scale} user={user} sessionId={sessionId} />;
   }
 
   if (slide.slide_type === 'textbook') {

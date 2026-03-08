@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import StartSessionDialog from '../components/StartSessionDialog';
+import SessionStatsDialog from '../components/SessionStatsDialog';
 import TextbookViewer from '../components/TextbookViewer';
 import type {
   Lesson, LessonFolder, FolderContents, LessonSession,
@@ -631,10 +632,11 @@ interface LessonCardProps {
   onDelete: () => void;
   onStart: () => void;
   onIssue?: () => void;
+  onStats?: () => void;
   onDragStart: (e: React.DragEvent) => void;
 }
 
-function LessonCard({ lesson, showOwner, isStaff, readonly, onOpen, onDuplicate, onDelete, onStart, onIssue, onDragStart }: LessonCardProps) {
+function LessonCard({ lesson, showOwner, isStaff, readonly, onOpen, onDuplicate, onDelete, onStart, onIssue, onStats, onDragStart }: LessonCardProps) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const didDragRef = useRef(false);
 
@@ -649,6 +651,7 @@ function LessonCard({ lesson, showOwner, isStaff, readonly, onOpen, onDuplicate,
         { label: 'Открыть редактор', onClick: onOpen },
         ...(isStaff ? [{ label: 'Начать урок', onClick: onStart }] : []),
         ...(isStaff && onIssue ? [{ label: 'Выдать классу', onClick: onIssue }] : []),
+        ...(isStaff && onStats ? [{ label: 'Статистика', onClick: onStats }] : []),
         { label: 'Дублировать', onClick: onDuplicate },
         ...(lesson.is_owner ? [{ label: 'Удалить', onClick: onDelete, danger: true }] : []),
       ];
@@ -950,6 +953,7 @@ export default function LessonsPage() {
   const [assignments, setAssignments] = useState<LessonAssignment[]>([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
   const [issuingLesson, setIssuingLesson] = useState<Lesson | null>(null);
+  const [statsLesson, setStatsLesson] = useState<Lesson | null>(null);
   const [issueClasses, setIssueClasses] = useState<SchoolClass[]>([]);
   const [issueTargetType, setIssueTargetType] = useState<'class' | 'student'>('class');
   const [issueClassId, setIssueClassId] = useState<number | null>(null);
@@ -1498,6 +1502,7 @@ export default function LessonsPage() {
                     onDelete={() => handleDeleteLesson(lesson)}
                     onStart={() => setStartingLesson(lesson)}
                     onIssue={isStaff ? () => setIssuingLesson(lesson) : undefined}
+                    onStats={isStaff ? () => setStatsLesson(lesson) : undefined}
                     onDragStart={e => handleDragStart(e, { type: 'lesson', id: lesson.id })}
                   />
                 ))}
@@ -1596,6 +1601,11 @@ export default function LessonsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Диалог статистики сессий */}
+      {statsLesson && (
+        <SessionStatsDialog lesson={statsLesson} onClose={() => setStatsLesson(null)} />
       )}
 
       {/* Оверлей импорта */}

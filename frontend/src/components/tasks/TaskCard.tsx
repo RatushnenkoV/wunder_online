@@ -152,6 +152,36 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
             </div>
           )}
 
+          {/* Сдача ученика (из проектного задания) */}
+          {task.submission && (
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 space-y-2">
+              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Работа ученика</p>
+              {task.submission.text && (
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{task.submission.text}</p>
+              )}
+              {task.submission.files.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {task.submission.files.map(f => (
+                    <a
+                      key={f.id}
+                      href={f.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      className="flex items-center gap-1.5 bg-white border border-blue-200 rounded-lg px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100 transition-colors"
+                    >
+                      <FileIcon />
+                      <span className="max-w-[160px] truncate">{f.original_name}</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+              {!task.submission.text && task.submission.files.length === 0 && (
+                <p className="text-xs text-gray-400">Работа сдана без текста и файлов</p>
+              )}
+            </div>
+          )}
+
           {/* Прикрепить файл — недоступно для выполненных */}
           {task.status !== 'done' && (
             <div>

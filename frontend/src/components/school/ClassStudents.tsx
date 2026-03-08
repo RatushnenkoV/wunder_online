@@ -38,7 +38,27 @@ const emptyRow = (): StudentRow => ({
 
 export default function ClassStudents({ classId }: Props) {
   const [students, setStudents] = useState<StudentProfile[]>([]);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ student: StudentProfile; x: number; y: number } | null>(null);
+
+  const fallbackCopy = (value: string, done: () => void) => {
+    const el = document.createElement('textarea');
+    el.value = value;
+    el.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(el);
+    el.focus(); el.select();
+    try { document.execCommand('copy'); done(); } catch {}
+    document.body.removeChild(el);
+  };
+
+  const copyToClipboard = (value: string, field: string) => {
+    const done = () => { setCopiedField(field); setTimeout(() => setCopiedField(null), 1500); };
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(value).then(done).catch(() => fallbackCopy(value, done));
+    } else {
+      fallbackCopy(value, done);
+    }
+  };
   const [editStudent, setEditStudent] = useState<StudentProfile | null>(null);
   const [editForm, setEditForm] = useState({ first_name: '', last_name: '', email: '', phone: '', birth_date: '' });
   const [message, setMessage] = useState('');
@@ -291,11 +311,29 @@ export default function ClassStudents({ classId }: Props) {
               >
                 <td className="px-4 py-2">{sp.user.last_name}</td>
                 <td className="px-4 py-2">{sp.user.first_name}</td>
-                <td className="px-4 py-2 text-gray-500">{sp.user.email || '—'}</td>
-                <td className="px-4 py-2 text-gray-500">{sp.user.phone || '—'}</td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2 text-gray-500" onClick={e => e.stopPropagation()}>
+                  {sp.user.email ? (
+                    <button onClick={() => copyToClipboard(sp.user.email, `email_${sp.id}`)} className="hover:underline cursor-copy text-left" title="Нажмите, чтобы скопировать">
+                      {copiedField === `email_${sp.id}` ? '✓ Скопировано' : sp.user.email}
+                    </button>
+                  ) : '—'}
+                </td>
+                <td className="px-4 py-2 text-gray-500" onClick={e => e.stopPropagation()}>
+                  {sp.user.phone ? (
+                    <button onClick={() => copyToClipboard(sp.user.phone, `phone_${sp.id}`)} className="hover:underline cursor-copy text-left" title="Нажмите, чтобы скопировать">
+                      {copiedField === `phone_${sp.id}` ? '✓ Скопировано' : sp.user.phone}
+                    </button>
+                  ) : '—'}
+                </td>
+                <td className="px-4 py-2" onClick={e => e.stopPropagation()}>
                   {sp.user.must_change_password && sp.user.temp_password ? (
-                    <code className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs">{sp.user.temp_password}</code>
+                    <button
+                      onClick={() => copyToClipboard(sp.user.temp_password!, `temp_${sp.id}`)}
+                      className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs font-mono hover:bg-yellow-100 transition-colors cursor-copy"
+                      title="Нажмите, чтобы скопировать"
+                    >
+                      {copiedField === `temp_${sp.id}` ? '✓ Скопировано' : sp.user.temp_password}
+                    </button>
                   ) : '—'}
                 </td>
                 <td className="px-2 py-2 text-center">

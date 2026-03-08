@@ -64,6 +64,7 @@ class TaskSerializer(serializers.ModelSerializer):
     is_assignee = serializers.SerializerMethodField()
     can_reassign = serializers.SerializerMethodField()
     files = serializers.SerializerMethodField()
+    submission = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
@@ -77,6 +78,7 @@ class TaskSerializer(serializers.ModelSerializer):
             'is_assignee', 'can_reassign',
             'files',
             'review_comment',
+            'submission',
             'created_at', 'updated_at', 'completed_at',
         ]
         read_only_fields = ['created_by', 'status', 'taken_by', 'created_at', 'updated_at', 'completed_at']
@@ -113,6 +115,32 @@ class TaskSerializer(serializers.ModelSerializer):
         return TaskFileSerializer(
             obj.files.all(), many=True, context=self.context
         ).data
+
+    def get_submission(self, obj):
+        """Данные сдачи ученика по проектному заданию (если есть)."""
+        sub = obj.project_submissions.prefetch_related('files').first()
+        if sub is None:
+            return None
+        request = self.context.get('request')
+
+        def file_url(f):
+            if request:
+                return request.build_absolute_uri(f.file.url)
+            return f.file.url
+
+        return {
+            'text': sub.text,
+            'files': [
+                {
+                    'id': f.id,
+                    'original_name': f.original_name,
+                    'file_url': file_url(f),
+                    'file_size': f.file_size,
+                }
+                for f in sub.files.all()
+            ],
+            'submitted_at': sub.submitted_at.isoformat() if sub.submitted_at else None,
+        }
 
     def validate(self, data):
         assigned_to = data.get('assigned_to')

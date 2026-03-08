@@ -152,6 +152,70 @@ class ChatPollVote(models.Model):
         return f'{self.user} → {self.option}'
 
 
+class StudentChatRestriction(models.Model):
+    """Ограничения для ученика в чате. Управляется любым взрослым (учителем, родителем, admin)."""
+    student = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='chat_restriction',
+        verbose_name='Ученик',
+    )
+    set_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='set_chat_restrictions',
+        verbose_name='Установил',
+    )
+    message_cooldown = models.PositiveIntegerField(
+        'Пауза между сообщениями (сек)', default=0,
+        help_text='0 — без ограничений',
+    )
+    muted_until = models.DateTimeField('Мьют до', null=True, blank=True)
+    no_links = models.BooleanField('Запрет ссылок', default=False)
+    no_files = models.BooleanField('Запрет файлов', default=False)
+    no_polls = models.BooleanField('Запрет опросов', default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Ограничение в чате'
+        verbose_name_plural = 'Ограничения в чате'
+
+    def __str__(self):
+        return f'Ограничения для {self.student}'
+
+
+class ChatAllowedEmoji(models.Model):
+    """Список эмодзи-реакций, доступных в чате. Управляется администратором."""
+    emoji = models.CharField('Эмодзи', max_length=10)
+    order = models.PositiveSmallIntegerField('Порядок', default=0)
+
+    DEFAULT_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '👏']
+
+    class Meta:
+        verbose_name = 'Разрешённое эмодзи'
+        verbose_name_plural = 'Разрешённые эмодзи'
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return self.emoji
+
+
+class ChatReaction(models.Model):
+    """Реакция пользователя на сообщение чата."""
+    message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE, related_name='reactions')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    emoji = models.CharField('Эмодзи', max_length=10)
+
+    class Meta:
+        verbose_name = 'Реакция'
+        verbose_name_plural = 'Реакции'
+        unique_together = [['message', 'user', 'emoji']]
+
+    def __str__(self):
+        return f'{self.user} {self.emoji} → msg#{self.message_id}'
+
+
 class ChatTaskTake(models.Model):
     """Фиксирует, кто взял задачу из чата. Каждый участник получает личную копию задачи."""
     message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE, related_name='task_takes')

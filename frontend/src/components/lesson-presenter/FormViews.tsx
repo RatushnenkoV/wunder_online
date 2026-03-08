@@ -36,8 +36,8 @@ export function FormAnswerView({
   const pad = Math.max(10, 16 * scale);
 
   return (
-    <div style={{ width: CANVAS_W * scale, height: CANVAS_H * scale, background: 'white', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, overflowY: 'auto', padding: `${pad}px` }}>
+    <div style={{ width: CANVAS_W * scale, height: CANVAS_H * scale, background: 'white', flexShrink: 0 }}>
+      <div style={{ height: '100%', overflowY: 'auto', padding: `${pad}px`, boxSizing: 'border-box' }}>
         {questions.length === 0 && (
           <div style={{ textAlign: 'center', color: '#9ca3af', padding: 24 }}>Вопросы не добавлены</div>
         )}
@@ -112,25 +112,21 @@ export function FormAnswerView({
             )}
           </div>
         ))}
-      </div>
 
-      {/* Кнопка отправки */}
-      <div style={{ padding: `${Math.max(8, 10 * scale)}px ${pad}px`, borderTop: '1px solid #e5e7eb', background: 'white', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
-        {submitted ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#16a34a', fontSize: fs }}>
-            <span style={{ fontSize: 20 }}>✓</span>
-            <span style={{ fontWeight: 600 }}>Ответы отправлены</span>
+        {/* Кнопка отправки — внутри скролл-контейнера */}
+        <div style={{ paddingTop: pad, paddingBottom: Math.max(8, 12 * scale) }}>
+          {submitted ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#16a34a', fontSize: fs }}>
+              <span style={{ fontSize: Math.max(16, 20 * scale) }}>✓</span>
+              <span style={{ fontWeight: 600 }}>Ответы отправлены</span>
+            </div>
+          ) : (
             <button
-              onClick={() => onSubmit(questions.map(q => ({ question_id: q.id, value: answers[q.id] ?? null })))}
-              style={{ marginLeft: 8, fontSize: Math.max(10, 12 * scale), color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-            >Изменить</button>
-          </div>
-        ) : (
-          <button
-            onClick={handleSubmit}
-            style={{ padding: `${Math.max(6, 8 * scale)}px ${Math.max(16, 20 * scale)}px`, background: '#3b82f6', color: 'white', borderRadius: 8, border: 'none', fontWeight: 600, fontSize: fs, cursor: 'pointer' }}
-          >Отправить ответы</button>
-        )}
+              onClick={handleSubmit}
+              style={{ padding: `${Math.max(6, 8 * scale)}px ${Math.max(16, 20 * scale)}px`, background: '#3b82f6', color: 'white', borderRadius: 8, border: 'none', fontWeight: 600, fontSize: fs, cursor: 'pointer' }}
+            >Отправить ответы</button>
+          )}
+        </div>
       </div>
     </div>
   );

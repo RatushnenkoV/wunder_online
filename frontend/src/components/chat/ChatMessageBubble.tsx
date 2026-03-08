@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { ChatMessage, ChatUser } from '../../types';
+import type { ChatMessage, ChatUser, ChatReactionSummary } from '../../types';
 
 interface Props {
   message: ChatMessage;
@@ -9,6 +9,17 @@ interface Props {
   onDelete: (msg: ChatMessage) => void;
   onVotePoll?: (pollId: number, optionId: number) => void;
   onTakeTask?: (taskId: number) => void;
+  onReact?: (msgId: number, emoji: string) => void;
+  allowedEmojis?: string[];
+  selectionMode?: boolean;
+  selected?: boolean;
+  /** Called when message is clicked / checkbox pressed (single toggle) */
+  onSelect?: (id: number) => void;
+  /** Called on mousedown — signals drag-select start */
+  onMsgMouseDown?: (id: number) => void;
+  /** Called on mouseenter during drag */
+  onMsgMouseEnter?: (id: number) => void;
+  currentUserMention?: string; // e.g. "@Иванов"
 }
 
 function formatTime(iso: string) {
@@ -30,31 +41,81 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-const URL_REGEX = /https?:\/\/[^\s<>"]+[^\s<>".,;!?)/]/g;
+// ─── Media preview ────────────────────────────────────────────────────────────
 
-function renderTextWithLinks(text: string, isMine: boolean) {
+const IMAGE_EXT_REGEX = /https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)(\?[^\s]*)?/i;
+const YOUTUBE_REGEX = /https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+const VIDEO_EXT_REGEX = /https?:\/\/\S+\.(mp4|webm|ogg)(\?[^\s]*)?/i;
+
+type MediaPreview =
+  | { type: 'image'; url: string }
+  | { type: 'youtube'; videoId: string }
+  | { type: 'video'; url: string };
+
+function extractMediaPreview(text: string): MediaPreview | null {
+  const ytMatch = YOUTUBE_REGEX.exec(text);
+  if (ytMatch) return { type: 'youtube', videoId: ytMatch[1] };
+
+  const vidMatch = VIDEO_EXT_REGEX.exec(text);
+  if (vidMatch) return { type: 'video', url: vidMatch[0].replace(/[.,;!?)]+$/, '') };
+
+  const imgMatch = IMAGE_EXT_REGEX.exec(text);
+  if (imgMatch) return { type: 'image', url: imgMatch[0].replace(/[.,;!?)]+$/, '') };
+
+  return null;
+}
+
+// ─── Text with links + @mentions ──────────────────────────────────────────────
+
+const COMBINED_REGEX = /(https?:\/\/[^\s<>"]+[^\s<>".,;!?)/])|(@\S+)/g;
+
+function renderTextWithMentions(
+  text: string,
+  isMine: boolean,
+  currentUserMention?: string,
+): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match;
-  URL_REGEX.lastIndex = 0;
-  while ((match = URL_REGEX.exec(text)) !== null) {
+  COMBINED_REGEX.lastIndex = 0;
+  while ((match = COMBINED_REGEX.exec(text)) !== null) {
     if (match.index > lastIndex) {
       parts.push(text.slice(lastIndex, match.index));
     }
-    const url = match[0];
-    parts.push(
-      <a
-        key={match.index}
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`underline break-all ${isMine ? 'text-blue-100 hover:text-white' : 'text-blue-600 hover:text-blue-800'}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {url}
-      </a>
-    );
-    lastIndex = match.index + url.length;
+    const full = match[0];
+    if (full.startsWith('http')) {
+      parts.push(
+        <a
+          key={match.index}
+          href={full}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`underline break-all ${isMine ? 'text-blue-100 hover:text-white' : 'text-blue-600 hover:text-blue-800'}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {full}
+        </a>,
+      );
+    } else {
+      const isMe = currentUserMention && full.toLowerCase() === currentUserMention.toLowerCase();
+      const isAll = full === '@all';
+      if (isMe) {
+        parts.push(
+          <span key={match.index} className="bg-blue-200 text-blue-800 rounded px-0.5 font-medium">
+            {full}
+          </span>,
+        );
+      } else if (isAll) {
+        parts.push(
+          <span key={match.index} className="bg-amber-100 text-amber-700 rounded px-0.5 font-medium">
+            {full}
+          </span>,
+        );
+      } else {
+        parts.push(full);
+      }
+    }
+    lastIndex = match.index + full.length;
   }
   if (lastIndex < text.length) {
     parts.push(text.slice(lastIndex));
@@ -62,7 +123,105 @@ function renderTextWithLinks(text: string, isMine: boolean) {
   return parts;
 }
 
-export default function ChatMessageBubble({ message, currentUser, isGroup, onReply, onDelete, onVotePoll, onTakeTask }: Props) {
+// ─── Reactions row ────────────────────────────────────────────────────────────
+
+function ReactionsRow({
+  reactions,
+  allowedEmojis,
+  onReact,
+  isMine,
+}: {
+  reactions: ChatReactionSummary[];
+  allowedEmojis: string[];
+  onReact: (emoji: string) => void;
+  isMine: boolean;
+}) {
+  const [showPicker, setShowPicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showPicker]);
+
+  if (reactions.length === 0 && allowedEmojis.length === 0) return null;
+
+  return (
+    <div className={`flex flex-wrap items-center gap-1 mt-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
+      {reactions.map((r) => (
+        <button
+          key={r.emoji}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={() => onReact(r.emoji)}
+          className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors ${
+            r.user_reacted
+              ? 'bg-blue-100 border-blue-300 text-blue-700 font-medium'
+              : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <span>{r.emoji}</span>
+          <span>{r.count}</span>
+        </button>
+      ))}
+      {allowedEmojis.length > 0 && (
+        <div className="relative">
+          <button
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={() => setShowPicker((v) => !v)}
+            className="w-6 h-6 flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-50 text-xs transition-colors"
+            title="Добавить реакцию"
+          >
+            +
+          </button>
+          {showPicker && (
+            <div
+              ref={pickerRef}
+              className={`absolute z-50 flex gap-1 bg-white border border-gray-100 shadow-xl rounded-xl p-2 ${
+                isMine ? 'right-0' : 'left-0'
+              } bottom-full mb-1`}
+            >
+              {allowedEmojis.map((e) => (
+                <button
+                  key={e}
+                  onClick={() => { onReact(e); setShowPicker(false); }}
+                  className="text-lg hover:scale-125 transition-transform leading-none"
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export default function ChatMessageBubble({
+  message,
+  currentUser,
+  isGroup,
+  onReply,
+  onDelete,
+  onVotePoll,
+  onTakeTask,
+  onReact,
+  allowedEmojis = [],
+  selectionMode = false,
+  selected = false,
+  onSelect,
+  onMsgMouseDown,
+  onMsgMouseEnter,
+  currentUserMention,
+}: Props) {
   const isMine = currentUser && message.sender?.id === currentUser.id;
   const [revoting, setRevoting] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -80,6 +239,9 @@ export default function ChatMessageBubble({ message, currentUser, isGroup, onRep
     return () => document.removeEventListener('mousedown', handler);
   }, [contextMenu]);
 
+  const reactions = message.reactions ?? [];
+  const handleReact = (emoji: string) => onReact?.(message.id, emoji);
+
   if (message.is_deleted) {
     return (
       <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} px-4 py-0.5`}>
@@ -92,7 +254,44 @@ export default function ChatMessageBubble({ message, currentUser, isGroup, onRep
     ? `${message.sender.last_name[0] || ''}${message.sender.first_name[0] || ''}`.toUpperCase()
     : '?';
 
-  // Poll card (full width, not a bubble)
+  // Handlers for outer container
+  const outerMouseDown = selectionMode
+    ? (e: React.MouseEvent) => {
+        e.preventDefault(); // prevent text selection during drag
+        onMsgMouseDown?.(message.id);
+      }
+    : undefined;
+
+  const outerMouseEnter = selectionMode
+    ? () => onMsgMouseEnter?.(message.id)
+    : undefined;
+
+  // Checkbox — shares the same handler but stops bubble to outer div
+  const checkboxMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onMsgMouseDown?.(message.id);
+  };
+
+  const selectionCheckbox = selectionMode && (
+    <div className={`flex items-center flex-shrink-0 ${isMine ? 'order-last ml-2' : 'order-first mr-2'}`}>
+      <button
+        onMouseDown={checkboxMouseDown}
+        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+          selected ? 'bg-blue-500 border-blue-500' : 'border-gray-300 hover:border-blue-400'
+        }`}
+      >
+        {selected && (
+          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        )}
+      </button>
+    </div>
+  );
+
+  // ─── Poll card ─────────────────────────────────────────────────────────────
+
   if (message.poll) {
     const poll = message.poll;
     const hasVoted = !revoting && poll.options.some((o) => o.user_voted);
@@ -109,7 +308,14 @@ export default function ChatMessageBubble({ message, currentUser, isGroup, onRep
     };
 
     return (
-      <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} px-4 py-1 group`}>
+      <div
+        className={`flex ${isMine ? 'justify-end' : 'justify-start'} px-4 py-1 group ${
+          selected ? 'bg-blue-50' : ''
+        } ${selectionMode ? 'select-none' : ''}`}
+        onMouseDown={outerMouseDown}
+        onMouseEnter={outerMouseEnter}
+      >
+        {selectionCheckbox}
         {!isMine && isGroup && (
           <div className="w-7 h-7 rounded-full bg-blue-100 flex-shrink-0 flex items-center justify-center text-blue-700 text-xs font-bold mr-2 mt-auto mb-1">
             {initials}
@@ -136,7 +342,6 @@ export default function ChatMessageBubble({ message, currentUser, isGroup, onRep
                       hasVoted ? 'cursor-default text-gray-700' : 'hover:bg-gray-200 text-gray-700'
                     }`}
                   >
-                    {/* Прогресс-бар — единый стиль для всех вариантов */}
                     {hasVoted && (
                       <div
                         className="absolute inset-y-0 left-0 rounded-xl bg-blue-200 opacity-60"
@@ -144,7 +349,6 @@ export default function ChatMessageBubble({ message, currentUser, isGroup, onRep
                       />
                     )}
                     <span className="relative flex items-center gap-2">
-                      {/* Галочка у выбранного варианта */}
                       <span className="flex-shrink-0 w-4 flex items-center justify-center">
                         {opt.user_voted && !revoting ? (
                           <svg className="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -177,12 +381,14 @@ export default function ChatMessageBubble({ message, currentUser, isGroup, onRep
             </div>
           </div>
 
-          {/* Модал результатов */}
+          {(reactions.length > 0 || allowedEmojis.length > 0) && (
+            <ReactionsRow reactions={reactions} allowedEmojis={allowedEmojis} onReact={handleReact} isMine={!!isMine} />
+          )}
+
           {showPollResults && (
             <PollResultsModal poll={poll} onClose={() => setShowPollResults(false)} />
           )}
 
-          {/* Контекстное меню */}
           {contextMenu && (
             <div
               ref={contextMenuRef}
@@ -201,6 +407,17 @@ export default function ChatMessageBubble({ message, currentUser, isGroup, onRep
                   Переголосовать
                 </button>
               )}
+              {!selectionMode && (
+                <button
+                  onClick={() => { onSelect?.(message.id); setContextMenu(null); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Выбрать
+                </button>
+              )}
               {(isMine || currentUser?.is_admin) && (
                 <button
                   onClick={() => { onDelete(message); setContextMenu(null); }}
@@ -216,26 +433,36 @@ export default function ChatMessageBubble({ message, currentUser, isGroup, onRep
             </div>
           )}
         </div>
-        <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${isMine ? 'order-first mr-1' : 'ml-1'}`}>
-          {(isMine || currentUser?.is_admin) && (
-            <button onClick={() => onDelete(message)} className="p-1 text-gray-400 hover:text-red-500 rounded" title="Удалить">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          )}
-        </div>
+        {!selectionMode && (
+          <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${isMine ? 'order-first mr-1' : 'ml-1'}`}>
+            {(isMine || currentUser?.is_admin) && (
+              <button onClick={() => onDelete(message)} className="p-1 text-gray-400 hover:text-red-500 rounded" title="Удалить">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     );
   }
 
-  // Task card
+  // ─── Task card ─────────────────────────────────────────────────────────────
+
   if (message.task_preview) {
     const task = message.task_preview;
 
     return (
-      <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} px-4 py-1 group`}>
+      <div
+        className={`flex ${isMine ? 'justify-end' : 'justify-start'} px-4 py-1 group ${
+          selected ? 'bg-blue-50' : ''
+        } ${selectionMode ? 'select-none' : ''}`}
+        onMouseDown={outerMouseDown}
+        onMouseEnter={outerMouseEnter}
+      >
+        {selectionCheckbox}
         {!isMine && isGroup && (
           <div className="w-7 h-7 rounded-full bg-blue-100 flex-shrink-0 flex items-center justify-center text-blue-700 text-xs font-bold mr-2 mt-auto mb-1">
             {initials}
@@ -246,7 +473,6 @@ export default function ChatMessageBubble({ message, currentUser, isGroup, onRep
             <p className="text-xs text-blue-600 font-medium mb-0.5 pl-1">{message.sender.display_name}</p>
           )}
           <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 shadow-sm">
-            {/* Заголовок */}
             <div className="flex items-start gap-2 mb-1">
               <svg className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -260,11 +486,7 @@ export default function ChatMessageBubble({ message, currentUser, isGroup, onRep
             {task.due_date && (
               <p className="text-xs text-gray-500 mb-2 pl-6">Срок: {formatDate(task.due_date)}</p>
             )}
-
-            {/* Разделитель */}
             <div className="border-t border-blue-100 mt-2 mb-2" />
-
-            {/* Кнопка + список взявших */}
             <div className="flex flex-col gap-2">
               {!task.user_took && (
                 <button
@@ -274,8 +496,6 @@ export default function ChatMessageBubble({ message, currentUser, isGroup, onRep
                   Взять задачу
                 </button>
               )}
-
-              {/* Список взявших — всегда виден */}
               <div>
                 <p className="text-xs text-gray-400 mb-1.5">
                   {(task.takers ?? []).length === 0
@@ -305,50 +525,70 @@ export default function ChatMessageBubble({ message, currentUser, isGroup, onRep
                 )}
               </div>
             </div>
-
             <p className="text-xs text-gray-400 mt-2">{formatTime(message.created_at)}</p>
           </div>
-        </div>
-        <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${isMine ? 'order-first mr-1' : 'ml-1'}`}>
-          {(isMine || currentUser?.is_admin) && (
-            <button onClick={() => onDelete(message)} className="p-1 text-gray-400 hover:text-red-500 rounded" title="Удалить">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
+
+          {(reactions.length > 0 || allowedEmojis.length > 0) && (
+            <ReactionsRow reactions={reactions} allowedEmojis={allowedEmojis} onReact={handleReact} isMine={!!isMine} />
           )}
         </div>
+        {!selectionMode && (
+          <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${isMine ? 'order-first mr-1' : 'ml-1'}`}>
+            {(isMine || currentUser?.is_admin) && (
+              <button onClick={() => onDelete(message)} className="p-1 text-gray-400 hover:text-red-500 rounded" title="Удалить">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     );
   }
 
+  // ─── Regular message bubble ────────────────────────────────────────────────
+
+  const mediaPreview = message.text ? extractMediaPreview(message.text) : null;
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (selectionMode) return;
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
   return (
-    <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} px-4 py-0.5 group`}>
-      {/* Аватар (только для чужих в групповом чате) */}
+    <div
+      className={`flex ${isMine ? 'justify-end' : 'justify-start'} px-4 py-0.5 group ${
+        selected ? 'bg-blue-50' : ''
+      } ${selectionMode ? 'select-none' : ''}`}
+      onMouseDown={outerMouseDown}
+      onMouseEnter={outerMouseEnter}
+    >
+      {selectionCheckbox}
+
       {!isMine && isGroup && (
         <div className="w-7 h-7 rounded-full bg-blue-100 flex-shrink-0 flex items-center justify-center text-blue-700 text-xs font-bold mr-2 mt-auto mb-1">
           {initials}
         </div>
       )}
 
-      <div className={`max-w-[70%] ${!isMine && !isGroup ? '' : ''}`}>
-        {/* Имя отправителя в групповом чате */}
+      <div className="max-w-[70%]">
         {!isMine && isGroup && message.sender && (
           <p className="text-xs text-blue-600 font-medium mb-0.5 pl-1">
             {message.sender.display_name}
           </p>
         )}
 
-        {/* Пузырь */}
         <div
           className={`relative rounded-2xl px-3 py-2 shadow-sm ${
             isMine
               ? 'bg-blue-500 text-white rounded-br-sm'
               : 'bg-white text-gray-800 rounded-bl-sm'
           }`}
+          onContextMenu={handleContextMenu}
         >
-          {/* Цитата (reply) */}
           {message.reply_to_preview && (
             <div className={`mb-1.5 pl-2 border-l-2 ${isMine ? 'border-blue-300' : 'border-blue-400'}`}>
               <p className={`text-xs font-medium truncate ${isMine ? 'text-blue-200' : 'text-blue-600'}`}>
@@ -360,14 +600,45 @@ export default function ChatMessageBubble({ message, currentUser, isGroup, onRep
             </div>
           )}
 
-          {/* Текст */}
           {message.text && (
             <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-              {renderTextWithLinks(message.text, !!isMine)}
+              {renderTextWithMentions(message.text, !!isMine, currentUserMention)}
             </p>
           )}
 
-          {/* Вложения */}
+          {mediaPreview && (
+            <div className="mt-2">
+              {mediaPreview.type === 'image' && (
+                <img
+                  src={mediaPreview.url}
+                  alt=""
+                  className="rounded-lg max-w-full max-h-64 object-cover cursor-pointer"
+                  onClick={() => window.open(mediaPreview.url, '_blank')}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              )}
+              {mediaPreview.type === 'youtube' && (
+                <div className="relative rounded-lg overflow-hidden" style={{ paddingBottom: '56.25%' }}>
+                  <iframe
+                    src={`https://www.youtube.com/embed/${mediaPreview.videoId}`}
+                    className="absolute inset-0 w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    title="YouTube video"
+                  />
+                </div>
+              )}
+              {mediaPreview.type === 'video' && (
+                <video
+                  src={mediaPreview.url}
+                  controls
+                  className="rounded-lg max-w-full max-h-64"
+                  onError={(e) => { (e.target as HTMLVideoElement).style.display = 'none'; }}
+                />
+              )}
+            </div>
+          )}
+
           {message.attachments.map((att) => (
             <div key={att.id} className="mt-1">
               {isImage(att.mime_type) ? (
@@ -402,38 +673,83 @@ export default function ChatMessageBubble({ message, currentUser, isGroup, onRep
             </div>
           ))}
 
-          {/* Время */}
           <p className={`text-[10px] mt-0.5 text-right ${isMine ? 'text-blue-200' : 'text-gray-400'}`}>
             {formatTime(message.created_at)}
           </p>
         </div>
+
+        {(reactions.length > 0 || allowedEmojis.length > 0) && (
+          <ReactionsRow reactions={reactions} allowedEmojis={allowedEmojis} onReact={handleReact} isMine={!!isMine} />
+        )}
       </div>
 
-      {/* Кнопки действий (появляются при hover) */}
-      <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${isMine ? 'order-first mr-1' : 'ml-1'}`}>
-        <button
-          onClick={() => onReply(message)}
-          className="p-1 text-gray-400 hover:text-gray-600 rounded"
-          title="Ответить"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-          </svg>
-        </button>
-        {(isMine || currentUser?.is_admin) && (
+      {/* Hover actions */}
+      {!selectionMode && (
+        <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${isMine ? 'order-first mr-1' : 'ml-1'}`}>
           <button
-            onClick={() => onDelete(message)}
-            className="p-1 text-gray-400 hover:text-red-500 rounded"
-            title="Удалить"
+            onClick={() => onReply(message)}
+            className="p-1 text-gray-400 hover:text-gray-600 rounded"
+            title="Ответить"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
             </svg>
           </button>
-        )}
-      </div>
+          {(isMine || currentUser?.is_admin) && (
+            <button
+              onClick={() => onDelete(message)}
+              className="p-1 text-gray-400 hover:text-red-500 rounded"
+              title="Удалить"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Context menu */}
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="fixed z-50 bg-white border border-gray-100 rounded-xl shadow-xl py-1 min-w-[160px]"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+        >
+          <button
+            onClick={() => { onReply(message); setContextMenu(null); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+            Ответить
+          </button>
+          <button
+            onClick={() => { onSelect?.(message.id); setContextMenu(null); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Выбрать
+          </button>
+          {(isMine || currentUser?.is_admin) && (
+            <button
+              onClick={() => { onDelete(message); setContextMenu(null); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Удалить
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -449,7 +765,6 @@ function PollResultsModal({ poll, onClose }: { poll: import('../../types').ChatP
         className="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Шапка */}
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
           <div className="flex-1 min-w-0">
             <p className="text-xs text-gray-400 mb-0.5">Результаты опроса</p>
@@ -462,13 +777,11 @@ function PollResultsModal({ poll, onClose }: { poll: import('../../types').ChatP
           </button>
         </div>
 
-        {/* Варианты */}
         <div className="overflow-y-auto px-5 pb-5 flex flex-col gap-4">
           {poll.options.map((opt) => {
             const pct = totalVotes > 0 ? Math.round((opt.vote_count / totalVotes) * 100) : 0;
             return (
               <div key={opt.id}>
-                {/* Вариант + прогресс */}
                 <div className="flex items-center justify-between mb-1 gap-2">
                   <span className={`text-sm flex-1 ${opt.user_voted ? 'font-medium text-blue-700' : 'text-gray-700'}`}>
                     {opt.user_voted && (
@@ -486,8 +799,6 @@ function PollResultsModal({ poll, onClose }: { poll: import('../../types').ChatP
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-
-                {/* Список голосовавших */}
                 {opt.voters.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5">
                     {opt.voters.map((v) => (
@@ -505,16 +816,13 @@ function PollResultsModal({ poll, onClose }: { poll: import('../../types').ChatP
               </div>
             );
           })}
-
           {totalVotes === 0 && (
             <p className="text-sm text-gray-400 text-center py-4">Ещё никто не проголосовал</p>
           )}
         </div>
 
         <div className="border-t border-gray-100 px-5 py-3">
-          <p className="text-xs text-gray-400 text-center">
-            Всего голосов: {totalVotes}
-          </p>
+          <p className="text-xs text-gray-400 text-center">Всего голосов: {totalVotes}</p>
         </div>
       </div>
     </div>

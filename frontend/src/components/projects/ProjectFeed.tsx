@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import data from '@emoji-mart/data';
+import Picker from '@emoji-mart/react';
 import api from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import type { ProjectPost, PostAttachment } from '../../types';
@@ -108,9 +110,10 @@ function PostBubble({
 interface Props {
   projectId: number;
   isTeacher: boolean;
+  isAdult: boolean;
 }
 
-export default function ProjectFeed({ projectId, isTeacher }: Props) {
+export default function ProjectFeed({ projectId, isTeacher, isAdult }: Props) {
   const { user } = useAuth();
   const [posts, setPosts] = useState<ProjectPost[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -120,15 +123,46 @@ export default function ProjectFeed({ projectId, isTeacher }: Props) {
   const [uploading, setUploading] = useState(false);
   const [typingUsers, setTypingUsers] = useState<{ id: number; name: string }[]>([]);
 
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [restrictionError, setRestrictionError] = useState('');
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projectIdRef = useRef(projectId);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeouts = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  // Закрыть emoji picker при клике вне
+  useEffect(() => {
+    if (!showEmojiPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showEmojiPicker]);
+
+  const handleEmojiSelect = useCallback((emoji: { native: string }) => {
+    const el = textareaRef.current;
+    if (!el) { setInput(prev => prev + emoji.native); return; }
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    setInput(prev => prev.slice(0, start) + emoji.native + prev.slice(end));
+    setShowEmojiPicker(false);
+    setTimeout(() => {
+      el.focus();
+      const pos = start + emoji.native.length;
+      el.setSelectionRange(pos, pos);
+    }, 0);
   }, []);
 
   // Load history
@@ -173,6 +207,9 @@ export default function ProjectFeed({ projectId, isTeacher }: Props) {
             setPosts(prev => prev.map(p =>
               p.id === data.post.id ? data.post : p
             ));
+          } else if (data.type === 'restriction_error') {
+            setRestrictionError(data.detail);
+            setTimeout(() => setRestrictionError(''), 5000);
           } else if (data.type === 'user_typing') {
             setTypingUsers(prev => {
               const filtered = prev.filter(u => u.id !== data.user_id);
@@ -309,7 +346,12 @@ export default function ProjectFeed({ projectId, isTeacher }: Props) {
 
       {/* Input area */}
       <div className="border-t border-gray-100 px-4 py-3 bg-white">
-        <div className="flex gap-2 items-end">
+        {restrictionError && (
+          <div className="mb-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700">
+            {restrictionError}
+          </div>
+        )}
+        <div className="flex gap-2 items-end relative">
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
@@ -320,7 +362,32 @@ export default function ProjectFeed({ projectId, isTeacher }: Props) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
             </svg>
           </button>
+          {/* Emoji picker button */}
+          <div className="relative flex-shrink-0" ref={emojiPickerRef}>
+            <button
+              onClick={() => setShowEmojiPicker(v => !v)}
+              className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              title="Смайлик"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+            {showEmojiPicker && (
+              <div className="absolute bottom-full left-0 mb-2 z-50">
+                <Picker
+                  data={data}
+                  onEmojiSelect={handleEmojiSelect}
+                  locale="ru"
+                  theme="light"
+                  previewPosition="none"
+                  skinTonePosition="none"
+                />
+              </div>
+            )}
+          </div>
           <textarea
+            ref={textareaRef}
             value={input}
             onChange={e => setInput(e.target.value)}
             onInput={handleTyping}

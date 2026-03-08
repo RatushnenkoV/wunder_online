@@ -1341,3 +1341,41 @@ def lesson_assignment_detail(request, assignment_id):
         return Response({'error': 'Нет доступа'}, status=403)
     assignment.delete()
     return Response(status=204)
+
+
+# ─── Статистика сессий ────────────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def session_stats(request, session_id):
+    """Полная статистика одной сессии (form/quiz ответы по всем слайдам)."""
+    session = get_object_or_404(LessonSession, id=session_id)
+    if not _is_staff(request.user):
+        return Response({'error': 'Нет доступа'}, status=403)
+
+    slides = Slide.objects.filter(lesson=session.lesson).order_by('order', 'id')
+    form_answers = FormAnswer.objects.filter(session=session).select_related('student', 'slide')
+
+    slides_stats = []
+    for slide in slides:
+        if slide.slide_type in ('form', 'quiz'):
+            slide_fas = [fa for fa in form_answers if fa.slide_id == slide.id]
+            results = compute_form_results(slide, slide_fas)
+            slides_stats.append({
+                'slide_id': slide.id,
+                'slide_type': slide.slide_type,
+                'title': slide.title or slide.slide_type,
+                'results': results,
+            })
+
+    return Response({
+        'session': {
+            'id': session.id,
+            'started_at': session.started_at.isoformat() if session.started_at else None,
+            'ended_at': session.ended_at.isoformat() if session.ended_at else None,
+            'school_class_name': str(session.school_class) if session.school_class else '',
+            'teacher_name': f'{session.teacher.first_name} {session.teacher.last_name}'.strip() if session.teacher else '',
+            'is_active': session.is_active,
+        },
+        'slides': slides_stats,
+    })

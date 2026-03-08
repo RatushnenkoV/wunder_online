@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 
 from accounts.permissions import PasswordChanged
 from core.validators import validate_file_mime, ALLOWED_IMAGES, ALLOWED_PDF, ALLOWED_EXCEL
+from groups.models import StudentChatRestriction
 
 ALLOWED_PROJECT_FILES = ALLOWED_IMAGES + ALLOWED_PDF + ALLOWED_EXCEL
 from tasks.models import Task
@@ -321,6 +322,14 @@ class ProjectPostFileView(APIView):
             return Response({'detail': 'Не найдено.'}, status=404)
         if post.author_id != request.user.id:
             return Response({'detail': 'Нет прав.'}, status=403)
+        # Проверяем ограничение на файлы для учеников
+        if request.user.is_student:
+            try:
+                restriction = StudentChatRestriction.objects.get(student=request.user)
+                if restriction.no_files:
+                    return Response({'detail': 'Вам запрещено отправлять файлы.'}, status=403)
+            except StudentChatRestriction.DoesNotExist:
+                pass
         f = request.FILES.get('file')
         if not f:
             return Response({'detail': 'Файл обязателен.'}, status=400)
@@ -381,6 +390,7 @@ class ProjectAssignmentListView(APIView):
         for member in student_members:
             _create_task_for_student(assignment, member.user, request.user)
         serializer = ProjectAssignmentSerializer(assignment, context={'request': request})
+        broadcast_project(pk, {'type': 'project_assignment_updated', 'assignment_id': assignment.id})
         return Response(serializer.data, status=201)
 
 
@@ -411,6 +421,7 @@ class ProjectAssignmentDetailView(APIView):
         assignment.due_date = request.data.get('due_date') or None
         assignment.save()
         serializer = ProjectAssignmentSerializer(assignment, context={'request': request})
+        broadcast_project(pk, {'type': 'project_assignment_updated', 'assignment_id': assignment.id})
         return Response(serializer.data)
 
     def delete(self, request, pk, aid):
@@ -498,6 +509,14 @@ class AssignmentSubmissionsView(APIView):
             return Response({'detail': 'Не найдено.'}, status=404)
 
         text = request.data.get('text', '')
+
+        # Определим, нужно ли логировать событие (только при первой сдаче или после возврата на доработку)
+        existing = AssignmentSubmission.objects.filter(
+            assignment=assignment, student=request.user
+        ).select_related('task').first()
+        was_in_progress = existing and existing.task and existing.task.status == Task.STATUS_IN_PROGRESS
+        should_log = not existing or was_in_progress
+
         submission, created = AssignmentSubmission.objects.update_or_create(
             assignment=assignment,
             student=request.user,
@@ -512,9 +531,15 @@ class AssignmentSubmissionsView(APIView):
                 submission.task.taken_by = request.user
             submission.task.save(update_fields=['status', 'review_comment', 'taken_by'])
 
-        _append_event(submission, 'submitted', request.user)
+        if should_log:
+            _append_event(submission, 'submitted', request.user)
 
         serializer = AssignmentSubmissionSerializer(submission, context={'request': request})
+        broadcast_project(pk, {
+            'type': 'project_submission_updated',
+            'assignment_id': int(aid),
+            'student_id': request.user.id,
+        })
         return Response(serializer.data, status=201 if created else 200)
 
 
@@ -578,6 +603,11 @@ class AcceptSubmissionView(APIView):
         _append_event(submission, 'accepted', request.user)
 
         serializer = AssignmentSubmissionSerializer(submission, context={'request': request})
+        broadcast_project(pk, {
+            'type': 'project_submission_updated',
+            'assignment_id': int(aid),
+            'student_id': submission.student_id,
+        })
         return Response(serializer.data)
 
 
@@ -608,6 +638,11 @@ class SendBackSubmissionView(APIView):
         _append_event(submission, 'sent_back', request.user, comment)
 
         serializer = AssignmentSubmissionSerializer(submission, context={'request': request})
+        broadcast_project(pk, {
+            'type': 'project_submission_updated',
+            'assignment_id': int(aid),
+            'student_id': submission.student_id,
+        })
         return Response(serializer.data)
 
 

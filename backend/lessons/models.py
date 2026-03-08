@@ -144,6 +144,7 @@ class LessonSession(models.Model):
     is_active = models.BooleanField(default=True, verbose_name='Активна')
     started_at = models.DateTimeField(auto_now_add=True)
     ended_at = models.DateTimeField(null=True, blank=True)
+    discussion_data = models.JSONField(default=dict, blank=True, verbose_name='Данные досок обсуждений')
 
     class Meta:
         ordering = ['-started_at']

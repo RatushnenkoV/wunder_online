@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../api/client';
 import type {
   ProjectAssignment, AssignmentSubmission, AssignmentAttachment, SubmissionFile, TaskStatus, Lesson, SubmissionEvent,
@@ -95,12 +95,14 @@ function AssignmentModal({
   isTeacher,
   onClose,
   onUpdate,
+  submissionsTrigger,
 }: {
   assignment: ProjectAssignment;
   projectId: number;
   isTeacher: boolean;
   onClose: () => void;
   onUpdate: (a: ProjectAssignment) => void;
+  submissionsTrigger?: number;
 }) {
   const [submissions, setSubmissions] = useState<AssignmentSubmission[]>([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
@@ -114,6 +116,12 @@ function AssignmentModal({
   const [sendBackMode, setSendBackMode] = useState<Record<number, boolean>>({});
   const [sendBackComments, setSendBackComments] = useState<Record<number, string>>({});
   const [actionSid, setActionSid] = useState<number | null>(null);
+  // Edit mode (teacher only)
+  const [editMode, setEditMode] = useState(false);
+  const [editTitle, setEditTitle] = useState(assignment.title);
+  const [editDescription, setEditDescription] = useState(assignment.description);
+  const [editDueDate, setEditDueDate] = useState(assignment.due_date || '');
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -123,7 +131,20 @@ function AssignmentModal({
         .then(res => setSubmissions(res.data))
         .finally(() => setLoadingSubmissions(false));
     }
-  }, [projectId, assignment.id, isTeacher]);
+  }, [projectId, assignment.id, isTeacher, submissionsTrigger]);
+
+  const handleSaveEdit = async () => {
+    if (!editTitle.trim()) return;
+    setSaving(true);
+    try {
+      const res = await api.put(
+        `/projects/${projectId}/assignments/${assignment.id}/`,
+        { title: editTitle.trim(), description: editDescription, due_date: editDueDate || null }
+      );
+      onUpdate(res.data);
+      setEditMode(false);
+    } catch { /* ignore */ } finally { setSaving(false); }
+  };
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -190,14 +211,67 @@ function AssignmentModal({
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl my-8">
         {/* Header */}
         <div className="px-6 py-5 border-b border-gray-100 flex items-start justify-between">
-          <div className="flex-1 min-w-0 pr-4">
-            <h2 className="text-lg font-semibold text-gray-900">{assignment.title}</h2>
-            {assignment.due_date && (
-              <p className="text-sm text-gray-500 mt-0.5">
-                Срок сдачи: {formatDate(assignment.due_date)}
-              </p>
-            )}
-          </div>
+          {editMode ? (
+            <div className="flex-1 min-w-0 pr-4 space-y-2">
+              <input
+                autoFocus
+                value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Название задания"
+              />
+              <textarea
+                value={editDescription}
+                onChange={e => setEditDescription(e.target.value)}
+                rows={3}
+                className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                placeholder="Описание..."
+              />
+              <input
+                type="date"
+                value={editDueDate}
+                onChange={e => setEditDueDate(e.target.value)}
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={saving || !editTitle.trim()}
+                  className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {saving ? 'Сохранение...' : 'Сохранить'}
+                </button>
+                <button
+                  onClick={() => setEditMode(false)}
+                  className="bg-gray-100 text-gray-700 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-200"
+                >
+                  Отмена
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 min-w-0 pr-4">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-gray-900">{assignment.title}</h2>
+                {isTeacher && (
+                  <button
+                    onClick={() => setEditMode(true)}
+                    className="text-gray-400 hover:text-blue-500 transition-colors flex-shrink-0"
+                    title="Редактировать задание"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              {assignment.due_date && (
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Срок сдачи: {formatDate(assignment.due_date)}
+                </p>
+              )}
+            </div>
+          )}
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 flex-shrink-0"
@@ -210,7 +284,7 @@ function AssignmentModal({
 
         <div className="p-6 space-y-6">
           {/* Description */}
-          {assignment.description && (
+          {!editMode && assignment.description && (
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{assignment.description}</p>
           )}
 
@@ -246,6 +320,14 @@ function AssignmentModal({
               {mySub?.task_status === 'done' && (
                 <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm text-green-800 font-medium">
                   Работа принята!
+                </div>
+              )}
+
+              {/* Комментарий к доработке */}
+              {mySub?.task_status === 'in_progress' && mySub.review_comment && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-sm text-orange-800">
+                  <span className="font-medium">Комментарий к доработке: </span>
+                  {mySub.review_comment}
                 </div>
               )}
 
@@ -410,7 +492,7 @@ function CreateAssignmentModal({
 }: {
   projectId: number;
   onClose: () => void;
-  onCreate: (a: ProjectAssignment) => void;
+  onCreate: () => void;
 }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -462,7 +544,7 @@ function CreateAssignmentModal({
     e.preventDefault();
     const assignment = await ensureCreated();
     if (assignment) {
-      onCreate({ ...assignment, attachments });
+      onCreate();
     }
   };
 
@@ -633,12 +715,72 @@ export default function ProjectAssignments({ projectId, isTeacher }: Props) {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState<ProjectAssignment | null>(null);
+  const [submissionsRefreshTriggers, setSubmissionsRefreshTriggers] = useState<Record<number, number>>({});
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchAssignments = useCallback(() => {
+    api.get(`/projects/${projectId}/assignments/`)
+      .then(res => {
+        const list: ProjectAssignment[] = res.data;
+        setAssignments(list);
+        // Обновляем открытый модал, если задание там изменилось
+        setSelected(prev => {
+          if (!prev) return prev;
+          return list.find(a => a.id === prev.id) ?? prev;
+        });
+      });
+  }, [projectId]);
 
   useEffect(() => {
+    setLoading(true);
     api.get(`/projects/${projectId}/assignments/`)
       .then(res => setAssignments(res.data))
       .finally(() => setLoading(false));
   }, [projectId]);
+
+  // WebSocket для real-time обновлений
+  useEffect(() => {
+    const connect = () => {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+      const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(`${proto}://${window.location.host}/ws/project/${projectId}/?token=${token}`);
+      wsRef.current = ws;
+
+      ws.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.type === 'assignment_updated') {
+            fetchAssignments();
+          } else if (data.type === 'submission_updated') {
+            fetchAssignments();
+            if (isTeacher && data.assignment_id) {
+              setSubmissionsRefreshTriggers(prev => ({
+                ...prev,
+                [data.assignment_id]: (prev[data.assignment_id] ?? 0) + 1,
+              }));
+            }
+          }
+        } catch { /* ignore */ }
+      };
+
+      ws.onclose = (e) => {
+        if (e.code !== 1000 && e.code !== 4001 && e.code !== 4003) {
+          reconnectRef.current = setTimeout(connect, 3000);
+        }
+      };
+    };
+
+    connect();
+    return () => {
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+      if (wsRef.current) {
+        wsRef.current.onclose = null;
+        wsRef.current.close();
+      }
+    };
+  }, [projectId, isTeacher, fetchAssignments]);
 
   const handleUpdate = (updated: ProjectAssignment) => {
     setAssignments(prev => prev.map(a => a.id === updated.id ? updated : a));
@@ -693,8 +835,8 @@ export default function ProjectAssignments({ projectId, isTeacher }: Props) {
         <CreateAssignmentModal
           projectId={projectId}
           onClose={() => setShowCreate(false)}
-          onCreate={a => {
-            setAssignments(prev => [a, ...prev]);
+          onCreate={() => {
+            fetchAssignments();
             setShowCreate(false);
           }}
         />
@@ -707,6 +849,7 @@ export default function ProjectAssignments({ projectId, isTeacher }: Props) {
           isTeacher={isTeacher}
           onClose={() => setSelected(null)}
           onUpdate={handleUpdate}
+          submissionsTrigger={submissionsRefreshTriggers[selected.id] ?? 0}
         />
       )}
     </div>

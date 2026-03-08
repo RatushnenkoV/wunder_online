@@ -1,11 +1,14 @@
 import json
+import re
 
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.utils import timezone
 
-from .models import ChatRoom, ChatMember, ChatMessage
+from .models import ChatRoom, ChatMember, ChatMessage, StudentChatRestriction
 from .serializers import ChatMessageSerializer
+
+_URL_PATTERN = re.compile(r'https?://|www\.', re.IGNORECASE)
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -43,6 +46,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             reply_to_id = data.get('reply_to')
             if not text:
                 return
+
+            # Проверяем ограничения для учеников
+            if self.user.is_student:
+                error = await self.check_restrictions(text, restriction_type='text')
+                if error:
+                    await self.send(text_data=json.dumps({'type': 'restriction_error', 'detail': error}))
+                    return
+
             message = await self.save_message(text, reply_to_id)
             serialized = await self.serialize_message(message)
             await self.channel_layer.group_send(
@@ -118,16 +129,31 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'takers': event['takers'],
         }))
 
+    async def restriction_error(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'restriction_error',
+            'detail': event['detail'],
+        }))
+
+    async def chat_reaction_updated(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'reaction_updated',
+            'message_id': event['message_id'],
+            'reactions': event['reactions'],
+        }))
+
     # ─── DB helpers ────────────────────────────────────────────────────────────
 
     @sync_to_async
     def check_membership(self):
         try:
             room = ChatRoom.objects.get(id=self.room_id)
-            return (
-                room.members_rel.filter(user=self.user).exists()
-                or self.user.is_admin
-            )
+            if room.members_rel.filter(user=self.user).exists():
+                return True
+            # Admin может подключиться к групповому чату (модерация)
+            if self.user.is_admin and room.room_type == 'group':
+                return True
+            return False
         except ChatRoom.DoesNotExist:
             return False
 
@@ -151,6 +177,46 @@ class ChatConsumer(AsyncWebsocketConsumer):
     def serialize_message(self, message):
         serializer = ChatMessageSerializer(message)
         return serializer.data
+
+    @sync_to_async
+    def check_restrictions(self, text, restriction_type='text'):
+        """Возвращает строку с ошибкой если ученик нарушает ограничения, иначе None."""
+        try:
+            r = StudentChatRestriction.objects.get(student=self.user)
+        except StudentChatRestriction.DoesNotExist:
+            return None
+
+        now = timezone.now()
+
+        # Мьют
+        if r.muted_until and r.muted_until > now:
+            delta = r.muted_until - now
+            minutes = int(delta.total_seconds() / 60)
+            return f'Вы временно лишены возможности писать ещё {minutes} мин.'
+
+        if restriction_type == 'file' and r.no_files:
+            return 'Вам запрещено отправлять файлы.'
+
+        if restriction_type == 'poll' and r.no_polls:
+            return 'Вам запрещено создавать опросы.'
+
+        if restriction_type == 'text':
+            # Проверка ссылок
+            if r.no_links and _URL_PATTERN.search(text):
+                return 'Вам запрещено отправлять ссылки.'
+
+            # Cooldown
+            if r.message_cooldown > 0:
+                last_msg = ChatMessage.objects.filter(
+                    sender=self.user, is_deleted=False
+                ).order_by('-created_at').first()
+                if last_msg:
+                    elapsed = (now - last_msg.created_at).total_seconds()
+                    if elapsed < r.message_cooldown:
+                        wait = int(r.message_cooldown - elapsed) + 1
+                        return f'Подождите {wait} сек. перед следующим сообщением.'
+
+        return None
 
     @sync_to_async
     def mark_read(self):

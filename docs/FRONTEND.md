@@ -57,7 +57,7 @@
 | `KTPListPage.tsx` | 11KB | Список КТП, фильтры по классу/предмету |
 | `SchedulePage.tsx` | 18KB | Расписание неделя/день + замены |
 | `ProjectsPage.tsx` | 7.9KB | Список проектов (карточки) |
-| `ProjectDetailPage.tsx` | 13KB | Задания проекта + лента + сдача |
+| `ProjectDetailPage.tsx` | ~18KB | Детали проекта: лента + задания + участники. Включает: редактирование названия/цвета (кнопка ✏ в хедере для педагогов), InviteMembersModal с мультидобавлением (не закрывается), ограничения ученика из MembersModal (🚫). WS real-time обновления заданий/сдач |
 | `SelfPacedLessonPage.tsx` | 25KB | Самостоятельный режим урока |
 | `YellowListPage.tsx` | 23KB | Жёлтый список (двухпанельный layout) |
 | `ChatsPage.tsx` | 25KB | Мессенджер + WebSocket |
@@ -100,7 +100,7 @@ frontend/src/components/
 │   ├── SlideCanvas.tsx         # Canvas с блоками (react-rnd + Tiptap); export emptyContent()
 │   ├── SlideThumb.tsx          # Миниатюра слайда в сайдбаре
 │   ├── SlideTypePicker.tsx     # Модал выбора типа слайда
-│   ├── DiscussionBoard.tsx     # Доска обсуждений (стикеры + стрелки + WS)
+│   ├── DiscussionBoard.tsx     # Доска обсуждений (стикеры + стрелки + WS + модаль стикера + pan)
 │   ├── TextbookSlideEditor.tsx # Редактор учебника (react-pdf)
 │   ├── FormEditor.tsx          # Редактор формы
 │   ├── QuizEditor.tsx          # Редактор викторины
@@ -116,15 +116,16 @@ frontend/src/components/
 ├── lesson-presenter/       # Компоненты показа урока
 │   ├── SlideView.tsx           # Оркестратор: выбирает нужный вид по slide_type
 │   ├── QuizViews.tsx           # QuizAnswerView, QuizPresenterView, QuizLeaderboardView
-│   ├── FormViews.tsx           # FormAnswerView, FormResultsView
+│   ├── FormViews.tsx           # FormAnswerView (кнопка "Изменить" убрана, submit внутри скролла), FormResultsView
 │   ├── VideoSlideView.tsx      # Видео-слайд (YouTube и др.)
-│   ├── DiscussionSlideView.tsx # Доска обсуждений (просмотр)
+│   ├── DiscussionSlideView.tsx # Доска обсуждений (sessionId-изоляция, модаль стикера, pan)
 │   ├── TextbookSlideView.tsx   # Учебник (react-pdf + DrawingCanvas)
 │   ├── VocabStudentView.tsx    # Словарь: режим ученика
 │   └── VocabTeacherView.tsx    # Словарь: режим учителя
+├── SessionStatsDialog.tsx  # Диалог статистики сессий (форм/квизов) для учителя
 ├── projects/
-│   ├── AssignmentCard.tsx
-│   └── SubmissionView.tsx
+│   ├── ProjectFeed.tsx         # Лента проекта (чат): emoji picker (@emoji-mart/react), загрузка файлов, WS
+│   └── ProjectAssignments.tsx  # Задания: создание, просмотр сдач, редактирование задания (кнопка ✏ для педагогов)
 ├── schedule/
 │   ├── WeekView.tsx
 │   └── DayView.tsx
@@ -256,6 +257,26 @@ editor.chain().focus().setStyleProp('float', 'left').run()
 
 ---
 
+## Функции учителя в редакторе уроков (LessonEditorPage)
+
+- Редактирование названия урока — inline input в хедере
+- Редактирование цвета обложки и описания — кнопка шестерёнки (⚙) → попап с палитрой и textarea
+- Сохранение через `PUT /lessons/lessons/{id}/` (partial=True)
+
+---
+
+## Статистика сессий (SessionStatsDialog)
+
+Открывается из контекстного меню карточки урока на LessonsPage (кнопка «Статистика»).
+
+Показывает:
+- Вкладка «Сессии»: список проведённых сессий → при выборе — статистика форм/квизов по слайдам
+- Вкладка «Самостоятельные»: список выданных заданий (детальная статистика — в разработке)
+
+API: `GET /lessons/sessions/?lesson={id}`, `GET /lessons/sessions/{pk}/stats/`, `GET /lessons/assignments/`
+
+---
+
 ## Canvas-редактор уроков
 
 Используется в: **LessonEditorPage**
@@ -272,6 +293,21 @@ editor.chain().focus().setStyleProp('float', 'left').run()
 - Ctrl+C / Ctrl+V — копирование блоков
 
 ---
+
+## Доска обсуждений (Discussion Board)
+
+**Editor:** `lesson-editor/DiscussionBoard.tsx` — WS без session_id, данные в `slide.content`
+**Presenter:** `lesson-presenter/DiscussionSlideView.tsx` — WS с `?session_id={id}`, данные в `LessonSession.discussion_data`
+
+WS URL:
+- Редактор: `ws/discussion/{slide_id}/?token={token}`
+- Показ: `ws/discussion/{slide_id}/?session_id={session_id}&token={token}`
+
+Функционал:
+- Нажать на цвет → модальное окно ввода текста → стикер создаётся только если текст непустой
+- Перемещение по доске: drag на пустом месте (pan)
+- Стрелки между стикерами через hover-точки
+- Данные сессии изолированы (разные классы видят разные стикеры)
 
 ## WebSocket в компонентах
 
