@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { Slide, VocabContent } from '../../types';
+import type { Slide, VocabContent, VocabWord } from '../../types';
 import type { VocabTaskKey } from '../../types';
 import api from '../../api/client';
 const VOCAB_LANG_LABELS: Record<'en' | 'kk', string> = { en: 'Английский', kk: 'Казахский' };
