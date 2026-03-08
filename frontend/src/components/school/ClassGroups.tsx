@@ -187,7 +187,7 @@ export default function ClassGroups({ classId }: Props) {
         </div>
       )}
       <div className="flex justify-end mb-4">
-        <button onClick={openCreate} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+        <button onClick={openCreate} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm">
           + Создать группу
         </button>
       </div>
@@ -196,7 +196,7 @@ export default function ClassGroups({ classId }: Props) {
         {groups.map(group => (
           <div
             key={group.id}
-            className={`bg-white rounded-lg shadow transition ${dragOverGroup === group.id ? 'ring-2 ring-blue-400' : ''}`}
+            className={`bg-white dark:bg-slate-800 rounded-lg shadow transition ${dragOverGroup === group.id ? 'ring-2 ring-purple-400' : ''}`}
             onContextMenu={e => { e.preventDefault(); setCtxMenu({ group, x: e.clientX, y: e.clientY }); }}
             onDragOver={e => handleDragOver(e, group.id)}
             onDragLeave={e => handleDragLeave(e)}
@@ -210,11 +210,11 @@ export default function ClassGroups({ classId }: Props) {
               <div className="flex items-center gap-2 text-sm font-medium">
                 <span className={`transition-transform ${expandedIds.has(group.id) ? 'rotate-90' : ''}`}>&#9654;</span>
                 {group.name}
-                <span className="text-gray-400 font-normal">({group.students_detail.length} уч.)</span>
+                <span className="text-gray-400 dark:text-slate-500 font-normal">({group.students_detail.length} уч.)</span>
               </div>
               <button
                 onClick={e => { e.stopPropagation(); setCtxMenu({ group, x: e.clientX, y: e.clientY }); }}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
+                className="text-gray-400 dark:text-slate-500 hover:text-gray-600 p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
               >&#8942;</button>
             </div>
 
@@ -222,7 +222,7 @@ export default function ClassGroups({ classId }: Props) {
             {expandedIds.has(group.id) && (
               <div className="px-4 pb-3 border-t">
                 {group.students_detail.length === 0 ? (
-                  <p className="text-gray-400 text-sm py-2">Нет учеников</p>
+                  <p className="text-gray-400 dark:text-slate-500 text-sm py-2">Нет учеников</p>
                 ) : (
                   <ul className="text-sm py-2 space-y-0.5">
                     {group.students_detail.map(s => (
@@ -231,9 +231,9 @@ export default function ClassGroups({ classId }: Props) {
                         draggable
                         onDragStart={e => handleDragStart(e, s.id, group.id)}
                         onDragEnd={handleDragEnd}
-                        className="flex items-center justify-between py-1 px-2 rounded hover:bg-gray-50 cursor-grab active:cursor-grabbing group/item"
+                        className="flex items-center justify-between py-1 px-2 rounded hover:bg-gray-50 dark:hover:bg-slate-800 cursor-grab active:cursor-grabbing group/item"
                       >
-                        <span className="text-gray-700">{s.last_name} {s.first_name}</span>
+                        <span className="text-gray-700 dark:text-slate-300">{s.last_name} {s.first_name}</span>
                         <button
                           onClick={() => removeStudent(group.id, s.id)}
                           className="text-red-400 hover:text-red-600 text-xs opacity-0 group-hover/item:opacity-100 transition-opacity"
@@ -252,22 +252,22 @@ export default function ClassGroups({ classId }: Props) {
                         <button
                           key={sp.user.id}
                           onClick={() => addStudentToGroup(group.id, sp.user.id)}
-                          className="w-full text-left px-3 py-1.5 hover:bg-blue-50 text-gray-700"
+                          className="w-full text-left px-3 py-1.5 hover:bg-purple-50 text-gray-700 dark:text-slate-300"
                         >
                           {sp.user.last_name} {sp.user.first_name}
                         </button>
                       ))}
                       {availableStudents(group).length === 0 && (
-                        <p className="text-gray-400 text-center py-2 text-xs">Все ученики уже в группе</p>
+                        <p className="text-gray-400 dark:text-slate-500 text-center py-2 text-xs">Все ученики уже в группе</p>
                       )}
-                      <button onClick={() => setAddingToGroup(null)} className="w-full text-center py-1.5 text-xs text-gray-400 hover:text-gray-600 border-t">
+                      <button onClick={() => setAddingToGroup(null)} className="w-full text-center py-1.5 text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 border-t">
                         Закрыть
                       </button>
                     </div>
                   ) : (
                     <button
                       onClick={() => setAddingToGroup(group.id)}
-                      className="text-blue-600 hover:text-blue-800 text-xs"
+                      className="text-purple-600 hover:text-purple-800 text-xs"
                     >
                       + Добавить ученика
                     </button>
@@ -277,7 +277,7 @@ export default function ClassGroups({ classId }: Props) {
             )}
           </div>
         ))}
-        {groups.length === 0 && <p className="text-gray-400 text-center py-8">Группы не созданы</p>}
+        {groups.length === 0 && <p className="text-gray-400 dark:text-slate-500 text-center py-8">Группы не созданы</p>}
       </div>
 
       {ctxMenu && (
@@ -287,34 +287,34 @@ export default function ClassGroups({ classId }: Props) {
       {/* Create / Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-md max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">{editGroup ? 'Редактирование группы' : 'Новая группа'}</h3>
             <div className="space-y-3 flex-1 overflow-auto">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Название</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Название</label>
                 <input value={formName} onChange={e => setFormName(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" placeholder="Группа 1" />
               </div>
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="text-sm text-gray-600">Ученики</label>
-                  <button onClick={toggleAll} className="text-xs text-blue-600 hover:text-blue-800">
+                  <label className="text-sm text-gray-600 dark:text-slate-400">Ученики</label>
+                  <button onClick={toggleAll} className="text-xs text-purple-600 hover:text-purple-800">
                     {formStudents.length === students.length ? 'Снять все' : 'Выбрать всех'}
                   </button>
                 </div>
                 <div className="border rounded max-h-60 overflow-auto">
                   {students.map(sp => (
-                    <label key={sp.user.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm">
+                    <label key={sp.user.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer text-sm">
                       <input type="checkbox" checked={formStudents.includes(sp.user.id)} onChange={() => toggleFormStudent(sp.user.id)} />
                       {sp.user.last_name} {sp.user.first_name}
                     </label>
                   ))}
-                  {students.length === 0 && <p className="text-gray-400 text-center py-4 text-sm">Нет учеников в классе</p>}
+                  {students.length === 0 && <p className="text-gray-400 dark:text-slate-500 text-center py-4 text-sm">Нет учеников в классе</p>}
                 </div>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Отмена</button>
-              <button onClick={handleSave} disabled={!formName.trim()} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800">Отмена</button>
+              <button onClick={handleSave} disabled={!formName.trim()} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700 disabled:opacity-50">
                 {editGroup ? 'Сохранить' : 'Создать'}
               </button>
             </div>

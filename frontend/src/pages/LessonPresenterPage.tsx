@@ -313,7 +313,7 @@ export default function LessonPresenterPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-gray-900 flex items-center justify-center text-white">
+      <div className="fixed inset-0 bg-gray-900 dark:bg-slate-900 flex items-center justify-center text-white">
         <div className="text-lg">Загрузка урока...</div>
       </div>
     );
@@ -326,16 +326,16 @@ export default function LessonPresenterPage() {
   if (sessionEnded && !isPresenter) {
     const topPlayers = lastLeaderboard?.slice(0, 3) ?? [];
     return (
-      <div className="fixed inset-0 bg-gray-900 flex flex-col items-center justify-center gap-6 text-white px-4">
+      <div className="fixed inset-0 bg-gray-900 dark:bg-slate-900 flex flex-col items-center justify-center gap-6 text-white px-4">
         <div className="text-5xl">🏁</div>
         <div className="text-2xl font-semibold">Урок завершён</div>
-        <div className="text-gray-400">{session.lesson_title}</div>
+        <div className="text-gray-400 dark:text-slate-500">{session.lesson_title}</div>
 
         {topPlayers.length > 0 && (
           <div className="w-full max-w-sm space-y-2">
-            <div className="text-sm text-gray-400 text-center mb-3">Итоговый рейтинг</div>
+            <div className="text-sm text-gray-400 dark:text-slate-500 text-center mb-3">Итоговый рейтинг</div>
             {topPlayers.map((p, i) => (
-              <div key={p.id} className="flex items-center gap-3 bg-gray-800 rounded-xl px-4 py-3">
+              <div key={p.id} className="flex items-center gap-3 bg-gray-800 dark:bg-slate-700 rounded-xl px-4 py-3">
                 <span className="text-2xl w-8 text-center">{MEDALS[i]}</span>
                 <span className="flex-1 font-medium truncate">{p.name}</span>
                 <span className="text-yellow-400 font-bold">{p.points} оч.</span>
@@ -346,7 +346,7 @@ export default function LessonPresenterPage() {
 
         <button
           onClick={() => navigate('/lessons')}
-          className="mt-4 px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+          className="mt-4 px-6 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-medium"
         >
           На главную
         </button>
@@ -356,15 +356,15 @@ export default function LessonPresenterPage() {
 
   return (
     <div
-      className="fixed inset-0 bg-gray-900 flex flex-col"
+      className="fixed inset-0 bg-gray-900 dark:bg-slate-900 flex flex-col"
       style={{ userSelect: 'none' }}
     >
       {/* ── Верхняя панель ── */}
-      <div className="flex items-center gap-3 px-4 py-2 bg-gray-800 border-b border-gray-700 flex-shrink-0 min-h-[48px]">
+      <div className="flex items-center gap-3 px-4 py-2 bg-gray-800 dark:bg-slate-700 border-b border-gray-700 flex-shrink-0 min-h-[48px]">
         {/* Кнопка назад */}
         <button
           onClick={() => navigate('/lessons')}
-          className="text-gray-400 hover:text-white transition-colors p-1 rounded"
+          className="text-gray-400 dark:text-slate-500 hover:text-white transition-colors p-1 rounded"
           title="Вернуться к урокам"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -375,14 +375,14 @@ export default function LessonPresenterPage() {
         {/* Название */}
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-white truncate">{session.lesson_title}</div>
-          <div className="text-xs text-gray-400 truncate">
+          <div className="text-xs text-gray-400 dark:text-slate-500 truncate">
             {session.school_class_name} · {isPresenter ? 'Ведёте вы' : session.teacher_name}
           </div>
         </div>
 
         {/* Индикатор слайда */}
         {slides.length > 0 && (
-          <div className="text-sm text-gray-400 font-mono flex-shrink-0">
+          <div className="text-sm text-gray-400 dark:text-slate-500 font-mono flex-shrink-0">
             {currentIdx + 1} / {slides.length}
           </div>
         )}
@@ -398,7 +398,7 @@ export default function LessonPresenterPage() {
         {/* Fullscreen */}
         <button
           onClick={toggleFullscreen}
-          className="text-gray-400 hover:text-white transition-colors p-1.5 rounded hover:bg-gray-700"
+          className="text-gray-400 dark:text-slate-500 hover:text-white transition-colors p-1.5 rounded hover:bg-gray-700"
           title={isFullscreen ? 'Выйти из полного экрана' : 'Полный экран'}
         >
           {isFullscreen ? <IconExitFullscreen /> : <IconFullscreen />}
@@ -456,17 +456,17 @@ export default function LessonPresenterPage() {
             </div>
           </div>
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-lg">Нет слайдов</div>
+          <div className="absolute inset-0 flex items-center justify-center text-gray-500 dark:text-slate-400 text-lg">Нет слайдов</div>
         )}
       </div>
 
       {/* ── Нижняя панель навигации (только учитель) ── */}
       {isPresenter && slides.length > 0 && (
-        <div className="flex items-center justify-center gap-4 px-4 py-3 bg-gray-800 border-t border-gray-700 flex-shrink-0">
+        <div className="flex items-center justify-center gap-4 px-4 py-3 bg-gray-800 dark:bg-slate-700 border-t border-gray-700 flex-shrink-0">
           <button
             onClick={goPrev}
             disabled={currentIdx <= 0}
-            className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="p-2 rounded-lg text-gray-300 dark:text-slate-600 hover:text-white hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             title="Предыдущий слайд (←)"
           >
             <IconChevronLeft />
@@ -480,21 +480,21 @@ export default function LessonPresenterPage() {
                 onClick={() => goToSlide(s)}
                 className={`flex-shrink-0 rounded-full transition-all ${
                   s.id === currentSlideId
-                    ? 'w-3 h-3 bg-blue-400'
+                    ? 'w-3 h-3 bg-purple-400'
                     : 'w-2 h-2 bg-gray-600 hover:bg-gray-400'
                 }`}
                 title={`Слайд ${i + 1}`}
               />
             ))}
             {slides.length > 20 && (
-              <span className="text-xs text-gray-500 ml-1">+{slides.length - 20}</span>
+              <span className="text-xs text-gray-500 dark:text-slate-400 ml-1">+{slides.length - 20}</span>
             )}
           </div>
 
           <button
             onClick={goNext}
             disabled={currentIdx >= slides.length - 1}
-            className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="p-2 rounded-lg text-gray-300 dark:text-slate-600 hover:text-white hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             title="Следующий слайд (→)"
           >
             <IconChevronRight />
@@ -504,7 +504,7 @@ export default function LessonPresenterPage() {
 
       {/* Подсказка для студентов */}
       {!isPresenter && (
-        <div className="text-center py-2 text-xs text-gray-600 flex-shrink-0">
+        <div className="text-center py-2 text-xs text-gray-600 dark:text-slate-400 flex-shrink-0">
           Слайды переключает учитель
         </div>
       )}

@@ -654,28 +654,28 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
         <div className="flex items-center gap-1">
           <button
             onClick={prevWeek}
-            className="px-3 py-1.5 rounded border bg-white text-gray-700 hover:bg-gray-50 text-sm"
+            className="px-3 py-1.5 rounded border bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm"
           >
             ←
           </button>
           <button
             onClick={goToToday}
-            className="px-3 py-1.5 rounded border bg-white text-gray-700 hover:bg-gray-50 text-sm"
+            className="px-3 py-1.5 rounded border bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm"
           >
             Сегодня
           </button>
           <button
             onClick={nextWeek}
-            className="px-3 py-1.5 rounded border bg-white text-gray-700 hover:bg-gray-50 text-sm"
+            className="px-3 py-1.5 rounded border bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm"
           >
             →
           </button>
         </div>
-        <span className="text-sm font-medium text-gray-700">{formatWeekRange(monday)}</span>
+        <span className="text-sm font-medium text-gray-700 dark:text-slate-300">{formatWeekRange(monday)}</span>
         <input
           type="date"
           onChange={handleDateJump}
-          className="border rounded px-2 py-1 text-sm text-gray-600"
+          className="border rounded px-2 py-1 text-sm text-gray-600 dark:text-slate-400"
           title="Перейти к дате"
         />
 
@@ -686,7 +686,7 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
             <div className="relative" ref={printAllMenuRef}>
               <button
                 onClick={() => { setShowPrintAllMenu(v => !v); setShowPrintTeachersMenu(false); setShowExportMenu(false); }}
-                className="px-3 py-1.5 rounded border bg-white text-gray-700 hover:bg-gray-50 text-sm flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded border bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm flex items-center gap-1.5"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="6 9 6 2 18 2 18 9"/>
@@ -700,8 +700,8 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
               </button>
 
               {showPrintAllMenu && (
-                <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg p-3 z-20 min-w-[210px]">
-                  <label className="block text-xs text-gray-500 mb-1 font-medium">Дата</label>
+                <div className="absolute right-0 top-full mt-1 bg-white dark:bg-slate-800 border rounded-lg shadow-lg p-3 z-20 min-w-[210px]">
+                  <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1 font-medium">Дата</label>
                   <input
                     type="date"
                     value={printAllDate}
@@ -710,7 +710,7 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
                   />
                   <button
                     onClick={handlePrintAll}
-                    className="w-full px-3 py-1.5 rounded bg-gray-800 text-white text-sm hover:bg-gray-900 flex items-center justify-center gap-1.5"
+                    className="w-full px-3 py-1.5 rounded bg-gray-800 dark:bg-slate-700 text-white text-sm hover:bg-gray-900 flex items-center justify-center gap-1.5"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="6 9 6 2 18 2 18 9"/>
@@ -727,7 +727,7 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
             <div className="relative" ref={printTeachersMenuRef}>
               <button
                 onClick={() => { setShowPrintTeachersMenu(v => !v); setShowPrintAllMenu(false); setShowExportMenu(false); }}
-                className="px-3 py-1.5 rounded border bg-white text-gray-700 hover:bg-gray-50 text-sm flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded border bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm flex items-center gap-1.5"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="6 9 6 2 18 2 18 9"/>
@@ -741,8 +741,8 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
               </button>
 
               {showPrintTeachersMenu && (
-                <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg p-3 z-20 min-w-[210px]">
-                  <label className="block text-xs text-gray-500 mb-1 font-medium">Дата</label>
+                <div className="absolute right-0 top-full mt-1 bg-white dark:bg-slate-800 border rounded-lg shadow-lg p-3 z-20 min-w-[210px]">
+                  <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1 font-medium">Дата</label>
                   <input
                     type="date"
                     value={printTeachersDate}
@@ -751,7 +751,7 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
                   />
                   <button
                     onClick={handlePrintAllTeachers}
-                    className="w-full px-3 py-1.5 rounded bg-gray-800 text-white text-sm hover:bg-gray-900 flex items-center justify-center gap-1.5"
+                    className="w-full px-3 py-1.5 rounded bg-gray-800 dark:bg-slate-700 text-white text-sm hover:bg-gray-900 flex items-center justify-center gap-1.5"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="6 9 6 2 18 2 18 9"/>
@@ -768,7 +768,7 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
             <div className="relative" ref={exportMenuRef}>
               <button
                 onClick={() => { setShowExportMenu(v => !v); setShowPrintAllMenu(false); setShowPrintTeachersMenu(false); }}
-                className="px-3 py-1.5 rounded border bg-white text-gray-700 hover:bg-gray-50 text-sm flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded border bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm flex items-center gap-1.5"
               >
                 <span>Экспорт Excel</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -777,15 +777,15 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
               </button>
 
               {showExportMenu && (
-                <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg p-3 z-20 min-w-[230px]">
-                  <label className="block text-xs text-gray-500 mb-1 font-medium">С даты</label>
+                <div className="absolute right-0 top-full mt-1 bg-white dark:bg-slate-800 border rounded-lg shadow-lg p-3 z-20 min-w-[230px]">
+                  <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1 font-medium">С даты</label>
                   <input
                     type="date"
                     value={exportDateFrom}
                     onChange={e => setExportDateFrom(e.target.value)}
                     className="border rounded px-2 py-1.5 text-sm w-full mb-2"
                   />
-                  <label className="block text-xs text-gray-500 mb-1 font-medium">По дату</label>
+                  <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1 font-medium">По дату</label>
                   <input
                     type="date"
                     value={exportDateTo}
@@ -814,7 +814,7 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
             <button
               key={m.key}
               onClick={() => { setViewMode(m.key); setSelectedId(null); }}
-              className={`px-4 py-2 text-sm ${viewMode === m.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              className={`px-4 py-2 text-sm ${viewMode === m.key ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
             >
               {m.label}
             </button>
@@ -833,7 +833,7 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
       </div>
 
       {!selectedId ? (
-        <p className="text-gray-400 text-sm">Выберите элемент для отображения замен</p>
+        <p className="text-gray-400 dark:text-slate-500 text-sm">Выберите элемент для отображения замен</p>
       ) : (
         <>
           <SubstitutionsGrid

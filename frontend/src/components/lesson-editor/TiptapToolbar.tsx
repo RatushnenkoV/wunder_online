@@ -16,7 +16,7 @@ const FONT_FAMILIES = [
 export default function TiptapToolbar({ editor }: { editor: ReturnType<typeof useEditor> | null }) {
   const colorRef = useRef<HTMLInputElement>(null);
 
-  if (!editor) return <div className="h-10 border-b border-gray-200 bg-white" />;
+  if (!editor) return <div className="h-10 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800" />;
 
   const currentColor      = (editor.getAttributes('textStyle').color as string | undefined) ?? '#1f2937';
   const rawSize           = (editor.getAttributes('textStyle').fontSize as string | undefined) ?? '';
@@ -28,20 +28,20 @@ export default function TiptapToolbar({ editor }: { editor: ReturnType<typeof us
       key={title}
       onMouseDown={e => { e.preventDefault(); onClick(); }}
       title={title}
-      className={`px-2 py-1 text-sm rounded transition-colors ${active ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+      className={`px-2 py-1 text-sm rounded transition-colors ${active ? 'bg-purple-100 text-purple-700' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700'}`}
     >{label}</button>
   );
 
   return (
-    <div className="flex items-center gap-0.5 px-3 py-1 bg-white border-b border-gray-200 flex-wrap min-h-[40px]">
+    <div className="flex items-center gap-0.5 px-3 py-1 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex-wrap min-h-[40px]">
       {/* Форматирование */}
       {btn(editor.isActive('bold'),        () => editor.chain().focus().toggleBold().run(),        'B',  'Жирный')}
       {btn(editor.isActive('italic'),      () => editor.chain().focus().toggleItalic().run(),      'I',  'Курсив')}
       {btn(editor.isActive('strike'),      () => editor.chain().focus().toggleStrike().run(),      'S̶', 'Зачёркнутый')}
-      <div className="w-px h-5 bg-gray-200 mx-1" />
+      <div className="w-px h-5 bg-gray-200 dark:bg-slate-700 mx-1" />
       {btn(editor.isActive('bulletList'),  () => editor.chain().focus().toggleBulletList().run(),  '•≡', 'Маркированный список')}
       {btn(editor.isActive('orderedList'), () => editor.chain().focus().toggleOrderedList().run(), '1≡', 'Нумерованный список')}
-      <div className="w-px h-5 bg-gray-200 mx-1" />
+      <div className="w-px h-5 bg-gray-200 dark:bg-slate-700 mx-1" />
 
       {/* Шрифт */}
       <select
@@ -55,7 +55,7 @@ export default function TiptapToolbar({ editor }: { editor: ReturnType<typeof us
             editor.chain().focus().unsetFontFamily().run();
           }
         }}
-        className="text-xs border border-gray-200 rounded px-1 h-6 text-gray-600 bg-white cursor-pointer"
+        className="text-xs border border-gray-200 dark:border-slate-700 rounded px-1 h-6 text-gray-600 dark:text-slate-400 bg-white dark:bg-slate-800 cursor-pointer"
         style={{ maxWidth: 110, fontFamily: currentFontFamily || 'inherit' }}
         title="Шрифт"
       >
@@ -73,7 +73,7 @@ export default function TiptapToolbar({ editor }: { editor: ReturnType<typeof us
           const sz = e.target.value;
           editor.chain().focus().setFontSize(`${sz}px`).run();
         }}
-        className="text-xs border border-gray-200 rounded px-1 h-6 text-gray-600 bg-white cursor-pointer"
+        className="text-xs border border-gray-200 dark:border-slate-700 rounded px-1 h-6 text-gray-600 dark:text-slate-400 bg-white dark:bg-slate-800 cursor-pointer"
         title="Размер шрифта"
       >
         {FONT_SIZES.map(s => <option key={s} value={String(s)}>{s}</option>)}
@@ -82,7 +82,7 @@ export default function TiptapToolbar({ editor }: { editor: ReturnType<typeof us
       {/* Цвет текста */}
       <div className="flex items-center gap-1 ml-1">
         <div
-          className="w-6 h-6 rounded border border-gray-300 cursor-pointer flex-shrink-0 overflow-hidden flex flex-col"
+          className="w-6 h-6 rounded border border-gray-300 dark:border-slate-600 cursor-pointer flex-shrink-0 overflow-hidden flex flex-col"
           onClick={() => colorRef.current?.click()}
           title="Цвет текста"
         >
@@ -98,7 +98,7 @@ export default function TiptapToolbar({ editor }: { editor: ReturnType<typeof us
         />
         <button
           onMouseDown={e => { e.preventDefault(); editor.chain().focus().unsetColor().run(); }}
-          className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-[11px] text-gray-400 hover:bg-gray-50"
+          className="w-6 h-6 rounded border border-gray-200 dark:border-slate-700 flex items-center justify-center text-[11px] text-gray-400 dark:text-slate-500 hover:bg-gray-50 dark:hover:bg-slate-800"
           title="Сбросить цвет"
         >∅</button>
       </div>

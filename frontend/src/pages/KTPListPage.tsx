@@ -92,7 +92,7 @@ export default function KTPListPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Календарно-тематические планы</h1>
         {canCreate && (
-          <button onClick={() => setShowCreate(!showCreate)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+          <button onClick={() => setShowCreate(!showCreate)} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm">
             + Создать КТП
           </button>
         )}
@@ -100,16 +100,16 @@ export default function KTPListPage() {
 
       {/* Tabs */}
       {canCreate && (
-        <div className="flex gap-1 mb-4 bg-gray-100 rounded-lg p-1 w-fit">
+        <div className="flex gap-1 mb-4 bg-gray-100 dark:bg-slate-800 rounded-lg p-1 w-fit">
           <button
             onClick={() => setTab('mine')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${tab === 'mine' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${tab === 'mine' ? 'bg-white dark:bg-slate-800 shadow text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'}`}
           >
             Мои
           </button>
           <button
             onClick={() => setTab('all')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${tab === 'all' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${tab === 'all' ? 'bg-white dark:bg-slate-800 shadow text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'}`}
           >
             Все
           </button>
@@ -118,9 +118,9 @@ export default function KTPListPage() {
 
       {/* Create form */}
       {showCreate && (
-        <div className="bg-white p-4 rounded-lg shadow mb-4 flex gap-4 items-end flex-wrap">
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow mb-4 flex gap-4 items-end flex-wrap">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Класс</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Класс</label>
             <select
               value={form.school_class}
               onChange={e => handleFormClassChange(parseInt(e.target.value))}
@@ -131,7 +131,7 @@ export default function KTPListPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Предмет</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Предмет</label>
             <select
               value={form.subject}
               onChange={e => setForm(f => ({ ...f, subject: parseInt(e.target.value) }))}
@@ -148,8 +148,8 @@ export default function KTPListPage() {
             <input type="checkbox" checked={form.is_public} onChange={e => setForm(f => ({ ...f, is_public: e.target.checked }))} />
             Публичный
           </label>
-          <button onClick={handleCreate} disabled={!form.school_class || !form.subject} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">Создать</button>
-          <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-gray-600 text-sm">Отмена</button>
+          <button onClick={handleCreate} disabled={!form.school_class || !form.subject} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700 disabled:opacity-50">Создать</button>
+          <button onClick={() => setShowCreate(false)} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 text-sm">Отмена</button>
         </div>
       )}
 
@@ -172,14 +172,14 @@ export default function KTPListPage() {
         {ctps.map(ctp => (
           <div
             key={ctp.id}
-            className="bg-white p-4 rounded-lg shadow hover:shadow-md transition relative group"
+            className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow hover:shadow-md transition relative group"
             onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ ctp, x: e.clientX, y: e.clientY }); }}
           >
             <Link to={`/ktp/${ctp.id}`} className="block pr-8">
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="font-semibold text-lg">{ctp.subject_name}</h3>
-                  <p className="text-gray-500 text-sm">
+                  <p className="text-gray-500 dark:text-slate-400 text-sm">
                     {ctp.class_name} | Учитель: {ctp.teacher_name} | Тем: {ctp.topics_count}
                   </p>
                 </div>
@@ -194,13 +194,13 @@ export default function KTPListPage() {
               <button
                 ref={el => { if (el) menuBtnRefs.current.set(ctp.id, el); }}
                 onClick={e => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setCtxMenu({ ctp, x: rect.left, y: rect.bottom }); }}
-                className="absolute top-3 right-3 text-gray-300 hover:text-gray-600 p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-3 right-3 text-gray-300 dark:text-slate-600 hover:text-gray-600 p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 opacity-0 group-hover:opacity-100 transition-opacity"
               >&#8942;</button>
             )}
           </div>
         ))}
         {ctps.length === 0 && (
-          <p className="text-center text-gray-400 py-8">КТП не найдены</p>
+          <p className="text-center text-gray-400 dark:text-slate-500 py-8">КТП не найдены</p>
         )}
       </div>
 
@@ -220,11 +220,11 @@ export default function KTPListPage() {
       {/* Clone modal */}
       {cloneModal && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" onClick={() => setCloneModal(null)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-1">Клонировать КТП</h3>
-            <p className="text-sm text-gray-500 mb-4">{cloneModal.ctpName}</p>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">{cloneModal.ctpName}</p>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Целевой класс</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Целевой класс</label>
               <select
                 value={cloneClassId}
                 onChange={e => setCloneClassId(parseInt(e.target.value))}
@@ -235,11 +235,11 @@ export default function KTPListPage() {
               </select>
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setCloneModal(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Отмена</button>
+              <button onClick={() => setCloneModal(null)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded">Отмена</button>
               <button
                 onClick={handleClone}
                 disabled={!cloneClassId}
-                className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 disabled:opacity-50"
               >
                 Клонировать
               </button>

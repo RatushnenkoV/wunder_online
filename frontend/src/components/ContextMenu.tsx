@@ -41,14 +41,14 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
   return (
     <div
       ref={ref}
-      className="fixed z-50 bg-white rounded-lg shadow-lg border py-1 min-w-[160px]"
+      className="fixed z-50 bg-white dark:bg-slate-800 rounded-lg shadow-lg border py-1 min-w-[160px]"
       style={{ left: x, top: y }}
     >
       {items.map((item, i) => (
         <button
           key={i}
           onClick={() => { item.onClick(); onClose(); }}
-          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${item.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700'}`}
+          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-slate-800 ${item.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700 dark:text-slate-300'}`}
         >
           {item.label}
         </button>

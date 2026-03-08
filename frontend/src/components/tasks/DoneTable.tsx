@@ -85,15 +85,15 @@ export default function DoneTable({ tasks, onDelete, onTaskUpdate }: DoneTablePr
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <span className="text-gray-300 ml-1">↕</span>;
-    return <span className="text-blue-500 ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>;
+    if (sortField !== field) return <span className="text-gray-300 dark:text-slate-600 ml-1">↕</span>;
+    return <span className="text-purple-500 ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>;
   };
 
-  const thCls = 'px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap cursor-pointer select-none hover:text-gray-700 transition-colors';
+  const thCls = 'px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap cursor-pointer select-none hover:text-gray-700 transition-colors';
 
   if (tasks.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+      <div className="flex flex-col items-center justify-center py-24 text-gray-400 dark:text-slate-500">
         <p className="text-lg">Выполненных задач нет</p>
       </div>
     );
@@ -104,36 +104,36 @@ export default function DoneTable({ tasks, onDelete, onTaskUpdate }: DoneTablePr
       {/* Фильтры */}
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-500 whitespace-nowrap">Постановщик:</label>
+          <label className="text-sm text-gray-500 dark:text-slate-400 whitespace-nowrap">Постановщик:</label>
           <select value={filterCreator} onChange={e => setFilterCreator(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            className="border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
             <option value="">Все</option>
             {creators.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-500 whitespace-nowrap">Исполнитель:</label>
+          <label className="text-sm text-gray-500 dark:text-slate-400 whitespace-nowrap">Исполнитель:</label>
           <select value={filterExecutor} onChange={e => setFilterExecutor(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            className="border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
             <option value="">Все</option>
             {executors.map(e => <option key={e} value={e}>{e}</option>)}
           </select>
         </div>
         {(filterCreator || filterExecutor) && (
           <button onClick={() => { setFilterCreator(''); setFilterExecutor(''); }}
-            className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+            className="text-sm text-gray-400 dark:text-slate-500 hover:text-gray-600 transition-colors">
             × сбросить
           </button>
         )}
-        <span className="ml-auto text-sm text-gray-400 self-center">{sorted.length} задач</span>
+        <span className="ml-auto text-sm text-gray-400 dark:text-slate-500 self-center">{sorted.length} задач</span>
       </div>
 
       {/* Таблица */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
         <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700">
               <tr>
                 <th className={thCls} onClick={() => handleSort('title')}>
                   Задача <SortIcon field="title" />
@@ -158,39 +158,39 @@ export default function DoneTable({ tasks, onDelete, onTaskUpdate }: DoneTablePr
                   <tr
                     key={task.id}
                     onClick={() => setExpandedId(expandedId === task.id ? null : task.id)}
-                    className={`border-b border-gray-100 cursor-pointer transition-colors ${
-                      expandedId === task.id ? 'bg-blue-50' : 'hover:bg-gray-50'
+                    className={`border-b border-gray-100 dark:border-slate-700 cursor-pointer transition-colors ${
+                      expandedId === task.id ? 'bg-purple-50' : 'hover:bg-gray-50 dark:hover:bg-slate-800'
                     }`}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <svg className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform ${expandedId === task.id ? 'rotate-90' : ''}`}
+                        <svg className={`w-3.5 h-3.5 text-gray-400 dark:text-slate-500 flex-shrink-0 transition-transform ${expandedId === task.id ? 'rotate-90' : ''}`}
                           fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>
-                        <span className="font-medium text-gray-900">{task.title}</span>
+                        <span className="font-medium text-gray-900 dark:text-slate-100">{task.title}</span>
                         {task.files.length > 0 && (
-                          <span className="flex items-center gap-0.5 text-xs text-gray-400 flex-shrink-0">
+                          <span className="flex items-center gap-0.5 text-xs text-gray-400 dark:text-slate-500 flex-shrink-0">
                             <FileIcon /> {task.files.length}
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{task.created_by_name}</td>
-                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{fmt(task.created_at)}</td>
-                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{task.taken_by_name ?? '—'}</td>
-                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{fmt(task.completed_at)}</td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-slate-400 whitespace-nowrap">{task.created_by_name}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-slate-400 whitespace-nowrap">{fmt(task.created_at)}</td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-slate-400 whitespace-nowrap">{task.taken_by_name ?? '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-slate-400 whitespace-nowrap">{fmt(task.completed_at)}</td>
                   </tr>
                   {expandedId === task.id && (
-                    <tr key={`${task.id}-detail`} className="bg-blue-50 border-b border-gray-100">
+                    <tr key={`${task.id}-detail`} className="bg-purple-50 border-b border-gray-100 dark:border-slate-700">
                       <td colSpan={5} className="px-6 py-4">
                         <div className="space-y-3 max-w-3xl">
                           {task.description ? (
-                            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                            <p className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
                               {linkify(task.description)}
                             </p>
                           ) : (
-                            <p className="text-sm text-gray-400 italic">Описание не указано</p>
+                            <p className="text-sm text-gray-400 dark:text-slate-500 italic">Описание не указано</p>
                           )}
                           {task.files.length > 0 && (
                             <div className="space-y-1.5">
@@ -199,11 +199,11 @@ export default function DoneTable({ tasks, onDelete, onTaskUpdate }: DoneTablePr
                                   <FileIcon />
                                   <a href={f.url} target="_blank" rel="noopener noreferrer"
                                     onClick={e => e.stopPropagation()}
-                                    className="text-blue-600 hover:underline truncate">
+                                    className="text-purple-600 hover:underline truncate">
                                     {f.original_name}
                                   </a>
                                   <button onClick={e => { e.stopPropagation(); handleDeleteFile(task, f.id); }}
-                                    className="text-gray-300 hover:text-red-500 flex-shrink-0 transition-colors" title="Удалить файл">
+                                    className="text-gray-300 dark:text-slate-600 hover:text-red-500 flex-shrink-0 transition-colors" title="Удалить файл">
                                     &times;
                                   </button>
                                 </div>
@@ -218,7 +218,7 @@ export default function DoneTable({ tasks, onDelete, onTaskUpdate }: DoneTablePr
                                 fileInputRef.current?.click();
                               }}
                               disabled={uploadingId === task.id}
-                              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 transition-colors disabled:opacity-50">
+                              className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-slate-400 hover:text-purple-600 transition-colors disabled:opacity-50">
                               <FileIcon />
                               {uploadingId === task.id ? 'Загрузка...' : 'Прикрепить файл'}
                             </button>

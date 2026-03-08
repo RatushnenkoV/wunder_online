@@ -24,7 +24,7 @@ export default function ExtraTab() {
               key={s.key}
               onClick={() => setSection(s.key)}
               className={`w-full text-left px-3 py-2 rounded text-sm ${
-                section === s.key ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-600 hover:bg-gray-50'
+                section === s.key ? 'bg-purple-50 text-purple-600 font-medium' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800'
               }`}
             >
               {s.label}
@@ -64,11 +64,11 @@ function RoomsSection() {
           placeholder="Название кабинета" value={name} onChange={e => setName(e.target.value)}
           className="border rounded px-3 py-2 text-sm flex-1" required
         />
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Добавить</button>
+        <button type="submit" className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">Добавить</button>
       </form>
       <div className="space-y-2">
         {rooms.map(r => (
-          <div key={r.id} className="flex items-center justify-between bg-white px-4 py-3 rounded-lg shadow-sm">
+          <div key={r.id} className="flex items-center justify-between bg-white dark:bg-slate-800 px-4 py-3 rounded-lg shadow-sm">
             <span className="text-sm font-medium">{r.name}</span>
             <button
               onClick={async () => { await api.delete(`/school/rooms/${r.id}/`); load(); }}
@@ -76,7 +76,7 @@ function RoomsSection() {
             >Удалить</button>
           </div>
         ))}
-        {rooms.length === 0 && <p className="text-gray-400 text-sm py-4">Кабинеты не добавлены</p>}
+        {rooms.length === 0 && <p className="text-gray-400 dark:text-slate-500 text-sm py-4">Кабинеты не добавлены</p>}
       </div>
     </div>
   );
@@ -125,12 +125,12 @@ function LessonTimesSection() {
 
   return (
     <div className="max-w-lg">
-      <p className="text-sm text-gray-500 mb-4">
+      <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
         Время начала и конца каждого урока используется при экспорте расписания замен.
       </p>
       <div className="space-y-2 mb-4">
         {slots.map(slot => (
-          <div key={slot.id} className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-lg shadow-sm">
+          <div key={slot.id} className="flex items-center gap-3 bg-white dark:bg-slate-800 px-4 py-2.5 rounded-lg shadow-sm">
             <span className="text-sm font-medium w-16 shrink-0">Урок {slot.lesson_number}</span>
             {editing[slot.id] ? (
               <>
@@ -140,26 +140,26 @@ function LessonTimesSection() {
                   className="border rounded px-2 py-1 text-sm w-20"
                   placeholder="8:15"
                 />
-                <span className="text-gray-400">–</span>
+                <span className="text-gray-400 dark:text-slate-500">–</span>
                 <input
                   value={editing[slot.id].time_end}
                   onChange={e => setEditing(ed => ({ ...ed, [slot.id]: { ...ed[slot.id], time_end: e.target.value } }))}
                   className="border rounded px-2 py-1 text-sm w-20"
                   placeholder="9:00"
                 />
-                <button onClick={() => saveEdit(slot)} className="text-blue-600 text-sm hover:text-blue-800">Сохранить</button>
-                <button onClick={() => cancelEdit(slot.id)} className="text-gray-400 text-sm hover:text-gray-600">Отмена</button>
+                <button onClick={() => saveEdit(slot)} className="text-purple-600 text-sm hover:text-purple-800">Сохранить</button>
+                <button onClick={() => cancelEdit(slot.id)} className="text-gray-400 dark:text-slate-500 text-sm hover:text-gray-600">Отмена</button>
               </>
             ) : (
               <>
-                <span className="text-sm text-gray-700 flex-1">{slot.time_start} – {slot.time_end}</span>
-                <button onClick={() => startEdit(slot)} className="text-blue-400 hover:text-blue-600 text-sm">Изменить</button>
+                <span className="text-sm text-gray-700 dark:text-slate-300 flex-1">{slot.time_start} – {slot.time_end}</span>
+                <button onClick={() => startEdit(slot)} className="text-purple-400 hover:text-purple-600 text-sm">Изменить</button>
                 <button onClick={() => handleDelete(slot.id)} className="text-red-400 hover:text-red-600 text-sm">Удалить</button>
               </>
             )}
           </div>
         ))}
-        {slots.length === 0 && <p className="text-gray-400 text-sm py-4">Нет данных о звонках</p>}
+        {slots.length === 0 && <p className="text-gray-400 dark:text-slate-500 text-sm py-4">Нет данных о звонках</p>}
       </div>
       <form onSubmit={handleAdd} className="flex gap-2 items-center">
         <input
@@ -175,14 +175,14 @@ function LessonTimesSection() {
           className="border rounded px-3 py-2 text-sm w-20"
           required
         />
-        <span className="text-gray-400">–</span>
+        <span className="text-gray-400 dark:text-slate-500">–</span>
         <input
           placeholder="9:00" value={newSlot.time_end}
           onChange={e => setNewSlot(s => ({ ...s, time_end: e.target.value }))}
           className="border rounded px-3 py-2 text-sm w-20"
           required
         />
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Добавить</button>
+        <button type="submit" className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">Добавить</button>
       </form>
     </div>
   );
@@ -210,19 +210,19 @@ function HolidaysSection() {
       <form onSubmit={handleAdd} className="flex gap-2 mb-4 flex-wrap">
         <input type="date" value={date} onChange={e => setDate(e.target.value)} className="border rounded px-3 py-2 text-sm" required />
         <input placeholder="Описание" value={description} onChange={e => setDescription(e.target.value)} className="border rounded px-3 py-2 text-sm flex-1" />
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Добавить</button>
+        <button type="submit" className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">Добавить</button>
       </form>
       <div className="space-y-2">
         {holidays.map(h => (
-          <div key={h.id} className="flex items-center justify-between bg-white px-4 py-3 rounded-lg shadow-sm">
+          <div key={h.id} className="flex items-center justify-between bg-white dark:bg-slate-800 px-4 py-3 rounded-lg shadow-sm">
             <div>
               <span className="text-sm font-medium">{h.date}</span>
-              {h.description && <span className="text-sm text-gray-500 ml-2">— {h.description}</span>}
+              {h.description && <span className="text-sm text-gray-500 dark:text-slate-400 ml-2">— {h.description}</span>}
             </div>
             <button onClick={async () => { await api.delete(`/ktp/holidays/${h.id}/`); load(); }} className="text-red-400 hover:text-red-600 text-sm">Удалить</button>
           </div>
         ))}
-        {holidays.length === 0 && <p className="text-gray-400 text-sm py-4">Выходные не добавлены</p>}
+        {holidays.length === 0 && <p className="text-gray-400 dark:text-slate-500 text-sm py-4">Выходные не добавлены</p>}
       </div>
     </div>
   );
@@ -288,25 +288,25 @@ function CuratorHintsSection() {
   };
 
   if (loading) {
-    return <div className="text-gray-400 text-sm py-4">Загрузка...</div>;
+    return <div className="text-gray-400 dark:text-slate-500 text-sm py-4">Загрузка...</div>;
   }
 
   return (
     <div className="max-w-2xl space-y-3">
-      <p className="text-sm text-gray-500 mb-4">
+      <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
         Подсказки отображаются в кураторской таблице под каждым полем. Нажимая на подсказку, куратор вставляет её текст в поле.
       </p>
 
       {sections.map(section => (
-        <div key={section.id} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+        <div key={section.id} className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
           {/* Section toggle */}
           <button
             onClick={() => toggleSection(section.id)}
-            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
           >
-            <span className="font-medium text-gray-800 text-sm">{section.name}</span>
+            <span className="font-medium text-gray-800 dark:text-slate-200 text-sm">{section.name}</span>
             <svg
-              className={`w-4 h-4 text-gray-400 transition-transform ${expanded[section.id] ? 'rotate-180' : ''}`}
+              className={`w-4 h-4 text-gray-400 dark:text-slate-500 transition-transform ${expanded[section.id] ? 'rotate-180' : ''}`}
               fill="none" viewBox="0 0 24 24" stroke="currentColor"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -317,19 +317,19 @@ function CuratorHintsSection() {
             <div className="border-t divide-y">
               {section.fields.map(field => (
                 <div key={field.id} className="px-4 py-3">
-                  <p className="text-sm font-medium text-gray-700 mb-2">{field.name}</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">{field.name}</p>
 
                   {/* Existing hints */}
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {field.hints.map(hint => (
                       <span
                         key={hint.id}
-                        className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200"
+                        className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200"
                       >
                         {hint.text}
                         <button
                           onClick={() => handleDeleteHint(hint.id)}
-                          className="text-blue-400 hover:text-red-500 transition-colors ml-0.5 leading-none"
+                          className="text-purple-400 hover:text-red-500 transition-colors ml-0.5 leading-none"
                           title="Удалить"
                         >
                           &times;
@@ -337,7 +337,7 @@ function CuratorHintsSection() {
                       </span>
                     ))}
                     {field.hints.length === 0 && (
-                      <span className="text-xs text-gray-400">Нет подсказок</span>
+                      <span className="text-xs text-gray-400 dark:text-slate-500">Нет подсказок</span>
                     )}
                   </div>
 
@@ -349,12 +349,12 @@ function CuratorHintsSection() {
                       onChange={e => setNewHints(n => ({ ...n, [field.id]: e.target.value }))}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddHint(field.id); } }}
                       placeholder="Новая подсказка..."
-                      className="flex-1 border rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="flex-1 border rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"
                     />
                     <button
                       onClick={() => handleAddHint(field.id)}
                       disabled={!(newHints[field.id] ?? '').trim()}
-                      className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 transition-colors"
+                      className="px-3 py-1.5 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-40 transition-colors"
                     >
                       + Добавить
                     </button>

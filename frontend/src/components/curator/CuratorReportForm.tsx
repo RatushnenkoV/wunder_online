@@ -22,7 +22,7 @@ interface CuratorSection {
 }
 
 const SECTION_COLORS = [
-  'bg-indigo-600',
+  'bg-purple-600',
   'bg-violet-600',
   'bg-teal-600',
 ];
@@ -115,7 +115,7 @@ export default function CuratorReportForm({ studentId, academicYear, onSaved }: 
   };
 
   if (loading) {
-    return <div className="text-center py-12 text-gray-400 text-sm">Загрузка...</div>;
+    return <div className="text-center py-12 text-gray-400 dark:text-slate-500 text-sm">Загрузка...</div>;
   }
 
   return (
@@ -123,7 +123,7 @@ export default function CuratorReportForm({ studentId, academicYear, onSaved }: 
       {/* Статус авто-сохранения */}
       <div className="flex justify-end mb-2 h-4">
         {saveStatus === 'saving' && (
-          <span className="text-xs text-gray-400">Сохранение...</span>
+          <span className="text-xs text-gray-400 dark:text-slate-500">Сохранение...</span>
         )}
         {saveStatus === 'saved' && (
           <span className="text-xs text-green-600 font-medium">Сохранено ✓</span>
@@ -134,7 +134,7 @@ export default function CuratorReportForm({ studentId, academicYear, onSaved }: 
         {sections.map((section, idx) => (
           <div
             key={section.id}
-            className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+            className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden"
           >
             <div className={`${SECTION_COLORS[idx % SECTION_COLORS.length]} px-5 py-2.5`}>
               <h2 className="text-white font-semibold text-sm tracking-wide">{section.name}</h2>
@@ -142,7 +142,7 @@ export default function CuratorReportForm({ studentId, academicYear, onSaved }: 
             <div className="p-5 space-y-5">
               {section.fields.map(field => (
                 <div key={field.id}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">
                     {field.name}
                   </label>
                   <textarea
@@ -150,7 +150,7 @@ export default function CuratorReportForm({ studentId, academicYear, onSaved }: 
                     value={values[field.id] ?? ''}
                     onChange={e => handleChange(field.id, e.target.value)}
                     placeholder="Введите наблюдения или выберите подсказку..."
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white transition-colors"
+                    className="w-full border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 bg-gray-50 dark:bg-slate-900 focus:bg-white transition-colors"
                   />
                   {field.hints.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
@@ -159,7 +159,7 @@ export default function CuratorReportForm({ studentId, academicYear, onSaved }: 
                           key={hint.id}
                           type="button"
                           onClick={() => handleHintClick(field.id, hint.text)}
-                          className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-colors"
+                          className="text-xs px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 hover:border-purple-300 transition-colors"
                         >
                           {hint.text}
                         </button>

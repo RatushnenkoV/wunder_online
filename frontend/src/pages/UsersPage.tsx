@@ -75,7 +75,7 @@ export default function UsersPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Пользователи</h1>
         <div className="flex gap-2">
-          <button onClick={() => setShowCreate(!showCreate)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+          <button onClick={() => setShowCreate(!showCreate)} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm">
             + Создать
           </button>
           <label className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm cursor-pointer">
@@ -91,9 +91,9 @@ export default function UsersPage() {
       </div>
 
       {message && (
-        <div className="bg-blue-50 text-blue-700 p-3 rounded mb-4 text-sm flex justify-between">
+        <div className="bg-purple-50 text-purple-700 p-3 rounded mb-4 text-sm flex justify-between">
           {message}
-          <button onClick={() => setMessage('')} className="text-blue-400 hover:text-blue-600">x</button>
+          <button onClick={() => setMessage('')} className="text-purple-400 hover:text-purple-600">x</button>
         </div>
       )}
 
@@ -111,7 +111,7 @@ export default function UsersPage() {
       </div>
 
       {showCreate && (
-        <form onSubmit={handleCreate} className="bg-white p-4 rounded-lg shadow mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleCreate} className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <input placeholder="Имя" value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} className="border rounded px-3 py-2 text-sm" required />
           <input placeholder="Фамилия" value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} className="border rounded px-3 py-2 text-sm" required />
           <input placeholder="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="border rounded px-3 py-2 text-sm" />
@@ -123,47 +123,47 @@ export default function UsersPage() {
                 {v}
               </label>
             ))}
-            <button type="submit" className="ml-auto bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+            <button type="submit" className="ml-auto bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">
               Создать
             </button>
           </div>
         </form>
       )}
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-slate-900">
             <tr>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">ФИО</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">Роли</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">Email</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">Телефон</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">Врем. пароль</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">Действия</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400">ФИО</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400">Роли</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400">Email</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400">Телефон</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400">Врем. пароль</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400">Действия</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {users.map(u => (
-              <tr key={u.id} className="hover:bg-gray-50">
+              <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-slate-800">
                 <td className="px-4 py-3">{u.last_name} {u.first_name}</td>
                 <td className="px-4 py-3">
                   {u.roles.map(r => (
-                    <span key={r} className="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded mr-1">
+                    <span key={r} className="inline-block bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded mr-1">
                       {ROLE_LABELS[r] || r}
                     </span>
                   ))}
                 </td>
-                <td className="px-4 py-3 text-gray-500">{u.email || '—'}</td>
-                <td className="px-4 py-3 text-gray-500">{u.phone || '—'}</td>
+                <td className="px-4 py-3 text-gray-500 dark:text-slate-400">{u.email || '—'}</td>
+                <td className="px-4 py-3 text-gray-500 dark:text-slate-400">{u.phone || '—'}</td>
                 <td className="px-4 py-3">
                   {u.must_change_password && u.temp_password ? (
                     <code className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs">{u.temp_password}</code>
                   ) : (
-                    <span className="text-gray-400 text-xs">—</span>
+                    <span className="text-gray-400 dark:text-slate-500 text-xs">—</span>
                   )}
                 </td>
                 <td className="px-4 py-3 space-x-2">
-                  <button onClick={() => handleResetPassword(u.id)} className="text-blue-600 hover:text-blue-800 text-xs">
+                  <button onClick={() => handleResetPassword(u.id)} className="text-purple-600 hover:text-purple-800 text-xs">
                     Сброс пароля
                   </button>
                   <button onClick={() => handleDelete(u.id)} className="text-red-600 hover:text-red-800 text-xs">
@@ -175,7 +175,7 @@ export default function UsersPage() {
           </tbody>
         </table>
         {users.length === 0 && (
-          <p className="text-center text-gray-400 py-8">Пользователи не найдены</p>
+          <p className="text-center text-gray-400 dark:text-slate-500 py-8">Пользователи не найдены</p>
         )}
       </div>
     </div>

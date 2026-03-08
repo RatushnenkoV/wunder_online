@@ -14,7 +14,7 @@ const CANVAS_W = 960;
 const CANVAS_H = 540;
 const MIN_W    = 20;
 const MIN_H    = 20;
-const WORKSPACE_PAD = 600; // рабочая область вокруг слайда
+const WORKSPACE_PAD = 48; // отступ вокруг слайда при зуме
 
 function newBlockId() {
   return `b${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -197,13 +197,13 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
     };
   }, []);
 
-  // Отслеживаем ширину контейнера → baseScale
+  // Отслеживаем размер контейнера → baseScale (fit по обоим измерениям)
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const obs = new ResizeObserver(entries => {
-      const w = entries[0].contentRect.width;
-      setBaseScale(Math.min(1, (w - 64) / CANVAS_W));
+      const { width: w, height: h } = entries[0].contentRect;
+      setBaseScale(Math.min((w - 32) / CANVAS_W, (h - 32) / CANVAS_H));
     });
     obs.observe(el);
     return () => obs.disconnect();
@@ -455,7 +455,7 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
   else                                        toolbarInner = <div className="flex-1 h-10" />;
 
   const toolbar = (
-    <div className="flex items-stretch border-b border-gray-200 bg-white">
+    <div className="flex items-stretch border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
       <div className="flex-1 min-w-0">{toolbarInner}</div>
       <div className="flex items-center pr-3 flex-shrink-0">
         <BgColorButton bg={background} onChange={saveBg} />
@@ -469,7 +469,7 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
 
       <div
         ref={containerRef}
-        className="flex-1 bg-gray-100 overflow-auto"
+        className="flex-1 bg-gray-100 dark:bg-slate-800 overflow-auto"
         style={{ position: 'relative' }}
         onClick={handleCanvasClick}
       >
@@ -649,27 +649,27 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
                   onClick={e => e.stopPropagation()}
                   onMouseDown={e => e.stopPropagation()}
                 >
-                  <div className="flex items-center gap-0.5 bg-white rounded-lg shadow-lg border border-gray-200 px-1.5 py-1 text-xs whitespace-nowrap">
+                  <div className="flex items-center gap-0.5 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 px-1.5 py-1 text-xs whitespace-nowrap">
                     <div
-                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 cursor-grab text-base leading-none"
+                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 cursor-grab text-base leading-none"
                       onMouseDown={e => handleRotateStart(e, b)}
                       title="Повернуть (Shift = привязка к 15°)"
                     >↻</div>
                     {(b.rotation ?? 0) !== 0 && (
                       <>
-                        <span className="text-gray-400 text-[10px] min-w-[28px] text-center">{b.rotation}°</span>
-                        <button className="text-[10px] text-gray-400 hover:text-gray-700 px-0.5" onClick={() => updateBlock(b.id, { rotation: 0 })} title="Сбросить угол">✕</button>
+                        <span className="text-gray-400 dark:text-slate-500 text-[10px] min-w-[28px] text-center">{b.rotation}°</span>
+                        <button className="text-[10px] text-gray-400 dark:text-slate-500 hover:text-gray-700 px-0.5" onClick={() => updateBlock(b.id, { rotation: 0 })} title="Сбросить угол">✕</button>
                       </>
                     )}
-                    <div className="w-px h-5 bg-gray-200 mx-0.5" />
-                    <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-base" onClick={() => bringToFront(b.id)} title="На передний план">⬆</button>
-                    <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-base" onClick={() => moveUp(b.id)} title="Уровень выше">↑</button>
-                    <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-base" onClick={() => moveDown(b.id)} title="Уровень ниже">↓</button>
-                    <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-base" onClick={() => sendToBack(b.id)} title="На задний план">⬇</button>
-                    <div className="w-px h-5 bg-gray-200 mx-0.5" />
+                    <div className="w-px h-5 bg-gray-200 dark:bg-slate-700 mx-0.5" />
+                    <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-base" onClick={() => bringToFront(b.id)} title="На передний план">⬆</button>
+                    <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-base" onClick={() => moveUp(b.id)} title="Уровень выше">↑</button>
+                    <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-base" onClick={() => moveDown(b.id)} title="Уровень ниже">↓</button>
+                    <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-base" onClick={() => sendToBack(b.id)} title="На задний план">⬇</button>
+                    <div className="w-px h-5 bg-gray-200 dark:bg-slate-700 mx-0.5" />
                     {/* Дублировать — создаёт копию чуть ниже и правее */}
                     <button
-                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-sm text-gray-500 hover:text-gray-800"
+                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-800"
                       onClick={() => {
                         const newBlock: SlideBlock = {
                           ...b,
@@ -683,8 +683,8 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
                       }}
                       title="Дублировать"
                     >⧉</button>
-                    <div className="w-px h-5 bg-gray-200 mx-0.5" />
-                    <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 text-gray-400 hover:text-red-500" onClick={() => deleteBlock(b.id)} title="Удалить (Delete)">
+                    <div className="w-px h-5 bg-gray-200 dark:bg-slate-700 mx-0.5" />
+                    <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 text-gray-400 dark:text-slate-500 hover:text-red-500" onClick={() => deleteBlock(b.id)} title="Удалить (Delete)">
                       <IconTrash />
                     </button>
                   </div>
@@ -705,11 +705,11 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
                   onClick={e => e.stopPropagation()}
                   onMouseDown={e => e.stopPropagation()}
                 >
-                  <div className="flex items-center gap-0.5 bg-white rounded-lg shadow-lg border border-gray-200 px-1.5 py-1 text-xs whitespace-nowrap">
-                    <span className="text-gray-400 px-1 text-[11px]">{selectedIds.length} эл.</span>
-                    <div className="w-px h-5 bg-gray-200 mx-0.5" />
+                  <div className="flex items-center gap-0.5 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 px-1.5 py-1 text-xs whitespace-nowrap">
+                    <span className="text-gray-400 dark:text-slate-500 px-1 text-[11px]">{selectedIds.length} эл.</span>
+                    <div className="w-px h-5 bg-gray-200 dark:bg-slate-700 mx-0.5" />
                     <button
-                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 text-gray-400 hover:text-red-500"
+                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 text-gray-400 dark:text-slate-500 hover:text-red-500"
                       onClick={() => {
                         setBlocks(prev => { const next = prev.filter(b => !selectedIds.includes(b.id)); saveBlocks(next); return next; });
                         setSelectedIds([]);
@@ -729,7 +729,7 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
         {/* Zoom controls */}
         <div className="sticky bottom-4 flex justify-end pr-4" style={{ marginTop: -40, pointerEvents: 'none' }}>
           <div
-            className="flex items-center gap-1 bg-white/95 rounded-lg shadow border border-gray-200 px-2 py-1 select-none"
+            className="flex items-center gap-1 bg-white dark:bg-slate-800/95 rounded-lg shadow border border-gray-200 dark:border-slate-700 px-2 py-1 select-none"
             style={{ pointerEvents: 'auto' }}
             onClick={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
@@ -740,16 +740,16 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
                 if (el) zoomPivotRef.current = { sl: el.scrollLeft, st: el.scrollTop, px: el.clientWidth / 2, py: el.clientHeight / 2, prevScale: scaleRef.current };
                 setZoomMul(z => Math.max(0.25, Math.round((z - 0.25) * 100) / 100));
               }}
-              className="w-6 h-6 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded text-lg leading-none"
+              className="w-6 h-6 flex items-center justify-center text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded text-lg leading-none"
             >−</button>
-            <span className="text-xs text-gray-600 w-10 text-center">{Math.round(scale * 100)}%</span>
+            <span className="text-xs text-gray-600 dark:text-slate-400 w-10 text-center">{Math.round(scale * 100)}%</span>
             <button
               onClick={() => {
                 const el = containerRef.current;
                 if (el) zoomPivotRef.current = { sl: el.scrollLeft, st: el.scrollTop, px: el.clientWidth / 2, py: el.clientHeight / 2, prevScale: scaleRef.current };
                 setZoomMul(z => Math.min(3, Math.round((z + 0.25) * 100) / 100));
               }}
-              className="w-6 h-6 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded text-lg leading-none"
+              className="w-6 h-6 flex items-center justify-center text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded text-lg leading-none"
             >+</button>
             <button
               onClick={() => {
@@ -757,25 +757,25 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
                 if (el) zoomPivotRef.current = { sl: el.scrollLeft, st: el.scrollTop, px: el.clientWidth / 2, py: el.clientHeight / 2, prevScale: scaleRef.current };
                 setZoomMul(1);
               }}
-              className="ml-1 px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100 rounded"
+              className="ml-1 px-2 py-0.5 text-xs text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"
             >Fit</button>
           </div>
         </div>
       </div>
 
       {/* Панель добавления */}
-      <div className="flex items-center gap-2 px-4 py-2 bg-white border-t border-gray-200">
-        <button onClick={() => addBlock('text')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+      <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+        <button onClick={() => addBlock('text')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700 rounded-lg hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50 transition-colors">
           <IconText />+ Текст
         </button>
-        <button onClick={() => addBlock('image')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+        <button onClick={() => addBlock('image')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700 rounded-lg hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50 transition-colors">
           <IconImage />+ Изображение
         </button>
 
         <div ref={shapePickerRef} className="relative">
           <button
             onClick={e => { e.stopPropagation(); setShowShapePicker(v => !v); }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded-lg transition-colors ${showShapePicker ? 'border-blue-400 text-blue-600 bg-blue-50' : 'text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50'}`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded-lg transition-colors ${showShapePicker ? 'border-purple-400 text-purple-600 bg-purple-50' : 'text-gray-600 dark:text-slate-400 border-gray-200 dark:border-slate-700 hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50'}`}
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
               <rect x="3" y="3" width="8" height="8" rx="1" />
@@ -788,7 +788,7 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
 
           {showShapePicker && (
             <div
-              className="absolute bottom-full left-0 mb-1 bg-white rounded-xl shadow-xl border border-gray-200 p-2 grid grid-cols-3 gap-1 z-50"
+              className="absolute bottom-full left-0 mb-1 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-200 dark:border-slate-700 p-2 grid grid-cols-3 gap-1 z-50"
               style={{ width: 210 }}
               onClick={e => e.stopPropagation()}
             >
@@ -796,7 +796,7 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
                 <button
                   key={type}
                   onClick={() => { addBlock('shape', type); setShowShapePicker(false); }}
-                  className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 transition-colors text-gray-600 hover:text-blue-600"
+                  className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors text-gray-600 dark:text-slate-400 hover:text-purple-600"
                 >
                   <div className="w-10 h-8">
                     <ShapeSvg w={40} h={32} block={{ type: 'shape', shape: type, fillColor: '#6366f1', strokeColor: 'transparent', strokeWidth: 3 }} />

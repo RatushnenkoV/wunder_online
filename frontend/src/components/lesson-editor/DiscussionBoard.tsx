@@ -107,7 +107,7 @@ function StickerItem({ sticker, canEdit, canDelete, showDots, onMove, onDrag, on
           <button
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onDelete(); }}
-            className="text-gray-400 hover:text-red-500 w-5 h-5 flex items-center justify-center rounded hover:bg-black/10 text-base leading-none"
+            className="text-gray-400 dark:text-slate-500 hover:text-red-500 w-5 h-5 flex items-center justify-center rounded hover:bg-black/10 text-base leading-none"
           >×</button>
         )}
       </div>
@@ -117,10 +117,10 @@ function StickerItem({ sticker, canEdit, canDelete, showDots, onMove, onDrag, on
         onMouseDown={e => e.stopPropagation()}
         readOnly={!canEdit}
         placeholder={canEdit ? 'Введите текст...' : ''}
-        className="flex-1 px-2.5 text-sm bg-transparent resize-none border-none outline-none text-gray-800 placeholder:text-gray-400"
+        className="flex-1 px-2.5 text-sm bg-transparent resize-none border-none outline-none text-gray-800 dark:text-slate-200 placeholder:text-gray-400"
         style={{ cursor: canEdit ? 'text' : 'default' }}
       />
-      <div style={{ height: 26, flexShrink: 0 }} className="px-2.5 pb-1.5 text-[10px] text-gray-500 font-medium border-t border-black/10 pt-1 truncate">
+      <div style={{ height: 26, flexShrink: 0 }} className="px-2.5 pb-1.5 text-[10px] text-gray-500 dark:text-slate-400 font-medium border-t border-black/10 pt-1 truncate">
         {sticker.author_name}
       </div>
     </div>
@@ -213,8 +213,10 @@ export default function DiscussionBoard({ slide }: { slide: Slide }) {
   };
   const confirmSticker = () => {
     if (!pendingColor || !pendingText.trim()) return;
-    const x = Math.max(0, CANVAS_W / 2 - STICKER_W / 2 - panOffset.x + (Math.random() - 0.5) * 200);
-    const y = Math.max(0, CANVAS_H / 2 - STICKER_H / 2 - panOffset.y + (Math.random() - 0.5) * 150);
+    const bw = boardRef.current?.clientWidth  ?? CANVAS_W;
+    const bh = boardRef.current?.clientHeight ?? CANVAS_H;
+    const x = Math.max(0, bw / 2 - STICKER_W / 2 - panOffset.x + (Math.random() - 0.5) * 200);
+    const y = Math.max(0, bh / 2 - STICKER_H / 2 - panOffset.y + (Math.random() - 0.5) * 150);
     sendWs({ type: 'add_sticker', x, y, text: pendingText.trim(), color: pendingColor, created_at: new Date().toISOString() });
     setPendingColor(null);
     setPendingText('');
@@ -311,7 +313,7 @@ export default function DiscussionBoard({ slide }: { slide: Slide }) {
     <div className="flex flex-col h-full">
 
       {/* Строка темы */}
-      <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2 min-h-[44px]">
+      <div className="px-4 py-2 bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 flex items-center gap-2 min-h-[44px]">
         {topicEdit && isTeacherOrAdmin ? (
           <>
             <input
@@ -319,22 +321,22 @@ export default function DiscussionBoard({ slide }: { slide: Slide }) {
               value={topicDraft}
               onChange={e => setTopicDraft(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') saveTopic(); if (e.key === 'Escape') setTopicEdit(false); }}
-              className="flex-1 text-base font-semibold text-gray-800 bg-white border border-blue-300 rounded px-2 py-0.5 outline-none focus:ring-2 focus:ring-blue-200"
+              className="flex-1 text-base font-semibold text-gray-800 dark:text-slate-200 bg-white dark:bg-slate-800 border border-purple-300 rounded px-2 py-0.5 outline-none focus:ring-2 focus:ring-purple-200"
               placeholder="Тема обсуждения..."
               maxLength={200}
             />
-            <button onClick={saveTopic} className="text-xs px-2.5 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Сохранить</button>
-            <button onClick={() => setTopicEdit(false)} className="text-xs px-2.5 py-1 text-gray-500 hover:text-gray-700">Отмена</button>
+            <button onClick={saveTopic} className="text-xs px-2.5 py-1 bg-purple-500 text-white rounded hover:bg-purple-600">Сохранить</button>
+            <button onClick={() => setTopicEdit(false)} className="text-xs px-2.5 py-1 text-gray-500 dark:text-slate-400 hover:text-gray-700">Отмена</button>
           </>
         ) : (
           <>
-            <span className="flex-1 text-base font-semibold text-gray-700 truncate">
-              {topic || <span className="text-gray-400 font-normal italic text-sm">Тема не задана</span>}
+            <span className="flex-1 text-base font-semibold text-gray-700 dark:text-slate-300 truncate">
+              {topic || <span className="text-gray-400 dark:text-slate-500 font-normal italic text-sm">Тема не задана</span>}
             </span>
             {isTeacherOrAdmin && (
               <button
                 onClick={() => { setTopicDraft(topic); setTopicEdit(true); }}
-                className="text-xs text-gray-400 hover:text-blue-500 px-1.5 py-1 rounded hover:bg-blue-50 transition-colors flex-shrink-0"
+                className="text-xs text-gray-400 dark:text-slate-500 hover:text-purple-500 px-1.5 py-1 rounded hover:bg-purple-50 transition-colors flex-shrink-0"
               >Изменить</button>
             )}
           </>
@@ -342,8 +344,8 @@ export default function DiscussionBoard({ slide }: { slide: Slide }) {
       </div>
 
       {/* Панель инструментов */}
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-white border-b border-gray-200 flex-wrap min-h-[44px]">
-        <span className="text-xs text-gray-400">Стикер:</span>
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex-wrap min-h-[44px]">
+        <span className="text-xs text-gray-400 dark:text-slate-500">Стикер:</span>
         {STICKER_COLORS.map(c => (
           <button
             key={c}
@@ -354,7 +356,7 @@ export default function DiscussionBoard({ slide }: { slide: Slide }) {
             style={{ width: 18, height: 18, background: c, border: '2px solid rgba(0,0,0,0.12)', borderRadius: 4, padding: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.15)', cursor: isConnected ? 'pointer' : 'not-allowed' }}
           />
         ))}
-        <span className="text-xs text-gray-400 ml-2">Наведите на стикер чтобы соединить</span>
+        <span className="text-xs text-gray-400 dark:text-slate-500 ml-2">Наведите на стикер чтобы соединить</span>
         <div className="ml-auto flex items-center gap-1.5">
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
           <span className={`text-xs ${isConnected ? 'text-green-600' : 'text-red-500'}`}>
@@ -364,14 +366,14 @@ export default function DiscussionBoard({ slide }: { slide: Slide }) {
       </div>
 
       {/* Доска */}
-      <div className="flex-1 overflow-auto bg-gray-100 flex items-start justify-center py-8">
+      <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900">
         <div
           ref={boardRef}
           onMouseDown={startPan}
           style={{
-            width: CANVAS_W, height: CANVAS_H, position: 'relative', flexShrink: 0,
-            background: 'white', boxShadow: '0 4px 32px rgba(0,0,0,0.15)', borderRadius: 8,
-            overflow: 'hidden', cursor: drawing ? 'crosshair' : isPanning ? 'grabbing' : 'grab',
+            width: '100%', height: '100%', position: 'relative',
+            background: 'white', overflow: 'hidden',
+            cursor: drawing ? 'crosshair' : isPanning ? 'grabbing' : 'grab',
           }}
         >
           {/* Трансформированный контейнер для стрелок и стикеров */}
@@ -463,7 +465,7 @@ export default function DiscussionBoard({ slide }: { slide: Slide }) {
           </div>
 
           {stickers.length === 0 && !drawing && (
-            <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm pointer-events-none" style={{ zIndex: 20 }}>
+            <div className="absolute inset-0 flex items-center justify-center text-gray-400 dark:text-slate-500 text-sm pointer-events-none" style={{ zIndex: 20 }}>
               Нажмите на квадратик цвета чтобы добавить стикер
             </div>
           )}
@@ -473,7 +475,7 @@ export default function DiscussionBoard({ slide }: { slide: Slide }) {
             <div style={{ position: 'absolute', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.35)' }}
               onMouseDown={e => e.stopPropagation()}>
               <div style={{ background: 'white', borderRadius: 12, padding: '20px 24px', minWidth: 260, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div className="text-base font-semibold text-gray-900">Текст стикера</div>
+                <div className="text-base font-semibold text-gray-900 dark:text-slate-100">Текст стикера</div>
                 <div className="flex items-start gap-2">
                   <div style={{ width: 24, height: 24, borderRadius: 4, background: pendingColor, border: '1px solid rgba(0,0,0,0.12)', flexShrink: 0, marginTop: 4 }} />
                   <textarea
@@ -486,13 +488,13 @@ export default function DiscussionBoard({ slide }: { slide: Slide }) {
                     }}
                     placeholder="Введите текст стикера..."
                     rows={3}
-                    className="flex-1 resize-none rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
+                    className="flex-1 resize-none rounded border border-gray-300 dark:border-slate-600 px-2 py-1.5 text-sm text-gray-700 dark:text-slate-300 outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-200"
                   />
                 </div>
                 <div className="flex justify-end gap-2">
                   <button
                     onClick={() => { setPendingColor(null); setPendingText(''); }}
-                    className="px-3.5 py-1.5 text-sm rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
+                    className="px-3.5 py-1.5 text-sm rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800"
                   >Отмена</button>
                   <button
                     onClick={confirmSticker}

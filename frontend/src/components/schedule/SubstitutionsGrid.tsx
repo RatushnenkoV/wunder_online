@@ -75,22 +75,22 @@ export default function SubstitutionsGrid({
       <table className="w-full border-separate" style={{ borderSpacing: '6px' }}>
         <thead>
           <tr>
-            <th className="px-3 py-2 text-sm font-medium text-gray-500 w-12">#</th>
+            <th className="px-3 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 w-12">#</th>
             {weekDates.map(d => {
               const ds = toISODate(d);
               const isToday = ds === today;
               return (
-                <th key={ds} className={`px-3 py-2 text-sm font-medium min-w-[160px] ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>
+                <th key={ds} className={`px-3 py-2 text-sm font-medium min-w-[160px] ${isToday ? 'text-purple-600' : 'text-gray-500 dark:text-slate-400'}`}>
                   <div className="flex items-center justify-between gap-1">
                     <div>
                       <div className={`capitalize ${isToday ? 'font-bold' : ''}`}>{formatDate(d)}</div>
-                      {isToday && <div className="text-xs text-blue-400 font-normal">Сегодня</div>}
+                      {isToday && <div className="text-xs text-purple-400 font-normal">Сегодня</div>}
                     </div>
                     {onPrintDay && (
                       <button
                         onClick={() => onPrintDay(ds)}
                         title="Распечатать замены за этот день"
-                        className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition flex-shrink-0"
+                        className="p-1 rounded text-gray-400 dark:text-slate-500 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-700 transition flex-shrink-0"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="6 9 6 2 18 2 18 9"/>
@@ -108,7 +108,7 @@ export default function SubstitutionsGrid({
         <tbody>
           {LESSON_NUMBERS.map(num => (
             <tr key={num}>
-              <td className="px-3 py-2 text-sm font-medium text-gray-500 text-center">{num}</td>
+              <td className="px-3 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 text-center">{num}</td>
               {weekDates.map(d => {
                 const ds = toISODate(d);
                 const weekday = d.getDay(); // 1=Mon...5=Fri
@@ -201,9 +201,9 @@ function CellContent({ dateStr, lessonNumber, regularLessons, subs, viewMode, se
     return (
       <div
         onClick={() => onCellClick(dateStr, lessonNumber, null, null)}
-        className="rounded-lg h-full bg-gray-100 hover:bg-amber-50 cursor-pointer transition flex items-center justify-center"
+        className="rounded-lg h-full bg-gray-100 dark:bg-slate-800 hover:bg-amber-50 cursor-pointer transition flex items-center justify-center"
       >
-        <span className="text-gray-300 text-xs">+</span>
+        <span className="text-gray-300 dark:text-slate-600 text-xs">+</span>
       </div>
     );
   }
@@ -214,7 +214,7 @@ function CellContent({ dateStr, lessonNumber, regularLessons, subs, viewMode, se
       className={`rounded-lg px-2 py-1.5 h-full text-xs leading-tight cursor-pointer transition ${
         sub
           ? 'bg-amber-50 border border-amber-200 hover:border-amber-400'
-          : 'bg-white border border-gray-100 hover:border-amber-300 shadow-sm'
+          : 'bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 hover:border-amber-300 shadow-sm'
       }`}
     >
       {sub ? (
@@ -229,10 +229,10 @@ function CellContent({ dateStr, lessonNumber, regularLessons, subs, viewMode, se
         </>
       ) : (
         <>
-          <div className="font-medium text-gray-900 truncate">{lesson!.subject_name}</div>
-          {viewMode !== 'class' && <div className="text-gray-500 truncate">{lesson!.class_name}</div>}
-          {viewMode !== 'teacher' && lesson!.teacher_name && <div className="text-gray-500 truncate">{lesson!.teacher_name}</div>}
-          {viewMode !== 'room' && lesson!.room_name && <div className="text-gray-400 truncate">каб. {lesson!.room_name}</div>}
+          <div className="font-medium text-gray-900 dark:text-slate-100 truncate">{lesson!.subject_name}</div>
+          {viewMode !== 'class' && <div className="text-gray-500 dark:text-slate-400 truncate">{lesson!.class_name}</div>}
+          {viewMode !== 'teacher' && lesson!.teacher_name && <div className="text-gray-500 dark:text-slate-400 truncate">{lesson!.teacher_name}</div>}
+          {viewMode !== 'room' && lesson!.room_name && <div className="text-gray-400 dark:text-slate-500 truncate">каб. {lesson!.room_name}</div>}
         </>
       )}
     </div>
@@ -255,9 +255,9 @@ function HalfCard({ lesson, sub, side, viewMode, selectedId, onClick }: HalfCard
     return (
       <div
         onClick={onClick}
-        className={`${roundedClass} flex-1 h-full bg-gray-100 hover:bg-amber-50 cursor-pointer transition flex items-center justify-center`}
+        className={`${roundedClass} flex-1 h-full bg-gray-100 dark:bg-slate-800 hover:bg-amber-50 cursor-pointer transition flex items-center justify-center`}
       >
-        <span className="text-gray-300 text-xs">+</span>
+        <span className="text-gray-300 dark:text-slate-600 text-xs">+</span>
       </div>
     );
   }
@@ -286,17 +286,17 @@ function HalfCard({ lesson, sub, side, viewMode, selectedId, onClick }: HalfCard
   return (
     <div
       onClick={onClick}
-      className={`${roundedClass} flex-1 px-2 py-1.5 h-full text-xs leading-tight bg-white border border-gray-100 hover:border-amber-300 shadow-sm cursor-pointer transition`}
+      className={`${roundedClass} flex-1 px-2 py-1.5 h-full text-xs leading-tight bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 hover:border-amber-300 shadow-sm cursor-pointer transition`}
     >
       {lesson!.group_name && (
-        <div className="text-[10px] font-medium text-blue-500 truncate mb-0.5">{lesson!.group_name}</div>
+        <div className="text-[10px] font-medium text-purple-500 truncate mb-0.5">{lesson!.group_name}</div>
       )}
-      <div className="font-medium text-gray-900 truncate">{lesson!.subject_name}</div>
+      <div className="font-medium text-gray-900 dark:text-slate-100 truncate">{lesson!.subject_name}</div>
       {viewMode !== 'teacher' && lesson!.teacher_name && (
-        <div className="text-gray-500 truncate">{lesson!.teacher_name}</div>
+        <div className="text-gray-500 dark:text-slate-400 truncate">{lesson!.teacher_name}</div>
       )}
       {viewMode !== 'room' && lesson!.room_name && (
-        <div className="text-gray-400 truncate">каб. {lesson!.room_name}</div>
+        <div className="text-gray-400 dark:text-slate-500 truncate">каб. {lesson!.room_name}</div>
       )}
     </div>
   );

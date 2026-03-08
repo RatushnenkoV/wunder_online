@@ -61,45 +61,45 @@ function RestrictionModal({ student, onClose }: { student: ProjectUser; onClose:
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 flex flex-col gap-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-5 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-gray-800 text-sm">Ограничения в чате</h3>
-            <p className="text-xs text-gray-500 mt-0.5">{displayName}</p>
+            <h3 className="font-semibold text-gray-800 dark:text-slate-200 text-sm">Ограничения в чате</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{displayName}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="text-gray-400 dark:text-slate-500 hover:text-gray-600">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
         {loading ? (
-          <div className="text-center py-6 text-gray-400 text-sm">Загрузка...</div>
+          <div className="text-center py-6 text-gray-400 dark:text-slate-500 text-sm">Загрузка...</div>
         ) : (
           <>
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Пауза между сообщениями (сек)</label>
+              <label className="text-xs font-medium text-gray-600 dark:text-slate-400 block mb-1">Пауза между сообщениями (сек)</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number" min={0}
                   value={restriction.message_cooldown}
                   onChange={e => setRestriction(r => ({ ...r, message_cooldown: Math.max(0, +e.target.value) }))}
-                  className="w-24 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-24 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
                 />
-                <span className="text-xs text-gray-400">0 — без ограничений</span>
+                <span className="text-xs text-gray-400 dark:text-slate-500">0 — без ограничений</span>
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Мьют на (минут)</label>
+              <label className="text-xs font-medium text-gray-600 dark:text-slate-400 block mb-1">Мьют на (минут)</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number" min={0}
                   value={muteMinutes}
                   onChange={e => setMuteMinutes(e.target.value)}
                   placeholder="0"
-                  className="w-24 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-24 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
                 />
-                <span className="text-xs text-gray-400">0 — снять мьют</span>
+                <span className="text-xs text-gray-400 dark:text-slate-500">0 — снять мьют</span>
               </div>
               {isMuted && (
                 <p className="text-xs text-orange-500 mt-1">
@@ -114,22 +114,22 @@ function RestrictionModal({ student, onClose }: { student: ProjectUser; onClose:
                 { key: 'no_polls' as const, label: 'Запрет опросов' },
               ]).map(({ key, label }) => (
                 <label key={key} className="flex items-center justify-between cursor-pointer">
-                  <span className="text-sm text-gray-700">{label}</span>
+                  <span className="text-sm text-gray-700 dark:text-slate-300">{label}</span>
                   <div
                     onClick={() => setRestriction(r => ({ ...r, [key]: !r[key] }))}
-                    className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${restriction[key] ? 'bg-red-500' : 'bg-gray-200'}`}
+                    className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${restriction[key] ? 'bg-red-500' : 'bg-gray-200 dark:bg-slate-700'}`}
                   >
-                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${restriction[key] ? 'left-[22px]' : 'left-0.5'}`} />
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white dark:bg-slate-800 rounded-full shadow transition-all ${restriction[key] ? 'left-[22px]' : 'left-0.5'}`} />
                   </div>
                 </label>
               ))}
             </div>
             <div className="flex gap-2 justify-end mt-1">
-              <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">Отмена</button>
+              <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl">Отмена</button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-4 py-2 text-sm bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-40"
+                className="px-4 py-2 text-sm bg-purple-500 text-white rounded-xl hover:bg-purple-600 disabled:opacity-40"
               >
                 {saving ? 'Сохранение...' : 'Сохранить'}
               </button>
@@ -169,10 +169,10 @@ function EditProjectModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Редактировать проект</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md">
+        <div className="px-6 py-5 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Редактировать проект</h2>
+          <button onClick={onClose} className="text-gray-400 dark:text-slate-500 hover:text-gray-600">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -180,25 +180,25 @@ function EditProjectModal({
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Название</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Название</label>
             <input
               autoFocus
               value={name}
               onChange={e => setName(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Описание</label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={3}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Цвет</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Цвет</label>
             <div className="flex gap-2 flex-wrap">
               {COLORS.map(c => (
                 <button
@@ -215,14 +215,14 @@ function EditProjectModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="flex-1 rounded-lg border border-gray-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800"
             >
               Отмена
             </button>
             <button
               type="submit"
               disabled={saving || !name.trim()}
-              className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
             >
               {saving ? 'Сохранение...' : 'Сохранить'}
             </button>
@@ -278,10 +278,10 @@ function InviteMembersModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Пригласить участников</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md">
+        <div className="px-6 py-5 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Пригласить участников</h2>
+          <button onClick={onClose} className="text-gray-400 dark:text-slate-500 hover:text-gray-600">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -293,17 +293,17 @@ function InviteMembersModal({
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Введите фамилию или имя..."
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
-          {loading && <p className="text-xs text-gray-400 text-center">Поиск...</p>}
+          {loading && <p className="text-xs text-gray-400 dark:text-slate-500 text-center">Поиск...</p>}
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {results.map(u => {
               const isAlready = addedIds.has(u.id);
               return (
                 <div key={u.id} className="flex items-center justify-between gap-2 py-1">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{u.display_name}</p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{u.display_name}</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">
                       {u.is_teacher ? 'Педагог' : u.is_student ? 'Ученик' : ''}
                     </p>
                   </div>
@@ -313,7 +313,7 @@ function InviteMembersModal({
                     <button
                       onClick={() => handleAdd(u)}
                       disabled={adding === u.id}
-                      className="text-sm text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg transition-colors disabled:opacity-50"
+                      className="text-sm text-purple-600 hover:bg-purple-50 px-3 py-1 rounded-lg transition-colors disabled:opacity-50"
                     >
                       {adding === u.id ? '...' : 'Добавить'}
                     </button>
@@ -322,13 +322,13 @@ function InviteMembersModal({
               );
             })}
             {!loading && query.trim().length >= 2 && results.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-2">Не найдено</p>
+              <p className="text-sm text-gray-400 dark:text-slate-500 text-center py-2">Не найдено</p>
             )}
           </div>
           <div className="pt-2">
             <button
               onClick={onClose}
-              className="w-full border border-gray-300 text-gray-700 rounded-lg py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
+              className="w-full border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
             >
               Готово
             </button>
@@ -371,12 +371,12 @@ function MembersModal({
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
-          <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-sm">
+          <div className="px-6 py-5 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
               Участники ({project.members.length})
             </h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <button onClick={onClose} className="text-gray-400 dark:text-slate-500 hover:text-gray-600">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -386,8 +386,8 @@ function MembersModal({
             {project.members.map(m => (
               <div key={m.id} className="flex items-center justify-between gap-2 py-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{m.user.display_name}</p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{m.user.display_name}</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500">
                     {m.role === 'teacher' ? 'Педагог' : 'Ученик'}
                   </p>
                 </div>
@@ -419,7 +419,7 @@ function MembersModal({
             <div className="px-4 pb-4">
               <button
                 onClick={onInvite}
-                className="w-full border border-blue-600 text-blue-600 rounded-lg py-2 text-sm font-medium hover:bg-blue-50 transition-colors"
+                className="w-full border border-purple-600 text-purple-600 rounded-lg py-2 text-sm font-medium hover:bg-purple-50 transition-colors"
               >
                 + Пригласить участника
               </button>
@@ -461,7 +461,7 @@ export default function ProjectDetailPage() {
   }, [projectId, navigate]);
 
   if (loading) {
-    return <div className="flex items-center justify-center flex-1 text-gray-400">Загрузка...</div>;
+    return <div className="flex items-center justify-center flex-1 text-gray-400 dark:text-slate-500">Загрузка...</div>;
   }
   if (!project) return null;
 
@@ -534,11 +534,11 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 bg-white flex-shrink-0">
+      <div className="flex border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0">
         <button
           onClick={() => setTab('feed')}
           className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-            tab === 'feed' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'
+            tab === 'feed' ? 'text-purple-600 border-b-2 border-purple-600' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'
           }`}
         >
           Лента
@@ -546,7 +546,7 @@ export default function ProjectDetailPage() {
         <button
           onClick={() => setTab('assignments')}
           className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-            tab === 'assignments' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'
+            tab === 'assignments' ? 'text-purple-600 border-b-2 border-purple-600' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'
           }`}
         >
           Задания
@@ -554,7 +554,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Content */}
-      <div className="flex flex-col min-h-0 flex-1 overflow-hidden bg-gray-50">
+      <div className="flex flex-col min-h-0 flex-1 overflow-hidden bg-gray-50 dark:bg-slate-900">
         {tab === 'feed' ? (
           <ProjectFeed projectId={projectId} isTeacher={isTeacher} isAdult={isAdult} />
         ) : (

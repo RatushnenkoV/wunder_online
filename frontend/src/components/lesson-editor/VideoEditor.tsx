@@ -55,22 +55,22 @@ export default function VideoEditor({ slide, lessonId, onSaved }: { slide: Slide
 
   return (
     <div className="flex flex-col h-full">
-      <div className="h-10 border-b border-gray-200 bg-white flex items-center px-4">
-        <span className="text-sm text-gray-500">📹 Редактор видео</span>
+      <div className="h-10 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center px-4">
+        <span className="text-sm text-gray-500 dark:text-slate-400">📹 Редактор видео</span>
       </div>
-      <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
+      <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-slate-900 p-6">
         <div className="max-w-2xl mx-auto space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Ссылка на видео</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1.5">Ссылка на видео</label>
             <input
               type="url" value={url}
               onChange={e => handleUrlChange(e.target.value)}
               placeholder="https://www.youtube.com/watch?v=..."
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-400 bg-white"
+              className="w-full text-sm border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:border-purple-400 bg-white dark:bg-slate-800"
             />
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm" style={{ aspectRatio: '16/9' }}>
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden shadow-sm" style={{ aspectRatio: '16/9' }}>
             {embedUrl ? (
               <iframe
                 src={embedUrl} className="w-full h-full"
@@ -78,7 +78,7 @@ export default function VideoEditor({ slide, lessonId, onSaved }: { slide: Slide
                 title="Video preview"
               />
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
+              <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 dark:text-slate-600">
                 <span className="text-4xl mb-2">📹</span>
                 <span className="text-sm">Введите ссылку на видео</span>
               </div>
@@ -86,12 +86,12 @@ export default function VideoEditor({ slide, lessonId, onSaved }: { slide: Slide
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Подпись (опционально)</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1.5">Подпись (опционально)</label>
             <input
               type="text" value={caption}
               onChange={e => handleCaptionChange(e.target.value)}
               placeholder="Описание видео..."
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-400 bg-white"
+              className="w-full text-sm border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:border-purple-400 bg-white dark:bg-slate-800"
             />
           </div>
         </div>

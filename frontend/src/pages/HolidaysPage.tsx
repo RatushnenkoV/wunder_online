@@ -28,32 +28,32 @@ export default function HolidaysPage() {
     <div>
       <h1 className="text-2xl font-bold mb-6">Выходные и каникулы</h1>
 
-      <form onSubmit={handleAdd} className="bg-white p-4 rounded-lg shadow mb-6 flex gap-4 items-end">
+      <form onSubmit={handleAdd} className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow mb-6 flex gap-4 items-end">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Дата</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Дата</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)} className="border rounded px-3 py-2 text-sm" required />
         </div>
         <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Описание</label>
           <input placeholder="Например: Новогодние каникулы" value={description} onChange={e => setDescription(e.target.value)} className="border rounded px-3 py-2 text-sm w-full" />
         </div>
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Добавить</button>
+        <button type="submit" className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">Добавить</button>
       </form>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-slate-900">
             <tr>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">Дата</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">Описание</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">Действия</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400">Дата</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400">Описание</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400">Действия</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {holidays.map(h => (
-              <tr key={h.id} className="hover:bg-gray-50">
+              <tr key={h.id} className="hover:bg-gray-50 dark:hover:bg-slate-800">
                 <td className="px-4 py-3">{h.date}</td>
-                <td className="px-4 py-3 text-gray-500">{h.description || '—'}</td>
+                <td className="px-4 py-3 text-gray-500 dark:text-slate-400">{h.description || '—'}</td>
                 <td className="px-4 py-3">
                   <button onClick={async () => { await api.delete(`/ktp/holidays/${h.id}/`); load(); }} className="text-red-600 hover:text-red-800 text-xs">Удалить</button>
                 </td>
@@ -62,7 +62,7 @@ export default function HolidaysPage() {
           </tbody>
         </table>
         {holidays.length === 0 && (
-          <p className="text-center text-gray-400 py-8">Выходные не добавлены</p>
+          <p className="text-center text-gray-400 dark:text-slate-500 py-8">Выходные не добавлены</p>
         )}
       </div>
     </div>

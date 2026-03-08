@@ -35,33 +35,33 @@ function CreateProjectModal({ onClose, onCreate }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="px-6 py-5 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">Новый проект</h2>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md">
+        <div className="px-6 py-5 border-b border-gray-100 dark:border-slate-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Новый проект</h2>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Название</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Название</label>
             <input
               autoFocus
               value={name}
               onChange={e => setName(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
               placeholder="Название проекта"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Описание (опционально)</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Описание (опционально)</label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={3}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
               placeholder="Краткое описание проекта..."
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Цвет</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Цвет</label>
             <div className="flex gap-2 flex-wrap">
               {COLORS.map(c => (
                 <button
@@ -79,14 +79,14 @@ function CreateProjectModal({ onClose, onCreate }: {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="flex-1 rounded-lg border border-gray-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800"
             >
               Отмена
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
             >
               {loading ? 'Создание...' : 'Создать'}
             </button>
@@ -101,19 +101,19 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+      className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
     >
       <div className="h-20 flex items-end px-5 pb-3" style={{ backgroundColor: project.cover_color }}>
         <h3 className="text-white font-bold text-lg leading-tight drop-shadow">{project.name}</h3>
       </div>
       <div className="px-5 py-4">
         {project.description && (
-          <p className="text-sm text-gray-500 line-clamp-2 mb-3">{project.description}</p>
+          <p className="text-sm text-gray-500 dark:text-slate-400 line-clamp-2 mb-3">{project.description}</p>
         )}
-        <div className="flex items-center gap-2 text-xs text-gray-400">
+        <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-slate-500">
           <span>{project.members_count} участн.</span>
           {project.my_role === 'teacher' && (
-            <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">педагог</span>
+            <span className="bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full font-medium">педагог</span>
           )}
           {project.my_role === 'student' && (
             <span className="bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-medium">ученик</span>
@@ -144,13 +144,13 @@ export default function ProjectsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Проекты</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Совместная работа в формате Google Classroom</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Проекты</h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Совместная работа в формате Google Classroom</p>
         </div>
         {canCreate && (
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -161,17 +161,17 @@ export default function ProjectsPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-gray-400">Загрузка...</div>
+        <div className="flex items-center justify-center py-16 text-gray-400 dark:text-slate-500">Загрузка...</div>
       ) : projects.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="text-center py-16 text-gray-400 dark:text-slate-500">
+          <svg className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
           </svg>
           <p className="text-sm">Нет проектов</p>
           {canCreate && (
             <button
               onClick={() => setShowCreate(true)}
-              className="mt-3 text-blue-600 text-sm hover:underline"
+              className="mt-3 text-purple-600 text-sm hover:underline"
             >
               Создать первый проект
             </button>

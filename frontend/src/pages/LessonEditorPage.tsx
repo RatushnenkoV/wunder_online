@@ -148,37 +148,37 @@ export default function LessonEditorPage() {
     await api.post(`/lessons/lessons/${lessonId}/slides/reorder/`, { order: reordered.map(s => s.id) });
   };
 
-  if (loading) return <div className="flex items-center justify-center min-h-[60vh] text-gray-400">Загрузка редактора...</div>;
-  if (!lesson) return <div className="text-center py-16 text-gray-500">Урок не найден. <Link to="/lessons" className="text-blue-600 hover:underline">Вернуться</Link></div>;
+  if (loading) return <div className="flex items-center justify-center min-h-[60vh] text-gray-400 dark:text-slate-500">Загрузка редактора...</div>;
+  if (!lesson) return <div className="text-center py-16 text-gray-500 dark:text-slate-400">Урок не найден. <Link to="/lessons" className="text-purple-600 hover:underline">Вернуться</Link></div>;
 
   return (
-    <div className="flex flex-col -mx-4 sm:-mx-6 lg:-mx-8" style={{ height: 'calc(100vh - 5.5rem)' }}>
+    <div className="flex flex-col h-full">
 
-      <header className="flex items-center gap-3 px-4 py-2.5 bg-white border-b border-gray-200 flex-shrink-0">
-        <Link to="/lessons" className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0">
+      <header className="flex items-center gap-3 px-4 py-2.5 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex-shrink-0">
+        <Link to="/lessons" className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-800 transition-colors flex-shrink-0">
           <IconArrowLeft /><span className="hidden sm:inline">Уроки</span>
         </Link>
-        <div className="w-px h-5 bg-gray-200 flex-shrink-0" />
+        <div className="w-px h-5 bg-gray-200 dark:bg-slate-700 flex-shrink-0" />
         <input
           type="text" value={lessonTitle}
           onChange={e => setLessonTitle(e.target.value)} onBlur={saveLessonTitle}
-          className="flex-1 text-sm font-semibold text-gray-800 bg-transparent border-b border-transparent hover:border-gray-200 focus:border-blue-400 focus:outline-none pb-0.5 min-w-0 transition-colors"
+          className="flex-1 text-sm font-semibold text-gray-800 dark:text-slate-200 bg-transparent border-b border-transparent hover:border-gray-200 focus:border-purple-400 focus:outline-none pb-0.5 min-w-0 transition-colors"
           placeholder="Название урока"
         />
         {/* Настройки урока (цвет + описание) */}
         <div className="relative flex-shrink-0" ref={settingsRef}>
           <button
             onClick={() => setShowLessonSettings(v => !v)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="p-1.5 rounded-lg text-gray-400 dark:text-slate-500 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
             title="Настройки урока"
           >
             <IconSettings />
           </button>
           {showLessonSettings && (
-            <div className="absolute top-full left-0 mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50 w-72">
-              <div className="text-sm font-semibold text-gray-700 mb-3">Настройки урока</div>
+            <div className="absolute top-full left-0 mt-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-xl p-4 z-50 w-72">
+              <div className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3">Настройки урока</div>
               <div className="mb-3">
-                <div className="text-xs text-gray-500 mb-1.5">Цвет обложки</div>
+                <div className="text-xs text-gray-500 dark:text-slate-400 mb-1.5">Цвет обложки</div>
                 <div className="flex gap-1.5 flex-wrap">
                   {COVER_COLORS.map(c => (
                     <button
@@ -195,14 +195,14 @@ export default function LessonEditorPage() {
                 </div>
               </div>
               <div>
-                <div className="text-xs text-gray-500 mb-1.5">Описание</div>
+                <div className="text-xs text-gray-500 dark:text-slate-400 mb-1.5">Описание</div>
                 <textarea
                   value={lessonDescription}
                   onChange={e => setLessonDescription(e.target.value)}
                   onBlur={() => saveLessonMeta({ description: lessonDescription })}
                   rows={3}
                   placeholder="Описание урока..."
-                  className="w-full resize-none rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
+                  className="w-full resize-none rounded-lg border border-gray-300 dark:border-slate-600 px-2.5 py-1.5 text-sm text-gray-700 dark:text-slate-300 outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-200"
                 />
               </div>
             </div>
@@ -210,7 +210,7 @@ export default function LessonEditorPage() {
         </div>
         <div className="flex-shrink-0 flex items-center gap-1.5 text-xs">
           {saveStatus === 'saved'   && <span className="text-green-500 flex items-center gap-1"><IconCheck />Сохранено</span>}
-          {saveStatus === 'saving'  && <span className="text-gray-400">Сохраняю...</span>}
+          {saveStatus === 'saving'  && <span className="text-gray-400 dark:text-slate-500">Сохраняю...</span>}
           {saveStatus === 'unsaved' && <span className="text-amber-500">Не сохранено</span>}
         </div>
         {(user?.is_teacher || user?.is_admin) && (
@@ -236,14 +236,14 @@ export default function LessonEditorPage() {
       )}
 
       <div className="flex flex-1 min-h-0">
-        <aside className="w-48 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
-          <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Слайды</span>
-            <button onClick={openTypePicker} title="Добавить слайд" className="p-1 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"><IconPlus /></button>
+        <aside className="w-48 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 flex flex-col flex-shrink-0">
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100 dark:border-slate-700">
+            <span className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Слайды</span>
+            <button onClick={openTypePicker} title="Добавить слайд" className="p-1 rounded-md text-gray-400 dark:text-slate-500 hover:text-purple-600 hover:bg-purple-50 transition-colors"><IconPlus /></button>
           </div>
           <div className="flex-1 overflow-y-auto">
             {slides.length === 0
-              ? <div className="p-4 text-center text-xs text-gray-400">Нет слайдов</div>
+              ? <div className="p-4 text-center text-xs text-gray-400 dark:text-slate-500">Нет слайдов</div>
               : slides.map((slide, idx) => (
                 <SlideThumb
                   key={slide.id} slide={slide} index={idx}
@@ -259,8 +259,8 @@ export default function LessonEditorPage() {
               ))
             }
           </div>
-          <div className="border-t border-gray-100 p-2">
-            <button onClick={openTypePicker} className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+          <div className="border-t border-gray-100 dark:border-slate-700 p-2">
+            <button onClick={openTypePicker} className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-gray-500 dark:text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors">
               <IconPlus />Добавить слайд
             </button>
           </div>
@@ -292,10 +292,10 @@ export default function LessonEditorPage() {
               )}
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-400 bg-gray-50">
+            <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-400 dark:text-slate-500 bg-gray-50 dark:bg-slate-900">
               <span className="text-5xl">📄</span>
               <p className="text-sm">Добавьте первый слайд</p>
-              <button onClick={openTypePicker} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Добавить слайд</button>
+              <button onClick={openTypePicker} className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">Добавить слайд</button>
             </div>
           )}
         </main>

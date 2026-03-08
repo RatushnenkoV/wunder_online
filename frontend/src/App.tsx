@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
@@ -57,7 +58,7 @@ function PasswordRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-function App() {
+function AppInner() {
   return (
     <BrowserRouter>
       <AuthProvider>
@@ -97,4 +98,10 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppInner />
+    </ThemeProvider>
+  );
+}

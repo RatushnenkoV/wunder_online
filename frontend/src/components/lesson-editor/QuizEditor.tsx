@@ -44,12 +44,12 @@ function QuizQuestionCard({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
       {/* Шапка карточки */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-gray-50">
-        <span className="text-xs font-semibold text-gray-500">Вопрос {index + 1}</span>
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+        <span className="text-xs font-semibold text-gray-500 dark:text-slate-400">Вопрос {index + 1}</span>
         {total > 1 && (
-          <button onClick={onDelete} title="Удалить вопрос" className="text-gray-300 hover:text-red-500 transition-colors text-lg leading-none">×</button>
+          <button onClick={onDelete} title="Удалить вопрос" className="text-gray-300 dark:text-slate-600 hover:text-red-500 transition-colors text-lg leading-none">×</button>
         )}
       </div>
 
@@ -60,20 +60,20 @@ function QuizQuestionCard({
           onChange={e => onChange({ ...question, text: e.target.value })}
           placeholder="Введите вопрос..."
           rows={2}
-          className="w-full text-sm text-gray-800 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-400 resize-none"
+          className="w-full text-sm text-gray-800 dark:text-slate-200 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:border-purple-400 resize-none"
         />
 
         {/* Варианты */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-500">Варианты ответов</span>
-            <span className="text-xs text-gray-400">Нажмите на букву, чтобы отметить правильный</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-slate-400">Варианты ответов</span>
+            <span className="text-xs text-gray-400 dark:text-slate-500">Нажмите на букву, чтобы отметить правильный</span>
           </div>
           {question.options.map((opt, i) => (
-            <div key={i} className={`flex items-center gap-2 p-2 rounded-lg border-2 transition-colors ${question.correct === i ? 'border-green-400 bg-green-50' : 'border-gray-100 hover:border-gray-200'}`}>
+            <div key={i} className={`flex items-center gap-2 p-2 rounded-lg border-2 transition-colors ${question.correct === i ? 'border-green-400 bg-green-50' : 'border-gray-100 dark:border-slate-700 hover:border-gray-200'}`}>
               <button
                 onClick={() => onChange({ ...question, correct: i })}
-                className={`flex-shrink-0 w-7 h-7 rounded-full text-xs font-bold transition-colors ${question.correct === i ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                className={`flex-shrink-0 w-7 h-7 rounded-full text-xs font-bold transition-colors ${question.correct === i ? 'bg-green-500 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-600'}`}
               >
                 {QUIZ_OPTION_LABELS[i]}
               </button>
@@ -82,15 +82,15 @@ function QuizQuestionCard({
                 value={opt}
                 onChange={e => updateOpt(i, e.target.value)}
                 placeholder={`Вариант ${QUIZ_OPTION_LABELS[i]}`}
-                className="flex-1 text-sm text-gray-800 bg-transparent border-none outline-none"
+                className="flex-1 text-sm text-gray-800 dark:text-slate-200 bg-transparent border-none outline-none"
               />
               {question.options.length > 2 && (
-                <button onClick={() => deleteOpt(i)} className="flex-shrink-0 text-gray-300 hover:text-red-500 transition-colors text-lg leading-none">×</button>
+                <button onClick={() => deleteOpt(i)} className="flex-shrink-0 text-gray-300 dark:text-slate-600 hover:text-red-500 transition-colors text-lg leading-none">×</button>
               )}
             </div>
           ))}
           {question.options.length < 6 && (
-            <button onClick={addOpt} className="w-full py-1.5 text-xs text-gray-400 hover:text-blue-500 border border-dashed border-gray-200 hover:border-blue-300 rounded-lg transition-colors">
+            <button onClick={addOpt} className="w-full py-1.5 text-xs text-gray-400 dark:text-slate-500 hover:text-purple-500 border border-dashed border-gray-200 dark:border-slate-700 hover:border-purple-300 rounded-lg transition-colors">
               + Добавить вариант
             </button>
           )}
@@ -98,13 +98,13 @@ function QuizQuestionCard({
 
         {/* Время */}
         <div>
-          <span className="text-xs font-medium text-gray-500 block mb-1.5">Время на ответ</span>
+          <span className="text-xs font-medium text-gray-500 dark:text-slate-400 block mb-1.5">Время на ответ</span>
           <div className="flex gap-1.5 flex-wrap">
             {QUIZ_TIME_OPTIONS.map(t => (
               <button
                 key={t}
                 onClick={() => onChange({ ...question, time_limit: t })}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${question.time_limit === t ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${question.time_limit === t ? 'bg-purple-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-600'}`}
               >
                 {t}с
               </button>
@@ -162,11 +162,11 @@ export default function QuizEditor({ slide, lessonId, onSaved }: { slide: Slide;
 
   return (
     <div className="flex flex-col h-full">
-      <div className="h-10 border-b border-gray-200 bg-white flex items-center px-4 gap-3">
-        <span className="text-sm text-gray-500">🏆 Редактор викторины</span>
-        <span className="text-xs text-gray-400">{content.questions.length} вопр.</span>
+      <div className="h-10 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center px-4 gap-3">
+        <span className="text-sm text-gray-500 dark:text-slate-400">🏆 Редактор викторины</span>
+        <span className="text-xs text-gray-400 dark:text-slate-500">{content.questions.length} вопр.</span>
       </div>
-      <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
+      <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-slate-900 p-6">
         <div className="max-w-2xl mx-auto space-y-4">
 
           {content.questions.map((q, idx) => (
@@ -182,12 +182,12 @@ export default function QuizEditor({ slide, lessonId, onSaved }: { slide: Slide;
 
           <button
             onClick={addQuestion}
-            className="w-full py-3 text-sm text-blue-500 hover:text-blue-700 border-2 border-dashed border-blue-200 hover:border-blue-400 rounded-xl transition-colors font-medium"
+            className="w-full py-3 text-sm text-purple-500 hover:text-purple-700 border-2 border-dashed border-purple-200 hover:border-purple-400 rounded-xl transition-colors font-medium"
           >
             + Добавить вопрос
           </button>
 
-          <div className="text-xs text-gray-500 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+          <div className="text-xs text-gray-500 dark:text-slate-400 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
             💡 Правильный ответ выделен зелёным. Баллы получают только те, кто ответил правильно — чем быстрее, тем больше (макс. 1000, мин. 100 очков).
           </div>
 

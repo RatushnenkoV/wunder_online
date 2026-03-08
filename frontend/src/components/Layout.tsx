@@ -1,8 +1,25 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import api from '../api/client';
 import type { TasksCount } from '../types';
+
+function IconSun() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+    </svg>
+  );
+}
+
+function IconMoon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" />
+    </svg>
+  );
+}
 
 function IconHome() {
   return (
@@ -129,6 +146,7 @@ function IconMenu() {
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -316,10 +334,12 @@ export default function Layout() {
       : []),
   ];
 
-  const isFullHeight = location.pathname === '/chats' || /^\/projects\/\d+/.test(location.pathname);
+  const isFullHeight = location.pathname === '/chats'
+    || /^\/projects\/\d+/.test(location.pathname)
+    || /^\/lessons\/\d+\/edit$/.test(location.pathname);
 
   return (
-    <div className={`${isFullHeight ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'} bg-gray-50 flex`}>
+    <div className={`${isFullHeight ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'} bg-gray-50 dark:bg-slate-900 flex`}>
 
       {/* Затемнение при открытом сайдбаре на мобильных */}
       {sidebarOpen && (
@@ -332,17 +352,17 @@ export default function Layout() {
       {/* Боковое меню */}
       <aside
         className={[
-          'fixed top-0 left-0 h-full z-30 w-64 bg-white flex flex-col',
-          'border-r border-gray-200 shadow-xl lg:shadow-none',
+          'fixed top-0 left-0 h-full z-30 w-64 bg-brand-950 flex flex-col',
+          'shadow-xl lg:shadow-none',
           'transition-transform duration-300 ease-in-out',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
           'lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:flex-shrink-0',
         ].join(' ')}
       >
         {/* Логотип */}
-        <div className="px-6 py-5 border-b border-gray-100">
+        <div className="px-6 py-5 border-b border-white/10">
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold text-blue-600 tracking-tight">WunderOnline</span>
+            <span className="text-xl font-bold text-white tracking-tight">Wunder<span className="text-brand-400">Online</span></span>
           </Link>
         </div>
 
@@ -357,24 +377,24 @@ export default function Layout() {
                 [
                   'flex items-center gap-3 mx-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors my-0.5',
                   isActive
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
+                    ? 'bg-white/15 text-white'
+                    : 'text-white/60 hover:bg-white/8 hover:text-white/90',
                 ].join(' ')
               }
             >
               {({ isActive }) => (
                 <>
-                  <span className={isActive ? 'text-blue-600' : 'text-gray-400'}>
+                  <span className={isActive ? 'text-brand-400' : 'text-white/40'}>
                     {item.icon}
                   </span>
                   <span className="flex-1">{item.label}</span>
                   {item.badge !== null && (
-                    <span className={`${'badgeYellow' in item && item.badgeYellow ? 'bg-yellow-500' : 'bg-blue-600'} text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none`}>
+                    <span className={`${'badgeYellow' in item && item.badgeYellow ? 'bg-yellow-500' : 'bg-brand-500'} text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none`}>
                       {item.badge}
                     </span>
                   )}
                   {'dot' in item && item.dot && (
-                    <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
+                    <span className="w-2 h-2 bg-brand-400 rounded-full flex-shrink-0" />
                   )}
                   {'live' in item && item.live && (
                     <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse flex-shrink-0" />
@@ -387,31 +407,40 @@ export default function Layout() {
 
         {/* Информация о пользователе */}
         {user && (
-          <div className="border-t border-gray-100 p-4">
+          <div className="border-t border-white/10 p-4">
             <div className="flex items-start justify-between gap-2">
               <Link
                 to="/account"
-                className="flex items-center gap-2.5 min-w-0 rounded-lg hover:bg-gray-50 p-1 -m-1 transition-colors"
+                className="flex items-center gap-2.5 min-w-0 rounded-lg hover:bg-white/8 p-1 -m-1 transition-colors"
               >
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex-shrink-0 flex items-center justify-center text-blue-700 font-bold text-xs select-none">
+                <div className="w-8 h-8 rounded-full bg-brand-700 flex-shrink-0 flex items-center justify-center text-white font-bold text-xs select-none">
                   {user.first_name?.[0]}{user.last_name?.[0]}
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-gray-800 truncate leading-tight">
+                  <div className="text-sm font-semibold text-white truncate leading-tight">
                     {user.last_name} {user.first_name}
                   </div>
-                  <div className="text-xs text-gray-400 truncate leading-tight">
+                  <div className="text-xs text-white/40 truncate leading-tight">
                     {user.roles.join(', ')}
                   </div>
                 </div>
               </Link>
-              <button
-                onClick={handleLogout}
-                title="Выйти"
-                className="flex-shrink-0 p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-              >
-                <IconLogout />
-              </button>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={toggleTheme}
+                  title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+                  className="p-1.5 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  {theme === 'dark' ? <IconSun /> : <IconMoon />}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  title="Выйти"
+                  className="p-1.5 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <IconLogout />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -421,15 +450,15 @@ export default function Layout() {
       <div className="flex-1 flex flex-col min-w-0">
 
         {/* Топ-бар: только на мобильных/планшетах */}
-        <header className="lg:hidden sticky top-0 z-10 bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-3">
+        <header className="lg:hidden sticky top-0 z-10 bg-brand-950 px-4 h-14 flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 -ml-2 rounded-md text-gray-500 hover:bg-gray-100 transition-colors"
+            className="p-2 -ml-2 rounded-md text-white/60 hover:text-white hover:bg-white/10 transition-colors"
             aria-label="Открыть меню"
           >
             <IconMenu />
           </button>
-          <span className="text-lg font-bold text-blue-600">WunderOnline</span>
+          <span className="text-lg font-bold text-white">Wunder<span className="text-brand-400">Online</span></span>
         </header>
 
         <main className={

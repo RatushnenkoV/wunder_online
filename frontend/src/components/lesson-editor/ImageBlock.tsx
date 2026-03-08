@@ -39,7 +39,7 @@ const ImageBlock = memo(function ImageBlock({ block, lessonId, onSave }: { block
 
   return (
     <div
-      className="w-full h-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded bg-gray-50 text-gray-400 cursor-pointer hover:border-blue-400 hover:text-blue-400 transition-colors"
+      className="w-full h-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded bg-gray-50 dark:bg-slate-900 text-gray-400 dark:text-slate-500 cursor-pointer hover:border-purple-400 hover:text-purple-400 transition-colors"
       onMouseDown={e => { mouseDownPosRef.current = { x: e.clientX, y: e.clientY }; }}
       onClick={e => {
         e.stopPropagation();
