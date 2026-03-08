@@ -106,9 +106,9 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Защита от DoS через загрузку огромных файлов.
-# PDF учебники могут быть до 50 MB, поэтому ставим 50 MB.
-DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024   # 50 MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10 MB — порог "в память" vs "на диск"
+# PDF учебники могут быть до 500 MB, поэтому ставим 500 MB.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 500 * 1024 * 1024   # 500 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024    # 10 MB — порог "в память" vs "на диск"
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
