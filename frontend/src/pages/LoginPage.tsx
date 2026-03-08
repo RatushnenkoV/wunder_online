@@ -37,7 +37,7 @@ export default function LoginPage() {
           <p className="text-white/50 text-sm mt-2">Система управления школой</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-800/8 backdrop-blur-sm border border-white/15 rounded-2xl p-8 shadow-2xl">
+        <div className="bg-white/8 backdrop-blur-sm border border-white/15 rounded-2xl p-8 shadow-2xl">
           <h2 className="text-lg font-semibold text-white mb-6">Вход в систему</h2>
           {error && (
             <div className="bg-red-500/20 border border-red-400/30 text-red-300 p-3 rounded-lg mb-4 text-sm">{error}</div>
@@ -49,7 +49,7 @@ export default function LoginPage() {
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="w-full bg-white dark:bg-slate-800/10 border border-white/20 text-white placeholder-white/30 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                className="w-full bg-white/10 border border-white/20 text-white placeholder-white/30 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
                 required
               />
             </div>
@@ -59,7 +59,7 @@ export default function LoginPage() {
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="w-full bg-white dark:bg-slate-800/10 border border-white/20 text-white placeholder-white/30 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                className="w-full bg-white/10 border border-white/20 text-white placeholder-white/30 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
                 required
               />
             </div>
@@ -69,7 +69,7 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white dark:bg-slate-800/10 border border-white/20 text-white placeholder-white/30 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                className="w-full bg-white/10 border border-white/20 text-white placeholder-white/30 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
                 required
               />
             </div>
