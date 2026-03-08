@@ -113,7 +113,7 @@ interface Props {
   isAdult: boolean;
 }
 
-export default function ProjectFeed({ projectId, isTeacher, isAdult }: Props) {
+export default function ProjectFeed({ projectId, isTeacher }: Props) {
   const { user } = useAuth();
   const [posts, setPosts] = useState<ProjectPost[]>([]);
   const [hasMore, setHasMore] = useState(false);

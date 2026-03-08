@@ -1,17 +1,8 @@
-import type { Slide, VocabContent, VocabWord, VocabProgressRecord } from '../../types';
-
-const CANVAS_W = 960;
-const CANVAS_H = 540;
+import { useState, useEffect, useCallback } from 'react';
+import type { Slide, VocabContent, VocabProgressRecord } from '../../types';
+import api from '../../api/client';
 const VOCAB_LANG_LABELS: Record<'en' | 'kk', string> = { en: 'Английский', kk: 'Казахский' };
-const VOCAB_LANG_BCP47: Record<'en' | 'kk', string>  = { en: 'en-US',      kk: 'kk-KZ'    };
 
-function vocabSpeak(text: string, lang: 'en' | 'kk') {
-  if (!text.trim()) return;
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.lang = VOCAB_LANG_BCP47[lang];
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utt);
-}
 
 export default function VocabTeacherView({
   slide, sessionId, content,

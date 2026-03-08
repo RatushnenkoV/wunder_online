@@ -23,7 +23,7 @@ export default function TextbookSlideView({
   isPresenter: boolean;
   sessionId: number;
 }) {
-  const content = slide.content as TextbookSlideContent;
+  const content = slide.content as unknown as TextbookSlideContent;
   const { textbook_id, page_from, page_to } = content;
 
   const navH = 44;
@@ -95,7 +95,7 @@ export default function TextbookSlideView({
         const map: Record<number, AnnotationStroke[]> = {};
         for (const item of r.data) map[item.page_number] = item.strokes;
         setAnnotations(map);
-        const loaded = new Set(r.data.map((a: { page_number: number }) => a.page_number as number));
+        const loaded = new Set<number>(r.data.map((a: { page_number: number }) => a.page_number));
         loaded.add(currentPage);
         setLoadedPages(loaded);
       })
