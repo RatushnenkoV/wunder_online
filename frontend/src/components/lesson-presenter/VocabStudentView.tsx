@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react';
-import type { Slide, VocabContent, VocabWord, VocabProgressRecord } from '../../types';
+import { useState, useEffect, useRef } from 'react';
+import type { Slide, VocabContent } from '../../types';
 import type { VocabTaskKey } from '../../types';
-
-const CANVAS_W = 960;
-const CANVAS_H = 540;
+import api from '../../api/client';
 const VOCAB_LANG_LABELS: Record<'en' | 'kk', string> = { en: 'Английский', kk: 'Казахский' };
 const VOCAB_LANG_BCP47: Record<'en' | 'kk', string>  = { en: 'en-US',      kk: 'kk-KZ'    };
 

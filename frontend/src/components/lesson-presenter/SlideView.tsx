@@ -283,7 +283,6 @@ export default function SlideView({
     return (
       <TextbookSlideView
         slide={slide}
-        scale={scale}
         isPresenter={isPresenter}
         sessionId={sessionId}
       />
