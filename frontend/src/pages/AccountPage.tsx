@@ -72,22 +72,22 @@ export default function AccountPage() {
 
   return (
     <div className="max-w-xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Аккаунт</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-6">Аккаунт</h1>
 
       {/* Информация о пользователе */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6 mb-6">
+        <h2 className="text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-4">
           Профиль
         </h2>
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg select-none">
+          <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-lg select-none">
             {user?.first_name?.[0]}{user?.last_name?.[0]}
           </div>
           <div>
-            <div className="text-base font-semibold text-gray-900">
+            <div className="text-base font-semibold text-gray-900 dark:text-slate-100">
               {user?.last_name} {user?.first_name}
             </div>
-            <div className="text-sm text-gray-500 mt-0.5">
+            <div className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
               {user?.roles.map(r => roleLabels[r] ?? r).join(', ')}
             </div>
           </div>
@@ -95,8 +95,8 @@ export default function AccountPage() {
       </div>
 
       {/* Телефон */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6 mb-6">
+        <h2 className="text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-4">
           Контакты
         </h2>
         {phoneSuccess && (
@@ -111,21 +111,21 @@ export default function AccountPage() {
         )}
         <form onSubmit={handlePhoneSave} className="flex gap-3 items-end">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Номер телефона
             </label>
             <input
               type="tel"
               value={phone}
               onChange={(e) => { setPhone(e.target.value); setPhoneSuccess(false); }}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               placeholder="+7 (___) ___-__-__"
             />
           </div>
           <button
             type="submit"
             disabled={phoneLoading || phone === (user?.phone ?? '')}
-            className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            className="bg-purple-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {phoneLoading ? 'Сохранение...' : 'Сохранить'}
           </button>
@@ -133,8 +133,8 @@ export default function AccountPage() {
       </div>
 
       {/* Смена пароля */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
+        <h2 className="text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-4">
           Изменить пароль
         </h2>
 
@@ -151,14 +151,14 @@ export default function AccountPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Новый пароль
             </label>
             <input
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               placeholder="Минимум 6 символов"
               required
               minLength={6}
@@ -166,14 +166,14 @@ export default function AccountPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               Подтвердите пароль
             </label>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               placeholder="Повторите новый пароль"
               required
               minLength={6}
@@ -183,7 +183,7 @@ export default function AccountPage() {
           <button
             type="submit"
             disabled={loading}
-            className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-purple-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Сохранение...' : 'Сохранить пароль'}
           </button>

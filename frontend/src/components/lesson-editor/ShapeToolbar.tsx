@@ -9,13 +9,13 @@ export default function ShapeToolbar({ block, onChange }: { block: SlideBlock; o
   const isStrokeTransp = block.strokeColor === 'transparent';
 
   return (
-    <div className="flex items-center gap-3 px-3 py-1 bg-white border-b border-gray-200 flex-wrap min-h-[40px] text-xs">
+    <div className="flex items-center gap-3 px-3 py-1 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex-wrap min-h-[40px] text-xs">
 
       {/* Заливка */}
       <div className="flex items-center gap-1.5">
-        <span className="text-gray-500">Заливка</span>
+        <span className="text-gray-500 dark:text-slate-400">Заливка</span>
         <div
-          className="w-6 h-6 rounded border border-gray-300 cursor-pointer flex-shrink-0"
+          className="w-6 h-6 rounded border border-gray-300 dark:border-slate-600 cursor-pointer flex-shrink-0"
           style={{ background: isFillTransp ? transparentBg : (block.fillColor ?? '#6366f1') }}
           onClick={() => !isFillTransp && fillRef.current?.click()}
           title={isFillTransp ? 'Прозрачная заливка' : 'Изменить цвет заливки'}
@@ -27,18 +27,18 @@ export default function ShapeToolbar({ block, onChange }: { block: SlideBlock; o
         />
         <button
           onClick={() => onChange({ fillColor: isFillTransp ? '#6366f1' : 'transparent' })}
-          className={`w-6 h-6 rounded border flex items-center justify-center text-[11px] transition-colors ${isFillTransp ? 'bg-gray-100 border-gray-400 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50'}`}
+          className={`w-6 h-6 rounded border flex items-center justify-center text-[11px] transition-colors ${isFillTransp ? 'bg-gray-100 dark:bg-slate-800 border-gray-400 text-gray-700 dark:text-slate-300' : 'border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-500 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
           title={isFillTransp ? 'Убрать прозрачность' : 'Прозрачная заливка'}
         >∅</button>
       </div>
 
-      <div className="w-px h-5 bg-gray-200" />
+      <div className="w-px h-5 bg-gray-200 dark:bg-slate-700" />
 
       {/* Граница */}
       <div className="flex items-center gap-1.5">
-        <span className="text-gray-500">Граница</span>
+        <span className="text-gray-500 dark:text-slate-400">Граница</span>
         <div
-          className="w-6 h-6 rounded border border-gray-300 cursor-pointer flex-shrink-0"
+          className="w-6 h-6 rounded border border-gray-300 dark:border-slate-600 cursor-pointer flex-shrink-0"
           style={{ background: isStrokeTransp ? transparentBg : (block.strokeColor ?? '#374151') }}
           onClick={() => !isStrokeTransp && strokeRef.current?.click()}
           title={isStrokeTransp ? 'Без границы' : 'Изменить цвет границы'}
@@ -50,7 +50,7 @@ export default function ShapeToolbar({ block, onChange }: { block: SlideBlock; o
         />
         <button
           onClick={() => onChange({ strokeColor: isStrokeTransp ? '#374151' : 'transparent' })}
-          className={`w-6 h-6 rounded border flex items-center justify-center text-[11px] transition-colors ${isStrokeTransp ? 'bg-gray-100 border-gray-400 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50'}`}
+          className={`w-6 h-6 rounded border flex items-center justify-center text-[11px] transition-colors ${isStrokeTransp ? 'bg-gray-100 dark:bg-slate-800 border-gray-400 text-gray-700 dark:text-slate-300' : 'border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-500 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
           title={isStrokeTransp ? 'Убрать прозрачность' : 'Без границы'}
         >∅</button>
       </div>
@@ -58,19 +58,19 @@ export default function ShapeToolbar({ block, onChange }: { block: SlideBlock; o
       {/* Слайдер толщины — только когда граница видима */}
       {!isStrokeTransp && (
         <>
-          <div className="w-px h-5 bg-gray-200" />
+          <div className="w-px h-5 bg-gray-200 dark:bg-slate-700" />
           <div className="flex items-center gap-2">
-            <span className="text-gray-500">Толщина</span>
+            <span className="text-gray-500 dark:text-slate-400">Толщина</span>
             <input
               type="range"
               min={1}
               max={30}
               value={block.strokeWidth ?? 3}
               onChange={e => onChange({ strokeWidth: Number(e.target.value) })}
-              className="w-24 h-1.5 accent-blue-500 cursor-pointer"
+              className="w-24 h-1.5 accent-purple-500 cursor-pointer"
               title="Толщина границы"
             />
-            <span className="w-6 text-center text-gray-600">{block.strokeWidth ?? 3}</span>
+            <span className="w-6 text-center text-gray-600 dark:text-slate-400">{block.strokeWidth ?? 3}</span>
           </div>
         </>
       )}

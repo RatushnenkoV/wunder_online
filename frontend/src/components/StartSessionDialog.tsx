@@ -40,24 +40,24 @@ export default function StartSessionDialog({ lessonId, lessonTitle, onClose }: P
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6"
         onClick={e => e.stopPropagation()}
       >
-        <h2 className="text-base font-semibold text-gray-900 mb-1">Начать урок</h2>
-        <p className="text-sm text-gray-500 mb-4 truncate">{lessonTitle}</p>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-1">Начать урок</h2>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-4 truncate">{lessonTitle}</p>
 
         {loading ? (
-          <div className="text-sm text-gray-400 text-center py-4">Загрузка классов...</div>
+          <div className="text-sm text-gray-400 dark:text-slate-500 text-center py-4">Загрузка классов...</div>
         ) : classes.length === 0 ? (
-          <div className="text-sm text-gray-500 text-center py-4">Классы не найдены</div>
+          <div className="text-sm text-gray-500 dark:text-slate-400 text-center py-4">Классы не найдены</div>
         ) : (
           <div className="space-y-1 max-h-60 overflow-y-auto mb-5">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Выберите класс</p>
+            <p className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-2">Выберите класс</p>
             {classes.map(cls => (
               <label
                 key={cls.id}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
-                  selected === cls.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'
+                  selected === cls.id ? 'bg-purple-50 text-purple-700' : 'hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-300'
                 }`}
               >
                 <input
@@ -66,7 +66,7 @@ export default function StartSessionDialog({ lessonId, lessonTitle, onClose }: P
                   value={cls.id}
                   checked={selected === cls.id}
                   onChange={() => setSelected(cls.id)}
-                  className="accent-blue-600"
+                  className="accent-purple-600"
                 />
                 <span className="text-sm font-medium">{cls.display_name}</span>
               </label>
@@ -77,14 +77,14 @@ export default function StartSessionDialog({ lessonId, lessonTitle, onClose }: P
         <div className="flex gap-2">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            className="flex-1 px-4 py-2 text-sm text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
           >
             Отмена
           </button>
           <button
             onClick={handleStart}
             disabled={!selected || starting || loading}
-            className="flex-1 px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-1.5"
+            className="flex-1 px-4 py-2 text-sm bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-1.5"
           >
             {starting ? (
               'Запуск...'

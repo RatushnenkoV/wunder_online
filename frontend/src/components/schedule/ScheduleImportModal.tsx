@@ -56,7 +56,7 @@ function FileDropZone({ label, file, onChange }: {
   const ref = useRef<HTMLInputElement>(null);
   return (
     <div
-      className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+      className="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg p-6 text-center cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition-colors"
       onClick={() => ref.current?.click()}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) onChange(f); }}
@@ -64,10 +64,10 @@ function FileDropZone({ label, file, onChange }: {
       <input ref={ref} type="file" accept=".xlsx,.xls" className="hidden"
         onChange={(e) => onChange(e.target.files?.[0] ?? null)} />
       <div className="text-3xl mb-2">{file ? '✅' : '📄'}</div>
-      <div className="text-sm font-medium text-gray-700">{label}</div>
+      <div className="text-sm font-medium text-gray-700 dark:text-slate-300">{label}</div>
       {file
         ? <div className="text-xs text-green-600 mt-1">{file.name}</div>
-        : <div className="text-xs text-gray-400 mt-1">Перетащите или кликните для выбора .xlsx</div>}
+        : <div className="text-xs text-gray-400 dark:text-slate-500 mt-1">Перетащите или кликните для выбора .xlsx</div>}
     </div>
   );
 }
@@ -84,13 +84,13 @@ function StepsBar({ current, activeSteps }: { current: Step; activeSteps: Step[]
         return (
           <div key={s} className="flex items-center shrink-0">
             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-              done ? 'bg-green-500 text-white' : active ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
+              done ? 'bg-green-500 text-white' : active ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400'
             }`}>{done ? '✓' : i + 1}</div>
-            <span className={`text-xs mx-2 whitespace-nowrap ${active ? 'text-blue-600 font-medium' : done ? 'text-green-600' : 'text-gray-400'}`}>
+            <span className={`text-xs mx-2 whitespace-nowrap ${active ? 'text-purple-600 font-medium' : done ? 'text-green-600' : 'text-gray-400 dark:text-slate-500'}`}>
               {STEP_LABELS[s]}
             </span>
             {i < activeSteps.length - 1 && (
-              <div className={`w-6 h-px mr-1 ${i < currentIdx ? 'bg-green-400' : 'bg-gray-200'}`} />
+              <div className={`w-6 h-px mr-1 ${i < currentIdx ? 'bg-green-400' : 'bg-gray-200 dark:bg-slate-700'}`} />
             )}
           </div>
         );
@@ -108,17 +108,17 @@ function ClassRow({ name, mapping, options, onChange }: {
   const isCreate = mapping === null;
   return (
     <div className="flex items-center gap-3 py-2.5 border-b last:border-0">
-      <span className="w-20 font-mono font-semibold text-gray-800 shrink-0">{name}</span>
+      <span className="w-20 font-mono font-semibold text-gray-800 dark:text-slate-200 shrink-0">{name}</span>
       <div className="flex items-center gap-4 flex-1 flex-wrap text-sm">
         <label className="flex items-center gap-1.5 cursor-pointer">
           <input type="radio" name={`cls_${name}`} checked={isCreate}
-            onChange={() => onChange(null)} className="accent-blue-600" />
-          <span className={isCreate ? 'text-blue-700 font-medium' : 'text-gray-500'}>Создать</span>
+            onChange={() => onChange(null)} className="accent-purple-600" />
+          <span className={isCreate ? 'text-purple-700 font-medium' : 'text-gray-500 dark:text-slate-400'}>Создать</span>
         </label>
         <label className="flex items-center gap-1.5 cursor-pointer">
           <input type="radio" name={`cls_${name}`} checked={!isCreate}
-            onChange={() => onChange(options[0]?.id ?? null)} className="accent-blue-600" />
-          <span className={!isCreate ? 'text-blue-700 font-medium' : 'text-gray-500'}>Связать с</span>
+            onChange={() => onChange(options[0]?.id ?? null)} className="accent-purple-600" />
+          <span className={!isCreate ? 'text-purple-700 font-medium' : 'text-gray-500 dark:text-slate-400'}>Связать с</span>
         </label>
         {!isCreate && (
           <select className="border rounded px-2 py-1 text-xs flex-1 min-w-32"
@@ -142,20 +142,20 @@ function RoomRow({ excelName, mapping, options, onChange }: {
   return (
     <div className="py-2.5 border-b last:border-0 space-y-2">
       <div className="flex items-center gap-3 flex-wrap text-sm">
-        <span className="w-40 text-gray-500 text-xs shrink-0 truncate" title={excelName}>
+        <span className="w-40 text-gray-500 dark:text-slate-400 text-xs shrink-0 truncate" title={excelName}>
           из файла: «{excelName}»
         </span>
         <label className="flex items-center gap-1.5 cursor-pointer">
           <input type="radio" name={`room_${excelName}`} checked={isCreate}
             onChange={() => onChange({ action: 'create', name: excelName })}
-            className="accent-blue-600" />
-          <span className={isCreate ? 'text-blue-700 font-medium' : 'text-gray-500'}>Создать</span>
+            className="accent-purple-600" />
+          <span className={isCreate ? 'text-purple-700 font-medium' : 'text-gray-500 dark:text-slate-400'}>Создать</span>
         </label>
         <label className="flex items-center gap-1.5 cursor-pointer">
           <input type="radio" name={`room_${excelName}`} checked={!isCreate}
             onChange={() => onChange({ action: 'link', id: options[0]?.id ?? 0 })}
-            className="accent-blue-600" />
-          <span className={!isCreate ? 'text-blue-700 font-medium' : 'text-gray-500'}>Связать с</span>
+            className="accent-purple-600" />
+          <span className={!isCreate ? 'text-purple-700 font-medium' : 'text-gray-500 dark:text-slate-400'}>Связать с</span>
         </label>
         {!isCreate && (
           <select className="border rounded px-2 py-1 text-xs flex-1 min-w-32"
@@ -167,7 +167,7 @@ function RoomRow({ excelName, mapping, options, onChange }: {
       </div>
       {isCreate && (
         <div className="flex items-center gap-2 ml-44">
-          <span className="text-xs text-gray-500 shrink-0">Название:</span>
+          <span className="text-xs text-gray-500 dark:text-slate-400 shrink-0">Название:</span>
           <input
             type="text"
             className="border rounded px-2 py-1 text-sm flex-1"
@@ -211,7 +211,7 @@ function TeacherRow({ teacher, mapping, dbTeachers, onChange }: {
     <div className="border rounded-lg p-3 space-y-3">
       {/* Header: excel name + action radios */}
       <div className="flex items-start gap-3 flex-wrap">
-        <span className="text-sm font-semibold text-gray-700 shrink-0 pt-0.5">
+        <span className="text-sm font-semibold text-gray-700 dark:text-slate-300 shrink-0 pt-0.5">
           «{teacher.name}»
         </span>
         <div className="flex gap-4 text-sm flex-wrap">
@@ -220,8 +220,8 @@ function TeacherRow({ teacher, mapping, dbTeachers, onChange }: {
               <input type="radio" name={`teacher_${teacher.name}`}
                 checked={mapping.action === action}
                 onChange={() => setAction(action)}
-                className="accent-blue-600" />
-              <span className={mapping.action === action ? 'text-blue-700 font-medium' : 'text-gray-500'}>
+                className="accent-purple-600" />
+              <span className={mapping.action === action ? 'text-purple-700 font-medium' : 'text-gray-500 dark:text-slate-400'}>
                 {action === 'create' ? 'Создать' : action === 'link' ? 'Связать с' : 'Пропустить'}
               </span>
             </label>
@@ -234,7 +234,7 @@ function TeacherRow({ teacher, mapping, dbTeachers, onChange }: {
         <div className="space-y-2 pl-2">
           {/* Order toggle */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">Порядок:</span>
+            <span className="text-xs text-gray-500 dark:text-slate-400">Порядок:</span>
             <div className="flex rounded overflow-hidden border text-xs">
               {(['last_first', 'first_last'] as const).map((order) => {
                 const c = mapping as TeacherCreate;
@@ -245,7 +245,7 @@ function TeacherRow({ teacher, mapping, dbTeachers, onChange }: {
                 const isActive = order === 'last_first' ? currentIsLastFirst : !currentIsLastFirst;
                 return (
                   <button key={order} type="button"
-                    className={`px-2.5 py-1 transition-colors ${isActive ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                    className={`px-2.5 py-1 transition-colors ${isActive ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
                     onClick={() => {
                       if (!isActive) toggleOrder();
                     }}>
@@ -258,13 +258,13 @@ function TeacherRow({ teacher, mapping, dbTeachers, onChange }: {
           {/* Name inputs */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-gray-500 block mb-0.5">Фамилия</label>
+              <label className="text-xs text-gray-500 dark:text-slate-400 block mb-0.5">Фамилия</label>
               <input type="text" className="border rounded px-2 py-1.5 text-sm w-full"
                 value={(mapping as TeacherCreate).last_name}
                 onChange={(e) => onChange({ ...(mapping as TeacherCreate), last_name: e.target.value })} />
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-0.5">Имя</label>
+              <label className="text-xs text-gray-500 dark:text-slate-400 block mb-0.5">Имя</label>
               <input type="text" className="border rounded px-2 py-1.5 text-sm w-full"
                 value={(mapping as TeacherCreate).first_name}
                 onChange={(e) => onChange({ ...(mapping as TeacherCreate), first_name: e.target.value })} />
@@ -401,12 +401,12 @@ export default function ScheduleImportModal({ onClose, onImported }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
-          <h2 className="text-lg font-semibold text-gray-900">Импорт расписания из Excel</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Импорт расписания из Excel</h2>
+          <button onClick={onClose} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 text-xl leading-none">✕</button>
         </div>
 
         {/* Steps */}
@@ -420,7 +420,7 @@ export default function ScheduleImportModal({ onClose, onImported }: {
           {/* ── UPLOAD ── */}
           {step === 'upload' && (
             <div className="space-y-4">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-slate-400">
                 Файл по классам обязателен. Файл по учителям нужен для привязки учителей к урокам.
               </p>
               <div className="grid grid-cols-2 gap-4">
@@ -433,7 +433,7 @@ export default function ScheduleImportModal({ onClose, onImported }: {
           {/* ── CLASSES ── */}
           {step === 'classes' && preview && (
             <div>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
                 Эти классы найдены в файле, но отсутствуют в системе. <strong>Создать</strong> — добавить в систему, <strong>Связать с</strong> — использовать существующий (если в файле опечатка).
               </p>
               {preview.missing_classes.map((name) => (
@@ -448,7 +448,7 @@ export default function ScheduleImportModal({ onClose, onImported }: {
           {/* ── TEACHERS ── */}
           {step === 'teachers' && preview && (
             <div>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
                 Эти учителя найдены в файле, но отсутствуют в системе. При создании отредактируйте имя и фамилию.
                 Учителя со звёздочкой ★ — похожи по фамилии.
               </p>
@@ -466,7 +466,7 @@ export default function ScheduleImportModal({ onClose, onImported }: {
           {/* ── ROOMS ── */}
           {step === 'rooms' && preview && (
             <div>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
                 Эти кабинеты найдены в файле, но отсутствуют в системе. При создании можно отредактировать название.
               </p>
               {preview.missing_rooms.map((name) => (
@@ -481,7 +481,7 @@ export default function ScheduleImportModal({ onClose, onImported }: {
           {/* ── CONFIRM ── */}
           {step === 'confirm' && preview && (
             <div className="space-y-5">
-              <div className="bg-blue-50 rounded-lg p-4 text-sm text-blue-900 space-y-1.5">
+              <div className="bg-purple-50 rounded-lg p-4 text-sm text-purple-900 space-y-1.5">
                 <div className="font-semibold text-base mb-2">Итог анализа</div>
                 <div className="flex justify-between"><span>Уроков в файле:</span><strong>{preview.stats.total_lessons}</strong></div>
                 <div className="flex justify-between"><span>С учителем:</span><strong>{preview.stats.with_teacher}</strong></div>
@@ -496,8 +496,8 @@ export default function ScheduleImportModal({ onClose, onImported }: {
                     onChange={(e) => setReplaceExisting(e.target.checked)}
                     className="w-4 h-4 mt-0.5 accent-red-600" />
                   <div>
-                    <div className="text-sm font-medium text-gray-800">Удалить существующее расписание и заменить импортированным</div>
-                    <div className="text-xs text-gray-500 mt-0.5">Если не отмечено — новые уроки добавятся к текущим</div>
+                    <div className="text-sm font-medium text-gray-800 dark:text-slate-200">Удалить существующее расписание и заменить импортированным</div>
+                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Если не отмечено — новые уроки добавятся к текущим</div>
                     {replaceExisting && <div className="text-xs text-red-600 mt-1 font-medium">⚠️ Все текущие уроки будут безвозвратно удалены</div>}
                   </div>
                 </label>
@@ -509,13 +509,13 @@ export default function ScheduleImportModal({ onClose, onImported }: {
           {step === 'done' && result && (
             <div className="space-y-4 py-4 text-center">
               <div className="text-5xl">🎉</div>
-              <h3 className="text-lg font-semibold text-gray-900">Импорт завершён!</h3>
-              <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm text-left max-w-xs mx-auto">
-                <div className="flex justify-between py-1 border-b"><span className="text-gray-600">Создано уроков:</span><span className="font-semibold text-green-700">{result.created}</span></div>
-                <div className="flex justify-between py-1 border-b"><span className="text-gray-600">Пропущено:</span><span className="font-semibold text-gray-700">{result.skipped}</span></div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Импорт завершён!</h3>
+              <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-4 space-y-2 text-sm text-left max-w-xs mx-auto">
+                <div className="flex justify-between py-1 border-b"><span className="text-gray-600 dark:text-slate-400">Создано уроков:</span><span className="font-semibold text-green-700">{result.created}</span></div>
+                <div className="flex justify-between py-1 border-b"><span className="text-gray-600 dark:text-slate-400">Пропущено:</span><span className="font-semibold text-gray-700 dark:text-slate-300">{result.skipped}</span></div>
                 {result.errors.length > 0 && (
                   <div className="py-1">
-                    <div className="flex justify-between"><span className="text-gray-600">Ошибок:</span><span className="font-semibold text-red-600">{result.errors.length}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-600 dark:text-slate-400">Ошибок:</span><span className="font-semibold text-red-600">{result.errors.length}</span></div>
                     <details className="mt-2"><summary className="text-xs text-red-500 cursor-pointer">Показать</summary>
                       <ul className="mt-1 text-xs text-red-700 space-y-0.5 bg-red-50 rounded p-2 max-h-28 overflow-y-auto">
                         {result.errors.map((e, i) => <li key={i}>• {e}</li>)}
@@ -533,29 +533,29 @@ export default function ScheduleImportModal({ onClose, onImported }: {
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-xl shrink-0">
+        <div className="flex justify-between gap-3 px-6 py-4 border-t bg-gray-50 dark:bg-slate-900 rounded-b-xl shrink-0">
           {step === 'done' ? (
-            <button onClick={onClose} className="ml-auto px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+            <button onClick={onClose} className="ml-auto px-5 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">
               Закрыть
             </button>
           ) : (
             <>
               <div className="flex gap-2">
-                <button onClick={onClose} disabled={loading} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50">Отмена</button>
+                <button onClick={onClose} disabled={loading} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-900 disabled:opacity-50">Отмена</button>
                 {step !== 'upload' && (
-                  <button onClick={prevStep} disabled={loading} className="px-4 py-2 text-sm border rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50">← Назад</button>
+                  <button onClick={prevStep} disabled={loading} className="px-4 py-2 text-sm border rounded-lg text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50">← Назад</button>
                 )}
               </div>
               <div>
                 {step === 'upload' && (
                   <button onClick={handleAnalyse} disabled={!classesFile || loading}
-                    className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                    className="px-5 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50">
                     {loading ? 'Анализирую...' : 'Проверить →'}
                   </button>
                 )}
                 {step !== 'upload' && step !== 'confirm' && step !== 'done' && (
                   <button onClick={nextStep} disabled={loading}
-                    className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                    className="px-5 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50">
                     Далее →
                   </button>
                 )}

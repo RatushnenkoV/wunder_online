@@ -156,7 +156,7 @@ export default function TasksPage() {
   const byStatus = (status: TaskStatus) => filteredTasks.filter(t => t.status === status);
 
   if (loading) {
-    return <div className="flex items-center justify-center py-24 text-gray-400">Загрузка...</div>;
+    return <div className="flex items-center justify-center py-24 text-gray-400 dark:text-slate-500">Загрузка...</div>;
   }
 
   return (
@@ -164,28 +164,28 @@ export default function TasksPage() {
       {/* Шапка */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-gray-900">Задачи</h1>
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Задачи</h1>
+          <div className="flex gap-1 bg-gray-100 dark:bg-slate-800 rounded-lg p-1">
             <button onClick={() => setActiveTab('tasks')}
               className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'tasks' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                activeTab === 'tasks' ? 'bg-white dark:bg-slate-800 shadow text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'
               }`}>
               Задачи
             </button>
             <button onClick={() => setActiveTab('done')}
               className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'done' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                activeTab === 'done' ? 'bg-white dark:bg-slate-800 shadow text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'
               }`}>
               Выполненные
               {tasks.filter(t => t.status === 'done').length > 0 && (
-                <span className="ml-1 text-xs text-gray-400">
+                <span className="ml-1 text-xs text-gray-400 dark:text-slate-500">
                   {tasks.filter(t => t.status === 'done').length}
                 </span>
               )}
             </button>
             <button onClick={() => setActiveTab('groups')}
               className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'groups' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                activeTab === 'groups' ? 'bg-white dark:bg-slate-800 shadow text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'
               }`}>
               {`Группы${groups.length > 0 ? ` (${groups.length})` : ''}`}
             </button>
@@ -193,7 +193,7 @@ export default function TasksPage() {
         </div>
         {activeTab === 'tasks' && isStaff && (
           <button onClick={() => setShowCreate(true)}
-            className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">
+            className="px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 transition-colors">
             + Создать задачу
           </button>
         )}
@@ -207,11 +207,11 @@ export default function TasksPage() {
       {/* Вкладка задач */}
       {activeTab === 'tasks' && (
         <>
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit mb-5">
+          <div className="flex gap-1 bg-gray-100 dark:bg-slate-800 rounded-lg p-1 w-fit mb-5">
             {(['all', 'mine', 'created'] as const).map(f => (
               <button key={f} onClick={() => setFilter(f)}
                 className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  filter === f ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                  filter === f ? 'bg-white dark:bg-slate-800 shadow text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'
                 }`}>
                 {f === 'all' ? 'Все' : f === 'mine' ? 'Мои' : 'Поставленные мной'}
               </button>
@@ -235,16 +235,16 @@ export default function TasksPage() {
                     isDragTarget ? col.colorDrag : `${col.colorBg} ${col.colorBorder} ${canAccept ? 'border-dashed' : ''}`
                   }`}>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-sm font-semibold text-gray-700">{col.label}</span>
+                    <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">{col.label}</span>
                     {colTasks.length > 0 && (
-                      <span className="text-xs bg-white rounded-full px-2 py-0.5 text-gray-500 font-medium border border-gray-200">
+                      <span className="text-xs bg-white dark:bg-slate-800 rounded-full px-2 py-0.5 text-gray-500 dark:text-slate-400 font-medium border border-gray-200 dark:border-slate-700">
                         {colTasks.length}
                       </span>
                     )}
                   </div>
                   <div className="space-y-2 min-h-[4rem]">
                     {colTasks.length === 0 && (
-                      <p className={`text-xs text-center py-6 ${isDragTarget ? 'text-blue-500' : 'text-gray-400'}`}>
+                      <p className={`text-xs text-center py-6 ${isDragTarget ? 'text-purple-500' : 'text-gray-400 dark:text-slate-500'}`}>
                         {isDragTarget ? 'Отпустите здесь' : 'Нет задач'}
                       </p>
                     )}
@@ -270,16 +270,16 @@ export default function TasksPage() {
               return (
                 <div className={`rounded-xl border p-3 ${DONE_COL.colorBg} ${DONE_COL.colorBorder}`}>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-sm font-semibold text-gray-700">{DONE_COL.label}</span>
+                    <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">{DONE_COL.label}</span>
                     {allDone.length > 0 && (
-                      <span className="text-xs bg-white rounded-full px-2 py-0.5 text-gray-500 font-medium border border-gray-200">
+                      <span className="text-xs bg-white dark:bg-slate-800 rounded-full px-2 py-0.5 text-gray-500 dark:text-slate-400 font-medium border border-gray-200 dark:border-slate-700">
                         {visibleDone.length}
                       </span>
                     )}
                   </div>
                   <div className="space-y-2 min-h-[4rem]">
                     {allDone.length === 0 && (
-                      <p className="text-xs text-center py-6 text-gray-400">Нет задач</p>
+                      <p className="text-xs text-center py-6 text-gray-400 dark:text-slate-500">Нет задач</p>
                     )}
                     {visibleDone.map(task => (
                       <TaskCard key={task.id} task={task}
@@ -294,7 +294,7 @@ export default function TasksPage() {
                     {hiddenCount > 0 && (
                       <div className="text-center pt-1">
                         <button onClick={showAllHidden}
-                          className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                          className="text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 transition-colors">
                           ещё {hiddenCount} скрыто — показать
                         </button>
                       </div>

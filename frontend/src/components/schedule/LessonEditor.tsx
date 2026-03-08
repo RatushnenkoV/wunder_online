@@ -95,11 +95,11 @@ export default function LessonEditor({
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-semibold mb-1">
           {lesson ? 'Редактировать урок' : 'Добавить урок'}
         </h3>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
           {WEEKDAY_NAMES[weekday]}, урок {lessonNumber}
         </p>
 
@@ -107,7 +107,7 @@ export default function LessonEditor({
           {/* Class selector — only for new lessons in teacher/room view */}
           {needsClassSelection && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Класс *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Класс *</label>
               <select
                 value={selectedClassId}
                 onChange={e => e.target.value && handleClassChange(Number(e.target.value))}
@@ -122,7 +122,7 @@ export default function LessonEditor({
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Предмет *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Предмет *</label>
             <select
               value={subjectName}
               onChange={e => setSubjectName(e.target.value)}
@@ -143,7 +143,7 @@ export default function LessonEditor({
 
           {classGroups.length >= 2 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Группа</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Группа</label>
               <select
                 value={groupId}
                 onChange={e => setGroupId(e.target.value ? Number(e.target.value) : '')}
@@ -159,11 +159,11 @@ export default function LessonEditor({
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-sm font-medium text-gray-700">Учитель</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Учитель</label>
               <button
                 type="button"
                 onClick={() => setShowAllTeachers(!showAllTeachers)}
-                className="text-xs text-blue-600 hover:text-blue-800"
+                className="text-xs text-purple-600 hover:text-purple-800"
               >
                 {showAllTeachers ? 'Только свободные' : 'Показать всех'}
               </button>
@@ -188,11 +188,11 @@ export default function LessonEditor({
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-sm font-medium text-gray-700">Кабинет</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Кабинет</label>
               <button
                 type="button"
                 onClick={() => setShowAllRooms(!showAllRooms)}
-                className="text-xs text-blue-600 hover:text-blue-800"
+                className="text-xs text-purple-600 hover:text-purple-800"
               >
                 {showAllRooms ? 'Только свободные' : 'Показать все'}
               </button>
@@ -225,13 +225,13 @@ export default function LessonEditor({
             )}
           </div>
           <div className="flex gap-2">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800">
               Отмена
             </button>
             <button
               onClick={handleSubmit}
               disabled={!subjectName || !effectiveClassId}
-              className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 disabled:opacity-50"
             >
               Сохранить
             </button>

@@ -60,13 +60,13 @@ function RestrictionModal({ student, onClose }: { student: ChatUser; onClose: ()
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 flex flex-col gap-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-5 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-gray-800 text-sm">Ограничения в чате</h3>
-            <p className="text-xs text-gray-500 mt-0.5">{displayName}</p>
+            <h3 className="font-semibold text-gray-800 dark:text-slate-200 text-sm">Ограничения в чате</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{displayName}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="text-gray-400 dark:text-slate-500 hover:text-gray-600">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -74,12 +74,12 @@ function RestrictionModal({ student, onClose }: { student: ChatUser; onClose: ()
         </div>
 
         {loading ? (
-          <div className="text-center py-6 text-gray-400 text-sm">Загрузка...</div>
+          <div className="text-center py-6 text-gray-400 dark:text-slate-500 text-sm">Загрузка...</div>
         ) : (
           <>
             {/* Cooldown */}
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">
+              <label className="text-xs font-medium text-gray-600 dark:text-slate-400 block mb-1">
                 Пауза между сообщениями (сек)
               </label>
               <div className="flex items-center gap-2">
@@ -88,15 +88,15 @@ function RestrictionModal({ student, onClose }: { student: ChatUser; onClose: ()
                   min={0}
                   value={restriction.message_cooldown}
                   onChange={(e) => setRestriction((r) => ({ ...r, message_cooldown: Math.max(0, +e.target.value) }))}
-                  className="w-24 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-24 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
                 />
-                <span className="text-xs text-gray-400">0 — без ограничений</span>
+                <span className="text-xs text-gray-400 dark:text-slate-500">0 — без ограничений</span>
               </div>
             </div>
 
             {/* Мьют */}
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">
+              <label className="text-xs font-medium text-gray-600 dark:text-slate-400 block mb-1">
                 Мьют на (минут)
               </label>
               <div className="flex items-center gap-2">
@@ -106,9 +106,9 @@ function RestrictionModal({ student, onClose }: { student: ChatUser; onClose: ()
                   value={muteMinutes}
                   onChange={(e) => setMuteMinutes(e.target.value)}
                   placeholder="0"
-                  className="w-24 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-24 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
                 />
-                <span className="text-xs text-gray-400">0 — снять мьют</span>
+                <span className="text-xs text-gray-400 dark:text-slate-500">0 — снять мьют</span>
               </div>
               {isMuted && (
                 <p className="text-xs text-orange-500 mt-1">
@@ -125,25 +125,25 @@ function RestrictionModal({ student, onClose }: { student: ChatUser; onClose: ()
                 { key: 'no_polls' as const, label: 'Запрет опросов' },
               ] as const).map(({ key, label }) => (
                 <label key={key} className="flex items-center justify-between cursor-pointer">
-                  <span className="text-sm text-gray-700">{label}</span>
+                  <span className="text-sm text-gray-700 dark:text-slate-300">{label}</span>
                   <div
                     onClick={() => setRestriction((r) => ({ ...r, [key]: !r[key] }))}
-                    className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${restriction[key] ? 'bg-red-500' : 'bg-gray-200'}`}
+                    className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${restriction[key] ? 'bg-red-500' : 'bg-gray-200 dark:bg-slate-700'}`}
                   >
-                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${restriction[key] ? 'left-[22px]' : 'left-0.5'}`} />
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white dark:bg-slate-800 rounded-full shadow transition-all ${restriction[key] ? 'left-[22px]' : 'left-0.5'}`} />
                   </div>
                 </label>
               ))}
             </div>
 
             <div className="flex gap-2 justify-end mt-1">
-              <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">
+              <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl">
                 Отмена
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-4 py-2 text-sm bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-40"
+                className="px-4 py-2 text-sm bg-purple-500 text-white rounded-xl hover:bg-purple-600 disabled:opacity-40"
               >
                 {saving ? 'Сохранение...' : 'Сохранить'}
               </button>
@@ -217,10 +217,10 @@ export default function ChatMembersPanel({ room, onClose, onUpdated }: Props) {
         <div className="flex-1 bg-black/30" onClick={onClose} />
 
         {/* Панель */}
-        <div className="w-72 bg-white h-full shadow-2xl flex flex-col">
+        <div className="w-72 bg-white dark:bg-slate-800 h-full shadow-2xl flex flex-col">
           <div className="px-4 py-4 flex items-center justify-between" style={{ boxShadow: '0 1px 0 #f0f0f0' }}>
-            <h3 className="font-semibold text-gray-800">Участники ({room.members_count})</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <h3 className="font-semibold text-gray-800 dark:text-slate-200">Участники ({room.members_count})</h3>
+            <button onClick={onClose} className="text-gray-400 dark:text-slate-500 hover:text-gray-600">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -235,18 +235,18 @@ export default function ChatMembersPanel({ room, onClose, onUpdated }: Props) {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Добавить участника..."
-                className="w-full bg-gray-50 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full bg-gray-50 dark:bg-slate-900 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
               />
               {candidates.length > 0 && (
-                <div className="mt-1 bg-gray-50 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                <div className="mt-1 bg-gray-50 dark:bg-slate-900 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
                   {candidates.filter((c) => !existingIds.has(c.id)).map((c) => (
                     <button
                       key={c.id}
                       onClick={() => addMember(c.id)}
                       disabled={loading}
-                      className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm flex items-center gap-2"
+                      className="w-full text-left px-3 py-2 hover:bg-purple-50 text-sm flex items-center gap-2"
                     >
-                      <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
+                      <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-700 flex-shrink-0">
                         {c.last_name[0]}{c.first_name[0]}
                       </div>
                       <span>{c.last_name} {c.first_name}</span>
@@ -260,23 +260,23 @@ export default function ChatMembersPanel({ room, onClose, onUpdated }: Props) {
           {/* Список участников */}
           <div className="flex-1 overflow-y-auto">
             {room.members.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 group">
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-700 flex-shrink-0">
+              <div key={m.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-slate-800 group">
+                <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-sm font-bold text-purple-700 flex-shrink-0">
                   {m.user.last_name[0]}{m.user.first_name[0]}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">
+                  <p className="text-sm font-medium text-gray-800 dark:text-slate-200 truncate">
                     {m.user.last_name} {m.user.first_name}
                   </p>
-                  {m.role === 'admin' && <p className="text-xs text-blue-500">Администратор</p>}
-                  {m.user.is_student && <p className="text-xs text-gray-400">Ученик</p>}
+                  {m.role === 'admin' && <p className="text-xs text-purple-500">Администратор</p>}
+                  {m.user.is_student && <p className="text-xs text-gray-400 dark:text-slate-500">Ученик</p>}
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                   {/* Ограничения — для взрослых, только для учеников */}
                   {isAdult && m.user.is_student && m.user.id !== user?.id && (
                     <button
                       onClick={() => setRestrictionTarget(m.user)}
-                      className="text-gray-300 hover:text-orange-500 transition-colors"
+                      className="text-gray-300 dark:text-slate-600 hover:text-orange-500 transition-colors"
                       title="Ограничения в чате"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -289,7 +289,7 @@ export default function ChatMembersPanel({ room, onClose, onUpdated }: Props) {
                   {isRoomAdmin && m.user.id !== user?.id && (
                     <button
                       onClick={() => removeMember(m.user.id)}
-                      className="text-gray-300 hover:text-red-500 transition-colors"
+                      className="text-gray-300 dark:text-slate-600 hover:text-red-500 transition-colors"
                       title="Удалить"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

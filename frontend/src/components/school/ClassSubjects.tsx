@@ -76,16 +76,16 @@ export default function ClassSubjects({ classId }: Props) {
   return (
     <div>
       <div className="flex justify-end mb-4">
-        <button onClick={openCreate} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+        <button onClick={openCreate} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm">
           + Добавить предмет
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-slate-900">
             <tr>
-              <th className="px-4 py-2 text-left font-medium text-gray-600">Название</th>
+              <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-400">Название</th>
               <th className="w-10"></th>
             </tr>
           </thead>
@@ -93,21 +93,21 @@ export default function ClassSubjects({ classId }: Props) {
             {subjects.map(s => (
               <tr
                 key={s.id}
-                className="hover:bg-gray-50"
+                className="hover:bg-gray-50 dark:hover:bg-slate-800"
                 onContextMenu={e => { e.preventDefault(); setCtxMenu({ subject: s, x: e.clientX, y: e.clientY }); }}
               >
                 <td className="px-4 py-2">{s.name}</td>
                 <td className="px-2 py-2 text-center">
                   <button
                     onClick={e => { e.stopPropagation(); setCtxMenu({ subject: s, x: e.clientX, y: e.clientY }); }}
-                    className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
+                    className="text-gray-400 dark:text-slate-500 hover:text-gray-600 p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
                   >&#8942;</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {subjects.length === 0 && <p className="text-center text-gray-400 py-8">Предметы не добавлены</p>}
+        {subjects.length === 0 && <p className="text-center text-gray-400 dark:text-slate-500 py-8">Предметы не добавлены</p>}
       </div>
 
       {ctxMenu && (
@@ -117,7 +117,7 @@ export default function ClassSubjects({ classId }: Props) {
       {/* Batch Create Modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowCreate(false)}>
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-md max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Добавление предметов</h3>
             <div className="overflow-auto flex-1 space-y-1">
               {rows.map((row, idx) => (
@@ -137,10 +137,10 @@ export default function ClassSubjects({ classId }: Props) {
               ))}
             </div>
             <div className="flex justify-between items-center mt-4 pt-4 border-t">
-              <button onClick={() => setRows(r => [...r, ''])} className="text-blue-600 hover:text-blue-800 text-sm">+ Ещё строка</button>
+              <button onClick={() => setRows(r => [...r, ''])} className="text-purple-600 hover:text-purple-800 text-sm">+ Ещё строка</button>
               <div className="flex gap-2">
-                <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Отмена</button>
-                <button onClick={handleCreate} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Создать</button>
+                <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800">Отмена</button>
+                <button onClick={handleCreate} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">Создать</button>
               </div>
             </div>
           </div>
@@ -150,10 +150,10 @@ export default function ClassSubjects({ classId }: Props) {
       {/* Edit Modal */}
       {editSubject && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setEditSubject(null)}>
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Редактирование предмета</h3>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Название *</label>
+              <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Название *</label>
               <input
                 value={editName}
                 onChange={e => setEditName(e.target.value)}
@@ -162,8 +162,8 @@ export default function ClassSubjects({ classId }: Props) {
               />
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setEditSubject(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Отмена</button>
-              <button onClick={handleEdit} disabled={!editName.trim()} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+              <button onClick={() => setEditSubject(null)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800">Отмена</button>
+              <button onClick={handleEdit} disabled={!editName.trim()} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700 disabled:opacity-50">
                 Сохранить
               </button>
             </div>

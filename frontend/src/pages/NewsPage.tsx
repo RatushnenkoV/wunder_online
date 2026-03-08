@@ -82,7 +82,7 @@ function Btn({
       title={title}
       onMouseDown={e => { e.preventDefault(); onClick(); }}
       className={`px-2 py-1 rounded text-sm transition-colors ${
-        active ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
+        active ? 'bg-purple-600 text-white' : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
       }`}
     >
       {children}
@@ -175,11 +175,11 @@ function NewsEditor({
   };
 
   return (
-    <div className="border-b border-gray-200">
+    <div className="border-b border-gray-200 dark:border-slate-700">
       {/* Row 1: font + text decoration */}
-      <div className="flex flex-wrap items-center gap-0.5 px-3 py-2 border-b border-gray-100">
+      <div className="flex flex-wrap items-center gap-0.5 px-3 py-2 border-b border-gray-100 dark:border-slate-700">
         <select
-          className="text-sm border border-gray-200 rounded px-1 py-0.5 mr-1"
+          className="text-sm border border-gray-200 dark:border-slate-700 rounded px-1 py-0.5 mr-1"
           value={currentFamily}
           onChange={e => {
             if (e.target.value) editor.chain().focus().setFontFamily(e.target.value).run();
@@ -190,7 +190,7 @@ function NewsEditor({
         </select>
 
         <select
-          className="text-sm border border-gray-200 rounded px-1 py-0.5 mr-2"
+          className="text-sm border border-gray-200 dark:border-slate-700 rounded px-1 py-0.5 mr-2"
           value={currentSize}
           onChange={e => editor.chain().focus().setFontSize(`${e.target.value}px`).run()}
         >
@@ -208,22 +208,22 @@ function NewsEditor({
             type="button"
             title="Цвет текста"
             onMouseDown={e => { e.preventDefault(); setShowColorPicker(v => !v); }}
-            className="flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100 text-sm text-gray-700"
+            className="flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-sm text-gray-700 dark:text-slate-300"
           >
             <span className="font-bold" style={{ color: editor.getAttributes('textStyle').color || '#000' }}>A</span>
-            <svg className="w-3 h-3 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+            <svg className="w-3 h-3 text-gray-400 dark:text-slate-500" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
             </svg>
           </button>
           {showColorPicker && (
-            <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+            <div className="absolute top-full left-0 mt-1 z-50 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg p-3">
               <div className="grid grid-cols-5 gap-1.5">
                 {COLORS.map(c => (
                   <button
                     key={c}
                     type="button"
                     onMouseDown={e => { e.preventDefault(); editor.chain().focus().setColor(c).run(); setShowColorPicker(false); }}
-                    className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform"
+                    className="w-6 h-6 rounded border border-gray-300 dark:border-slate-600 hover:scale-110 transition-transform"
                     style={{ backgroundColor: c }}
                     title={c}
                   />
@@ -232,7 +232,7 @@ function NewsEditor({
               <button
                 type="button"
                 onMouseDown={e => { e.preventDefault(); editor.chain().focus().unsetColor().run(); setShowColorPicker(false); }}
-                className="mt-2 text-xs text-gray-500 hover:text-gray-700 w-full text-center"
+                className="mt-2 text-xs text-gray-500 dark:text-slate-400 hover:text-gray-700 w-full text-center"
               >
                 Сбросить цвет
               </button>
@@ -250,14 +250,14 @@ function NewsEditor({
           <IconOrderedList />
         </Btn>
 
-        <div className="w-px h-5 bg-gray-200 mx-1" />
+        <div className="w-px h-5 bg-gray-200 dark:bg-slate-700 mx-1" />
 
         {/* Image upload */}
         <button
           type="button"
           title="Вставить изображение"
           onMouseDown={e => { e.preventDefault(); imageInputRef.current?.click(); }}
-          className="flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100 text-sm text-gray-700"
+          className="flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-sm text-gray-700 dark:text-slate-300"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -279,13 +279,13 @@ function NewsEditor({
         {/* Image controls — visible when image is selected */}
         {isImageSelected && (
           <>
-            <div className="w-px h-5 bg-gray-200 mx-1" />
-            <span className="text-xs text-gray-500">Обтекание:</span>
+            <div className="w-px h-5 bg-gray-200 dark:bg-slate-700 mx-1" />
+            <span className="text-xs text-gray-500 dark:text-slate-400">Обтекание:</span>
             <button
               type="button"
               title="Текст справа от картинки"
               onMouseDown={e => { e.preventDefault(); setImageFloat('float: left; margin: 0 16px 8px 0'); }}
-              className="px-2 py-1 rounded hover:bg-gray-100 text-xs text-gray-700 font-medium"
+              className="px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-xs text-gray-700 dark:text-slate-300 font-medium"
             >
               ◧ Слева
             </button>
@@ -293,7 +293,7 @@ function NewsEditor({
               type="button"
               title="Текст слева от картинки"
               onMouseDown={e => { e.preventDefault(); setImageFloat('float: right; margin: 0 0 8px 16px'); }}
-              className="px-2 py-1 rounded hover:bg-gray-100 text-xs text-gray-700 font-medium"
+              className="px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-xs text-gray-700 dark:text-slate-300 font-medium"
             >
               ◨ Справа
             </button>
@@ -301,20 +301,20 @@ function NewsEditor({
               type="button"
               title="По центру без обтекания"
               onMouseDown={e => { e.preventDefault(); setImageFloat('display: block; margin: 8px auto'); }}
-              className="px-2 py-1 rounded hover:bg-gray-100 text-xs text-gray-700 font-medium"
+              className="px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-xs text-gray-700 dark:text-slate-300 font-medium"
             >
               ▣ Центр
             </button>
 
-            <div className="w-px h-5 bg-gray-200 mx-1" />
-            <span className="text-xs text-gray-500">Ширина:</span>
+            <div className="w-px h-5 bg-gray-200 dark:bg-slate-700 mx-1" />
+            <span className="text-xs text-gray-500 dark:text-slate-400">Ширина:</span>
             <input
               key={imgSrc}
               type="text"
               defaultValue={currentWidth}
               placeholder="авто"
               title="Ширина: 300px, 50%, 100% …"
-              className="w-20 text-xs border border-gray-200 rounded px-1.5 py-0.5 text-gray-700 focus:outline-none focus:border-blue-400"
+              className="w-20 text-xs border border-gray-200 dark:border-slate-700 rounded px-1.5 py-0.5 text-gray-700 dark:text-slate-300 focus:outline-none focus:border-purple-400"
               onKeyDown={e => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -326,7 +326,7 @@ function NewsEditor({
           </>
         )}
 
-        <div className="w-px h-5 bg-gray-200 mx-1" />
+        <div className="w-px h-5 bg-gray-200 dark:bg-slate-700 mx-1" />
 
         {/* Emoji */}
         <div ref={emojiRef} className="relative">
@@ -334,7 +334,7 @@ function NewsEditor({
             type="button"
             title="Вставить эмодзи"
             onMouseDown={e => { e.preventDefault(); setShowEmojiPicker(v => !v); }}
-            className="px-2 py-1 rounded hover:bg-gray-100 text-sm text-gray-700"
+            className="px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-sm text-gray-700 dark:text-slate-300"
           >
             😊 Эмодзи
           </button>
@@ -368,7 +368,7 @@ function AudienceBadge({ forStaff, forParents }: { forStaff: boolean; forParents
   return (
     <div className="flex gap-1.5 flex-wrap">
       {forStaff && (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
           Сотрудники
         </span>
       )}
@@ -448,13 +448,13 @@ function EditorModal({ initial, onClose, onSaved }: EditorModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl flex flex-col w-full max-w-4xl" style={{ maxHeight: '90vh' }}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col w-full max-w-4xl" style={{ maxHeight: '90vh' }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
             {initial ? 'Редактировать новость' : 'Новая новость'}
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-400 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -462,13 +462,13 @@ function EditorModal({ initial, onClose, onSaved }: EditorModalProps) {
         </div>
 
         {/* Title input */}
-        <div className="px-6 py-3 border-b border-gray-100">
+        <div className="px-6 py-3 border-b border-gray-100 dark:border-slate-700">
           <input
             type="text"
             placeholder="Заголовок новости"
             value={title}
             onChange={e => setTitle(e.target.value)}
-            className="w-full text-xl font-semibold text-gray-900 placeholder-gray-300 outline-none"
+            className="w-full text-xl font-semibold text-gray-900 dark:text-slate-100 placeholder-gray-300 outline-none"
           />
         </div>
 
@@ -484,27 +484,27 @@ function EditorModal({ initial, onClose, onSaved }: EditorModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex flex-wrap items-center justify-between gap-4">
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Аудитория:</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Аудитория:</p>
             <div className="flex gap-4">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={forStaff}
                   onChange={e => setForStaff(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm text-gray-700">Сотрудники</span>
+                <span className="text-sm text-gray-700 dark:text-slate-300">Сотрудники</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={forParents}
                   onChange={e => setForParents(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                  className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-green-600 focus:ring-green-500"
                 />
-                <span className="text-sm text-gray-700">Ученики и родители</span>
+                <span className="text-sm text-gray-700 dark:text-slate-300">Ученики и родители</span>
               </label>
             </div>
             {!canPublish && (
@@ -514,20 +514,20 @@ function EditorModal({ initial, onClose, onSaved }: EditorModalProps) {
 
           <div className="flex items-center gap-3">
             {error && <span className="text-sm text-red-600">{error}</span>}
-            <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+            <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
               Отмена
             </button>
             <button
               onClick={() => save(false)}
               disabled={saving}
-              className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
             >
               {saving && !publishing ? 'Сохраняю...' : 'Сохранить черновик'}
             </button>
             <button
               onClick={() => save(true)}
               disabled={saving || !canPublish}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
             >
               {publishing ? 'Публикую...' : (initial?.is_published ? 'Обновить' : 'Опубликовать')}
             </button>
@@ -613,11 +613,11 @@ export default function NewsPage() {
     <div className="max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Новости</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Новости</h1>
         {isAdmin && (
           <button
             onClick={() => { setEditingPost(null); setShowEditor(true); }}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -629,13 +629,13 @@ export default function NewsPage() {
 
       {/* Feed */}
       {loading ? (
-        <div className="text-center py-16 text-gray-400">Загрузка...</div>
+        <div className="text-center py-16 text-gray-400 dark:text-slate-500">Загрузка...</div>
       ) : posts.length === 0 ? (
         <div className="text-center py-16">
-          <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <svg className="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l6 6v10a2 2 0 01-2 2z" />
           </svg>
-          <p className="text-gray-400 text-sm">Новостей пока нет</p>
+          <p className="text-gray-400 dark:text-slate-500 text-sm">Новостей пока нет</p>
         </div>
       ) : (
         <>
@@ -645,8 +645,8 @@ export default function NewsPage() {
               return (
                 <article
                   key={post.id}
-                  className={`bg-white rounded-xl border shadow-sm ${
-                    isDraft ? 'border-dashed border-gray-300' : 'border-gray-200'
+                  className={`bg-white dark:bg-slate-800 rounded-xl border shadow-sm ${
+                    isDraft ? 'border-dashed border-gray-300 dark:border-slate-600' : 'border-gray-200 dark:border-slate-700'
                   }`}
                 >
                   {/* Card header */}
@@ -654,17 +654,17 @@ export default function NewsPage() {
                     <div className="flex items-start gap-3 justify-between mb-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         {isDraft && isAdmin && (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400">
                             Черновик
                           </span>
                         )}
                         <AudienceBadge forStaff={post.for_staff} forParents={post.for_parents} />
                       </div>
                     </div>
-                    <h2 className="text-lg font-semibold text-gray-900 leading-snug mb-1">
-                      {post.title || <span className="text-gray-400 italic">Без заголовка</span>}
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 leading-snug mb-1">
+                      {post.title || <span className="text-gray-400 dark:text-slate-500 italic">Без заголовка</span>}
                     </h2>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-gray-400 dark:text-slate-500">
                       {post.author_name} · {formatDate(post.created_at)}
                     </p>
                   </div>
@@ -672,7 +672,7 @@ export default function NewsPage() {
                   {/* Content — always expanded */}
                   <div className="px-5 pb-4">
                     <div
-                      className="prose prose-sm max-w-none text-gray-700"
+                      className="prose prose-sm max-w-none text-gray-700 dark:text-slate-300"
                       // eslint-disable-next-line react/no-danger
                       dangerouslySetInnerHTML={{ __html: post.content }}
                     />
@@ -681,10 +681,10 @@ export default function NewsPage() {
 
                     {/* Admin controls */}
                     {isAdmin && (
-                      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-slate-700">
                         <button
                           onClick={() => { setEditingPost(post); setShowEditor(true); }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -725,7 +725,7 @@ export default function NewsPage() {
               <button
                 onClick={() => load(posts.length)}
                 disabled={loadingMore}
-                className="px-6 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
               >
                 {loadingMore ? 'Загружаю...' : `Загрузить ещё (осталось ${total - posts.length})`}
               </button>

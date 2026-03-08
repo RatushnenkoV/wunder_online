@@ -4,10 +4,10 @@ export default function BgColorButton({ bg, onChange }: { bg: string; onChange: 
   const inputRef = useRef<HTMLInputElement>(null);
   const isDefault = bg === '#ffffff';
   return (
-    <div className="flex items-center gap-1.5 pl-2 border-l border-gray-200" title="Фон слайда">
-      <span className="text-xs text-gray-400 select-none">Фон</span>
+    <div className="flex items-center gap-1.5 pl-2 border-l border-gray-200 dark:border-slate-700" title="Фон слайда">
+      <span className="text-xs text-gray-400 dark:text-slate-500 select-none">Фон</span>
       <div
-        className="w-6 h-6 rounded border border-gray-300 cursor-pointer flex-shrink-0"
+        className="w-6 h-6 rounded border border-gray-300 dark:border-slate-600 cursor-pointer flex-shrink-0"
         style={{ backgroundColor: bg }}
         onClick={() => inputRef.current?.click()}
         title="Цвет фона слайда"
@@ -22,7 +22,7 @@ export default function BgColorButton({ bg, onChange }: { bg: string; onChange: 
       {!isDefault && (
         <button
           onClick={() => onChange('#ffffff')}
-          className="w-5 h-5 rounded border border-gray-200 text-gray-400 hover:bg-gray-50 text-[11px] flex items-center justify-center"
+          className="w-5 h-5 rounded border border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-500 hover:bg-gray-50 dark:hover:bg-slate-800 text-[11px] flex items-center justify-center"
           title="Сбросить фон"
         >∅</button>
       )}

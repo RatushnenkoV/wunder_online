@@ -12,7 +12,7 @@ export function linkify(text: string) {
           target="_blank"
           rel="noopener noreferrer"
           onClick={e => e.stopPropagation()}
-          className="text-blue-600 hover:underline break-all"
+          className="text-purple-600 hover:underline break-all"
         >
           {part}
         </a>

@@ -30,7 +30,7 @@ export default function CuratorReportPage() {
       <div className="flex items-start gap-4 mb-6">
         <button
           onClick={goBack}
-          className="mt-1 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors shrink-0"
+          className="mt-1 flex items-center gap-1.5 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-800 transition-colors shrink-0"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -38,8 +38,8 @@ export default function CuratorReportPage() {
           Назад
         </button>
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">{studentName || '...'}</h1>
-          {academicYear && <p className="text-sm text-gray-500 mt-0.5">{academicYear} учебный год</p>}
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-slate-100">{studentName || '...'}</h1>
+          {academicYear && <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{academicYear} учебный год</p>}
         </div>
       </div>
 

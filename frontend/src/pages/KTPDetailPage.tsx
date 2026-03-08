@@ -334,21 +334,21 @@ export default function KTPDetailPage() {
     return items;
   };
 
-  if (!ctp) return <p className="text-center text-gray-400 py-8">Загрузка...</p>;
+  if (!ctp) return <p className="text-center text-gray-400 dark:text-slate-500 py-8">Загрузка...</p>;
 
   return (
     <div>
       <div className="flex justify-between items-start mb-6">
         <div>
           <h1 className="text-2xl font-bold">{ctp.subject_name}</h1>
-          <p className="text-gray-500">
+          <p className="text-gray-500 dark:text-slate-400">
             {ctp.class_name} | Учитель: {ctp.teacher_name}
             {!ctp.is_public && <span className="ml-2 bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded">Скрытый</span>}
           </p>
         </div>
         <div className="flex gap-2">
           {canClone && (
-            <button onClick={() => { setShowCopy(true); api.get('/school/classes/').then(r => setClasses(r.data)); }} className="bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm hover:bg-gray-300">
+            <button onClick={() => { setShowCopy(true); api.get('/school/classes/').then(r => setClasses(r.data)); }} className="bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 px-3 py-2 rounded text-sm hover:bg-gray-300">
               Клонировать
             </button>
           )}
@@ -361,24 +361,24 @@ export default function KTPDetailPage() {
       </div>
 
       {message && (
-        <div className="bg-blue-50 text-blue-700 p-3 rounded mb-4 text-sm flex justify-between">
+        <div className="bg-purple-50 text-purple-700 p-3 rounded mb-4 text-sm flex justify-between">
           {message}
-          <button onClick={() => setMessage('')} className="text-blue-400">x</button>
+          <button onClick={() => setMessage('')} className="text-purple-400">x</button>
         </div>
       )}
 
       {/* Copy dialog */}
       {showCopy && (
-        <div className="bg-white p-4 rounded-lg shadow mb-4 flex gap-4 items-end">
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow mb-4 flex gap-4 items-end">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Клонировать в класс</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Клонировать в класс</label>
             <select value={copyClassId} onChange={e => setCopyClassId(parseInt(e.target.value))} className="border rounded px-3 py-2 text-sm">
               <option value={0}>Выберите класс</option>
               {classes.map(c => <option key={c.id} value={c.id}>{c.display_name}</option>)}
             </select>
           </div>
-          <button onClick={handleCopy} disabled={!copyClassId} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">Клонировать</button>
-          <button onClick={() => setShowCopy(false)} className="text-gray-400 hover:text-gray-600 text-sm">Отмена</button>
+          <button onClick={handleCopy} disabled={!copyClassId} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700 disabled:opacity-50">Клонировать</button>
+          <button onClick={() => setShowCopy(false)} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 text-sm">Отмена</button>
         </div>
       )}
 
@@ -387,9 +387,9 @@ export default function KTPDetailPage() {
         <div className="flex gap-2 mb-4 flex-wrap">
           <form onSubmit={handleAddTopic} className="flex gap-2 flex-1">
             <input placeholder="Новая тема..." value={newTitle} onChange={e => setNewTitle(e.target.value)} className="border rounded px-3 py-2 text-sm flex-1" />
-            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">+</button>
+            <button type="submit" className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">+</button>
           </form>
-          <button onClick={() => setShowBulk(!showBulk)} className="bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm hover:bg-gray-300">Пакетно</button>
+          <button onClick={() => setShowBulk(!showBulk)} className="bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 px-3 py-2 rounded text-sm hover:bg-gray-300">Пакетно</button>
           <label className="bg-green-600 text-white px-3 py-2 rounded text-sm cursor-pointer hover:bg-green-700">
             Импорт
             <input type="file" accept=".csv,.xlsx" className="hidden" onChange={e => { setImportFile(e.target.files?.[0] || null); }} />
@@ -398,7 +398,7 @@ export default function KTPDetailPage() {
           <button onClick={() => openAutofill()} className="bg-purple-600 text-white px-3 py-2 rounded text-sm hover:bg-purple-700">Распределить даты</button>
           {selected.size > 0 && (
             <>
-              <button onClick={() => handleDuplicate()} className="bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm">Дублировать ({selected.size})</button>
+              <button onClick={() => handleDuplicate()} className="bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 px-3 py-2 rounded text-sm">Дублировать ({selected.size})</button>
               <button onClick={() => handleBulkDelete()} className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm">Удалить ({selected.size})</button>
             </>
           )}
@@ -407,10 +407,10 @@ export default function KTPDetailPage() {
 
       {/* Bulk create */}
       {showBulk && canEdit && (
-        <div className="bg-white p-4 rounded-lg shadow mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Каждая строка — отдельная тема</label>
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow mb-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Каждая строка — отдельная тема</label>
           <textarea value={bulkTitles} onChange={e => setBulkTitles(e.target.value)} rows={6} className="w-full border rounded px-3 py-2 text-sm mb-2" placeholder={"Тема 1\nТема 2\nТема 3"} />
-          <button onClick={handleBulkCreate} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Добавить все</button>
+          <button onClick={handleBulkCreate} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">Добавить все</button>
         </div>
       )}
 
@@ -418,7 +418,7 @@ export default function KTPDetailPage() {
       {scheduleInfo && (
         <div className="flex items-center gap-4 mb-4 text-sm">
           <div className="flex items-center gap-2">
-            <span className="text-gray-500">Тем создано:</span>
+            <span className="text-gray-500 dark:text-slate-400">Тем создано:</span>
             <span className={`font-semibold ${
               scheduleInfo.required_count > 0 && ctp.topics.length >= scheduleInfo.required_count
                 ? 'text-green-600'
@@ -428,12 +428,12 @@ export default function KTPDetailPage() {
             }`}>
               {ctp.topics.length}
               {scheduleInfo.required_count > 0 && (
-                <span className="text-gray-400 font-normal"> / {scheduleInfo.required_count}</span>
+                <span className="text-gray-400 dark:text-slate-500 font-normal"> / {scheduleInfo.required_count}</span>
               )}
             </span>
           </div>
           {scheduleInfo.has_schedule && (
-            <div className="text-gray-400">
+            <div className="text-gray-400 dark:text-slate-500">
               В неделю: {scheduleInfo.total_per_week} ур.
               ({scheduleInfo.schedule.map(s => `${s.weekday_name} ${s.lessons_count > 1 ? `×${s.lessons_count}` : ''}`).join(', ').replace(/ ,/g, ',')})
             </div>
@@ -447,19 +447,19 @@ export default function KTPDetailPage() {
       )}
 
       {/* Topics table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-slate-900">
             <tr>
               {canEdit && (
                 <th className="px-3 py-3 w-8">
                   <input type="checkbox" checked={ctp.topics.length > 0 && selected.size === ctp.topics.length} onChange={toggleSelectAll} />
                 </th>
               )}
-              <th className="px-3 py-3 text-left font-medium text-gray-600 w-12">#</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">Тема</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 w-28">Дата</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 w-10">ДЗ</th>
+              <th className="px-3 py-3 text-left font-medium text-gray-600 dark:text-slate-400 w-12">#</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400">Тема</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400 w-28">Дата</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400 w-10">ДЗ</th>
               <th className="w-10"></th>
             </tr>
           </thead>
@@ -475,9 +475,9 @@ export default function KTPDetailPage() {
                 onDrop={e => handleRowDrop(e, idx)}
                 onDragEnd={handleDragEnd}
                 onContextMenu={e => { e.preventDefault(); openContextMenu(topic, e.clientX, e.clientY); }}
-                className={`hover:bg-gray-50 transition ${
-                  selected.has(topic.id) ? 'bg-blue-50' : ''
-                } ${dragOverIdx === idx && dragIdx !== idx ? 'border-t-2 border-blue-400' : ''} ${
+                className={`hover:bg-gray-50 dark:hover:bg-slate-800 transition ${
+                  selected.has(topic.id) ? 'bg-purple-50' : ''
+                } ${dragOverIdx === idx && dragIdx !== idx ? 'border-t-2 border-purple-400' : ''} ${
                   dragIdx === idx ? 'opacity-30' : ''
                 } ${canEdit ? 'cursor-grab active:cursor-grabbing' : ''}`}
               >
@@ -486,25 +486,25 @@ export default function KTPDetailPage() {
                     <input type="checkbox" checked={selected.has(topic.id)} onChange={() => toggleSelect(topic.id)} />
                   </td>
                 )}
-                <td className="px-3 py-2 text-gray-400">{idx + 1}</td>
+                <td className="px-3 py-2 text-gray-400 dark:text-slate-500">{idx + 1}</td>
                 <td className="px-4 py-2">
-                  <button onClick={() => setEditTopic({ ...topic })} className="text-left hover:text-blue-600 w-full">
+                  <button onClick={() => setEditTopic({ ...topic })} className="text-left hover:text-purple-600 w-full">
                     {topic.title}
                   </button>
                   {topic.lesson_title && (
-                    <span className="inline-flex items-center gap-1 text-xs text-indigo-600 bg-indigo-50 rounded px-1.5 py-0.5 mt-0.5">
+                    <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 rounded px-1.5 py-0.5 mt-0.5">
                       📖 {topic.lesson_title}
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-2 text-gray-500">{topic.date || '—'}</td>
+                <td className="px-4 py-2 text-gray-500 dark:text-slate-400">{topic.date || '—'}</td>
                 <td className="px-4 py-2">
-                  {topic.homework ? <span className="text-green-600">+</span> : <span className="text-gray-300">—</span>}
+                  {topic.homework ? <span className="text-green-600">+</span> : <span className="text-gray-300 dark:text-slate-600">—</span>}
                 </td>
                 <td className="px-2 py-2 text-center">
                   <button
                     onClick={e => { e.stopPropagation(); openContextMenu(topic, e.clientX, e.clientY); }}
-                    className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
+                    className="text-gray-400 dark:text-slate-500 hover:text-gray-600 p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
                   >&#8942;</button>
                 </td>
               </tr>
@@ -512,7 +512,7 @@ export default function KTPDetailPage() {
           </tbody>
         </table>
         {ctp.topics.length === 0 && (
-          <p className="text-center text-gray-400 py-8">Темы не добавлены</p>
+          <p className="text-center text-gray-400 dark:text-slate-500 py-8">Темы не добавлены</p>
         )}
       </div>
 
@@ -524,11 +524,11 @@ export default function KTPDetailPage() {
       {/* Autofill confirmation dialog */}
       {showAutofillConfirm && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" onClick={() => setShowAutofillConfirm(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-2">Распределить даты</h3>
 
             {scheduleInfo && (
-              <div className="text-sm text-gray-500 mb-4">
+              <div className="text-sm text-gray-500 dark:text-slate-400 mb-4">
                 По расписанию: {scheduleInfo.schedule.map(s =>
                   `${s.weekday_name}${s.lessons_count > 1 ? ` ×${s.lessons_count}` : ''}`
                 ).join(', ')}
@@ -537,7 +537,7 @@ export default function KTPDetailPage() {
             )}
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Дата начала</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Дата начала</label>
               <input
                 type="date"
                 value={autofillStartDate}
@@ -547,19 +547,19 @@ export default function KTPDetailPage() {
             </div>
 
             {autofillFromTopicId && ctp && (
-              <div className="bg-blue-50 text-blue-700 text-sm p-3 rounded mb-4">
+              <div className="bg-purple-50 text-purple-700 text-sm p-3 rounded mb-4">
                 Начиная с темы: #{ctp.topics.findIndex(t => t.id === autofillFromTopicId) + 1} {ctp.topics.find(t => t.id === autofillFromTopicId)?.title}
               </div>
             )}
 
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
               Вы действительно хотите {autofillFromTopicId ? 'распределить' : 'изменить'} даты
               {autofillFromTopicId ? ' начиная с указанной темы' : ''} с <strong>{autofillStartDate}</strong> до конца учебного года?
               Выходные дни из настроек будут пропущены.
             </p>
 
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowAutofillConfirm(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">
+              <button onClick={() => setShowAutofillConfirm(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded">
                 Отмена
               </button>
               <button
@@ -577,25 +577,25 @@ export default function KTPDetailPage() {
       {/* Edit topic modal */}
       {editTopic && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setEditTopic(null)}>
-          <div className="bg-white rounded-lg shadow-lg max-w-lg w-full max-h-[90vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg max-w-lg w-full max-h-[90vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
             {canEdit ? (
               <>
                 <h3 className="text-lg font-semibold mb-4">Редактирование темы</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Тема</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Тема</label>
                     <input value={editTopic.title} onChange={e => setEditTopic({ ...editTopic, title: e.target.value })} className="w-full border rounded px-3 py-2 text-sm" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Дата</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Дата</label>
                     <input type="date" value={editTopic.date || ''} onChange={e => setEditTopic({ ...editTopic, date: e.target.value || null })} className="border rounded px-3 py-2 text-sm" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Домашнее задание</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Домашнее задание</label>
                     <textarea value={editTopic.homework} onChange={e => setEditTopic({ ...editTopic, homework: e.target.value })} rows={3} className="w-full border rounded px-3 py-2 text-sm" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Прикреплённый урок</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Прикреплённый урок</label>
                     <select
                       value={editTopic.lesson ?? ''}
                       onChange={e => setEditTopic({ ...editTopic, lesson: e.target.value ? Number(e.target.value) : null, lesson_title: pickerLessons.find(l => l.id === Number(e.target.value))?.title ?? null })}
@@ -606,7 +606,7 @@ export default function KTPDetailPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Ссылки на материалы</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Ссылки на материалы</label>
                     {editTopic.resources.map((r, i) => (
                       <div key={i} className="flex gap-2 mb-2">
                         <input placeholder="Название" value={r.title} onChange={e => updateResource(i, 'title', e.target.value)} className="border rounded px-3 py-2 text-sm flex-1" />
@@ -614,50 +614,50 @@ export default function KTPDetailPage() {
                         <button onClick={() => removeResource(i)} className="text-red-400 hover:text-red-600">x</button>
                       </div>
                     ))}
-                    <button onClick={addResource} className="text-blue-600 hover:text-blue-800 text-sm">+ Добавить ссылку</button>
+                    <button onClick={addResource} className="text-purple-600 hover:text-purple-800 text-sm">+ Добавить ссылку</button>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Файлы</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Файлы</label>
                     {editTopic.files.map(f => (
                       <div key={f.id} className="flex items-center gap-2 mb-1 text-sm">
-                        <a href={f.file} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 truncate">{f.original_name}</a>
+                        <a href={f.file} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:text-purple-800 truncate">{f.original_name}</a>
                         <button onClick={async () => { await api.delete(`/ktp/topics/${editTopic.id}/files/${f.id}/`); const res = await api.get(`/ktp/${id}/`); setCtp(res.data); const updated = res.data.topics.find((t: Topic) => t.id === editTopic.id); if (updated) setEditTopic({ ...updated }); }} className="text-red-400 hover:text-red-600 shrink-0">&times;</button>
                       </div>
                     ))}
-                    <label className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm cursor-pointer mt-1">
+                    <label className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-800 text-sm cursor-pointer mt-1">
                       + Прикрепить файл
                       <input type="file" className="hidden" onChange={async e => { const file = e.target.files?.[0]; if (!file) return; const fd = new FormData(); fd.append('file', file); await api.post(`/ktp/topics/${editTopic.id}/files/`, fd); const res = await api.get(`/ktp/${id}/`); setCtp(res.data); const updated = res.data.topics.find((t: Topic) => t.id === editTopic.id); if (updated) setEditTopic({ ...updated }); e.target.value = ''; }} />
                     </label>
                   </div>
                 </div>
                 <div className="flex justify-end gap-2 mt-6">
-                  <button onClick={() => setEditTopic(null)} className="px-4 py-2 rounded text-sm text-gray-600 hover:bg-gray-100">Отмена</button>
-                  <button onClick={handleUpdateTopic} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Сохранить</button>
+                  <button onClick={() => setEditTopic(null)} className="px-4 py-2 rounded text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700">Отмена</button>
+                  <button onClick={handleUpdateTopic} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">Сохранить</button>
                 </div>
               </>
             ) : (
               <>
                 <div className="mb-4">
                   <div className="flex items-baseline gap-2">
-                    {editTopic.date && <span className="text-sm text-gray-500 shrink-0">{editTopic.date}</span>}
-                    {editTopic.date && <span className="text-gray-300">—</span>}
+                    {editTopic.date && <span className="text-sm text-gray-500 dark:text-slate-400 shrink-0">{editTopic.date}</span>}
+                    {editTopic.date && <span className="text-gray-300 dark:text-slate-600">—</span>}
                     <h3 className="text-lg font-semibold">{editTopic.title}</h3>
                   </div>
                 </div>
                 <div className="space-y-4">
                   {editTopic.homework && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Домашнее задание</label>
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{editTopic.homework}</p>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1">Домашнее задание</label>
+                      <p className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{editTopic.homework}</p>
                     </div>
                   )}
                   {editTopic.resources.length > 0 && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Материалы</label>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1">Материалы</label>
                       <ul className="space-y-1">
                         {editTopic.resources.map((r, i) => (
                           <li key={i}>
-                            <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 hover:underline">
+                            <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm text-purple-600 hover:text-purple-800 hover:underline">
                               {r.title || r.url}
                             </a>
                           </li>
@@ -667,19 +667,19 @@ export default function KTPDetailPage() {
                   )}
                   {editTopic.lesson_title && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Урок</label>
-                      <a href={`/lessons/editor/${editTopic.lesson}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800">
+                      <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1">Урок</label>
+                      <a href={`/lessons/editor/${editTopic.lesson}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-purple-600 hover:text-purple-800">
                         📖 {editTopic.lesson_title}
                       </a>
                     </div>
                   )}
                   {editTopic.files.length > 0 && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Файлы</label>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1">Файлы</label>
                       <ul className="space-y-1">
                         {editTopic.files.map(f => (
                           <li key={f.id}>
-                            <a href={f.file} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 hover:underline">
+                            <a href={f.file} target="_blank" rel="noopener noreferrer" className="text-sm text-purple-600 hover:text-purple-800 hover:underline">
                               {f.original_name}
                             </a>
                           </li>
@@ -688,11 +688,11 @@ export default function KTPDetailPage() {
                     </div>
                   )}
                   {!editTopic.homework && editTopic.resources.length === 0 && editTopic.files.length === 0 && (
-                    <p className="text-sm text-gray-400">Нет дополнительной информации</p>
+                    <p className="text-sm text-gray-400 dark:text-slate-500">Нет дополнительной информации</p>
                   )}
                 </div>
                 <div className="flex justify-end mt-6">
-                  <button onClick={() => setEditTopic(null)} className="px-4 py-2 rounded text-sm text-gray-600 hover:bg-gray-100">Закрыть</button>
+                  <button onClick={() => setEditTopic(null)} className="px-4 py-2 rounded text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700">Закрыть</button>
                 </div>
               </>
             )}

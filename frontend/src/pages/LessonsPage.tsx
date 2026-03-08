@@ -101,7 +101,7 @@ function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
 
   return (
     <div
-      className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]"
+      className="fixed z-50 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg py-1 min-w-[160px]"
       style={{ top: y, left: x }}
       onMouseDown={e => e.stopPropagation()}
     >
@@ -109,7 +109,7 @@ function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
         <button
           key={i}
           onClick={() => { item.onClick(); onClose(); }}
-          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${item.danger ? 'text-red-600' : 'text-gray-700'}`}
+          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors ${item.danger ? 'text-red-600' : 'text-gray-700 dark:text-slate-300'}`}
         >
           {item.label}
         </button>
@@ -138,24 +138,24 @@ function FolderModal({ initial = '', title, onSave, onClose }: FolderModalProps)
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">{title}</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder="Название папки"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
             autoFocus
           />
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
               Отмена
             </button>
             <button type="submit"
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
               Сохранить
             </button>
           </div>
@@ -198,31 +198,31 @@ function LessonModal({ folderId, onSave, onClose }: LessonModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Новый урок</h3>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Новый урок</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Название</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Название</label>
             <input
               type="text"
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="Например: Тема 1 — Введение"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
               autoFocus
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Описание <span className="text-gray-400">(необязательно)</span></label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Описание <span className="text-gray-400 dark:text-slate-500">(необязательно)</span></label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={2}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Цвет обложки</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Цвет обложки</label>
             <div className="flex gap-2 flex-wrap">
               {COVER_COLORS.map(c => (
                 <button
@@ -242,11 +242,11 @@ function LessonModal({ folderId, onSave, onClose }: LessonModalProps) {
           </div>
           <div className="flex gap-2 justify-end pt-2">
             <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
               Отмена
             </button>
             <button type="submit" disabled={saving}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+              className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50">
               {saving ? 'Создание...' : 'Создать'}
             </button>
           </div>
@@ -317,34 +317,34 @@ function TextbookUploadModal({ onSave, onClose }: TextbookUploadModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Загрузить учебник</h3>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Загрузить учебник</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Файл <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Файл <span className="text-red-500">*</span></label>
             <input
               type="file"
               accept=".pdf,.epub,.djvu,.doc,.docx"
               onChange={handleFileChange}
-              className="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              className="w-full text-sm text-gray-500 dark:text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Название <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Название <span className="text-red-500">*</span></label>
             <input
               type="text"
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="Например: Математика 5 класс"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Предмет</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Предмет</label>
             <select
               value={subjectId}
               onChange={e => setSubjectId(e.target.value ? Number(e.target.value) : '')}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               <option value="">— не указан —</option>
               {subjects.map(s => (
@@ -353,20 +353,20 @@ function TextbookUploadModal({ onSave, onClose }: TextbookUploadModalProps) {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Параллели</label>
-            <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Параллели</label>
+            <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-slate-700 rounded-lg p-2 space-y-1">
               {gradeLevels.length === 0 ? (
-                <p className="text-xs text-gray-400 p-1">Нет параллелей</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500 p-1">Нет параллелей</p>
               ) : (
                 gradeLevels.map(gl => (
-                  <label key={gl.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer">
+                  <label key={gl.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={selectedGLIds.includes(gl.id)}
                       onChange={() => toggleGL(gl.id)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-gray-300 dark:border-slate-600 text-purple-600 focus:ring-purple-500"
                     />
-                    <span className="text-sm text-gray-700">{gl.name}</span>
+                    <span className="text-sm text-gray-700 dark:text-slate-300">{gl.name}</span>
                   </label>
                 ))
               )}
@@ -374,11 +374,11 @@ function TextbookUploadModal({ onSave, onClose }: TextbookUploadModalProps) {
           </div>
           <div className="flex gap-2 justify-end pt-2">
             <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
               Отмена
             </button>
             <button type="submit" disabled={saving || !file || !title.trim()}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+              className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50">
               {saving ? 'Загрузка...' : 'Загрузить'}
             </button>
           </div>
@@ -431,34 +431,34 @@ function FolderCard({ folder, isOwner, isDropTarget, onClick, onRename, onDelete
         onDrop={onDrop}
         onClick={() => { if (!didDragRef.current) onClick(); }}
         onContextMenu={isOwner ? openMenu : undefined}
-        className={`bg-white border rounded-xl p-4 transition-all cursor-pointer group flex flex-col gap-3
+        className={`bg-white dark:bg-slate-800 border rounded-xl p-4 transition-all cursor-pointer group flex flex-col gap-3
           ${isDropTarget
-            ? 'border-blue-400 shadow-md ring-2 ring-blue-200 bg-blue-50'
-            : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
+            ? 'border-purple-400 shadow-md ring-2 ring-purple-200 bg-purple-50'
+            : 'border-gray-200 dark:border-slate-700 hover:border-purple-300 hover:shadow-sm'
           }`}
       >
         <div className="flex items-start justify-between">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isDropTarget ? 'bg-blue-100 text-blue-500' : 'bg-amber-50 text-amber-500'}`}>
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isDropTarget ? 'bg-purple-100 text-purple-500' : 'bg-amber-50 text-amber-500'}`}>
             <IconFolder />
           </div>
           {isOwner && (
             <button
               onClick={openMenu}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all"
+              className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-gray-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 transition-all"
             >
               <IconDots />
             </button>
           )}
         </div>
         <div>
-          <div className="font-medium text-gray-900 text-sm leading-tight">{folder.name}</div>
-          <div className="text-xs text-gray-400 mt-1">
+          <div className="font-medium text-gray-900 dark:text-slate-100 text-sm leading-tight">{folder.name}</div>
+          <div className="text-xs text-gray-400 dark:text-slate-500 mt-1">
             {folder.children_count > 0 && `${folder.children_count} папок · `}
             {folder.lessons_count} уроков
           </div>
         </div>
         {isDropTarget && (
-          <div className="text-xs text-blue-500 font-medium text-center">Перенести сюда</div>
+          <div className="text-xs text-purple-500 font-medium text-center">Перенести сюда</div>
         )}
       </div>
 
@@ -491,14 +491,14 @@ function TeacherCard({ teacher, onClick }: TeacherCardProps) {
   return (
     <div
       onClick={onClick}
-      className="bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer flex flex-col gap-3"
+      className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-4 hover:border-purple-300 hover:shadow-sm transition-all cursor-pointer flex flex-col gap-3"
     >
-      <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-semibold flex-shrink-0">
+      <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-semibold flex-shrink-0">
         {initials}
       </div>
       <div>
-        <div className="font-medium text-gray-900 text-sm leading-tight">{teacher.teacher_name}</div>
-        <div className="text-xs text-gray-400 mt-1">
+        <div className="font-medium text-gray-900 dark:text-slate-100 text-sm leading-tight">{teacher.teacher_name}</div>
+        <div className="text-xs text-gray-400 dark:text-slate-500 mt-1">
           {teacher.folders_count > 0 && `${teacher.folders_count} папок · `}
           {teacher.lessons_count} уроков
         </div>
@@ -518,13 +518,13 @@ function GradeLevelCard({ gradeLevel, onClick }: GradeLevelCardProps) {
   return (
     <div
       onClick={onClick}
-      className="bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer flex flex-col gap-3"
+      className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-4 hover:border-purple-300 hover:shadow-sm transition-all cursor-pointer flex flex-col gap-3"
     >
       <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">
         {gradeLevel.number}
       </div>
       <div>
-        <div className="font-medium text-gray-900 text-sm">{gradeLevel.name}</div>
+        <div className="font-medium text-gray-900 dark:text-slate-100 text-sm">{gradeLevel.name}</div>
       </div>
     </div>
   );
@@ -558,14 +558,14 @@ function TextbookCard({ textbook, isStaff, onDelete, onOpen }: TextbookCardProps
     <>
       <div
         onClick={isPdf ? onOpen : undefined}
-        className={`bg-white border border-gray-200 rounded-xl overflow-hidden transition-all group flex flex-col ${isPdf ? 'cursor-pointer hover:border-blue-300 hover:shadow-sm' : ''}`}
+        className={`bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden transition-all group flex flex-col ${isPdf ? 'cursor-pointer hover:border-purple-300 hover:shadow-sm' : ''}`}
       >
         {/* Цветная шапка */}
-        <div className="h-16 bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center relative">
+        <div className="h-16 bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center relative">
           <span className="text-white/80 text-xs font-bold tracking-widest">{extLabel}</span>
           {isPdf && (
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-              <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-800/90 text-purple-700 text-xs font-medium px-2.5 py-1 rounded-full">
                 Открыть
               </span>
             </div>
@@ -574,7 +574,7 @@ function TextbookCard({ textbook, isStaff, onDelete, onOpen }: TextbookCardProps
 
         <div className="p-3 flex-1 flex flex-col gap-1">
           <div className="flex items-start justify-between gap-1">
-            <div className="font-medium text-gray-900 text-sm leading-tight line-clamp-2 flex-1">
+            <div className="font-medium text-gray-900 dark:text-slate-100 text-sm leading-tight line-clamp-2 flex-1">
               {textbook.title}
             </div>
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
@@ -585,7 +585,7 @@ function TextbookCard({ textbook, isStaff, onDelete, onOpen }: TextbookCardProps
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={e => e.stopPropagation()}
-                  className="p-1 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-600 transition-colors"
+                  className="p-1 rounded text-gray-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-purple-600 transition-colors"
                   title="Скачать"
                 >
                   <IconDownload />
@@ -594,7 +594,7 @@ function TextbookCard({ textbook, isStaff, onDelete, onOpen }: TextbookCardProps
               {isStaff && (
                 <button
                   onClick={e => { e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY }); }}
-                  className="p-1 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                  className="p-1 rounded text-gray-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 transition-colors"
                 >
                   <IconDots />
                 </button>
@@ -602,9 +602,9 @@ function TextbookCard({ textbook, isStaff, onDelete, onOpen }: TextbookCardProps
             </div>
           </div>
           {textbook.subject_name && (
-            <div className="text-xs text-indigo-600">{textbook.subject_name}</div>
+            <div className="text-xs text-purple-600">{textbook.subject_name}</div>
           )}
-          <div className="text-xs text-gray-400 mt-auto pt-0.5">{extLabel} · {sizeStr}</div>
+          <div className="text-xs text-gray-400 dark:text-slate-500 mt-auto pt-0.5">{extLabel} · {sizeStr}</div>
         </div>
       </div>
 
@@ -663,7 +663,7 @@ function LessonCard({ lesson, showOwner, isStaff, readonly, onOpen, onDuplicate,
         onDragStart={e => { if (!readonly) { didDragRef.current = true; onDragStart(e); } }}
         onDragEnd={() => { setTimeout(() => { didDragRef.current = false; }, 100); }}
         onClick={() => { if (!didDragRef.current) onOpen(); }}
-        className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer group flex flex-col"
+        className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden hover:border-purple-300 hover:shadow-sm transition-all cursor-pointer group flex flex-col"
       >
         {/* Цветная шапка */}
         <div
@@ -677,7 +677,7 @@ function LessonCard({ lesson, showOwner, isStaff, readonly, onOpen, onDuplicate,
 
         <div className="p-4 flex-1 flex flex-col gap-1">
           <div className="flex items-start justify-between gap-2">
-            <div className="font-medium text-gray-900 text-sm leading-tight line-clamp-2 flex-1">
+            <div className="font-medium text-gray-900 dark:text-slate-100 text-sm leading-tight line-clamp-2 flex-1">
               {lesson.title}
             </div>
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 flex-shrink-0 transition-all">
@@ -694,16 +694,16 @@ function LessonCard({ lesson, showOwner, isStaff, readonly, onOpen, onDuplicate,
               )}
               <button
                 onClick={handleMenuClick}
-                className="p-1 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                className="p-1 rounded-md text-gray-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 transition-colors"
               >
                 <IconDots />
               </button>
             </div>
           </div>
           {showOwner && (
-            <div className="text-xs text-gray-400">{lesson.owner_name}</div>
+            <div className="text-xs text-gray-400 dark:text-slate-500">{lesson.owner_name}</div>
           )}
-          <div className="text-xs text-gray-400 mt-auto pt-1">
+          <div className="text-xs text-gray-400 dark:text-slate-500 mt-auto pt-1">
             {lesson.slides_count} слайдов
           </div>
         </div>
@@ -733,7 +733,7 @@ interface BreadcrumbsProps {
 
 function Breadcrumbs({ items, dropTarget, onDragOver, onDragLeave, onDrop }: BreadcrumbsProps) {
   return (
-    <nav className="flex items-center gap-1 text-sm text-gray-500 flex-wrap">
+    <nav className="flex items-center gap-1 text-sm text-gray-500 dark:text-slate-400 flex-wrap">
       {items.map((item, i) => (
         <span key={i} className="flex items-center gap-1">
           {i > 0 && <IconChevronRight />}
@@ -743,12 +743,12 @@ function Breadcrumbs({ items, dropTarget, onDragOver, onDragLeave, onDrop }: Bre
               onDragOver={onDragOver ? e => onDragOver(e, i) : undefined}
               onDragLeave={onDragLeave}
               onDrop={onDrop ? e => onDrop(e, i) : undefined}
-              className={`hover:text-blue-600 transition-colors px-1.5 py-0.5 rounded ${dropTarget === i ? 'bg-blue-100 text-blue-600 ring-1 ring-blue-300' : ''}`}
+              className={`hover:text-purple-600 transition-colors px-1.5 py-0.5 rounded ${dropTarget === i ? 'bg-purple-100 text-purple-600 ring-1 ring-purple-300' : ''}`}
             >
               {item.label}
             </button>
           ) : (
-            <span className="text-gray-900 font-medium px-1.5 py-0.5">{item.label}</span>
+            <span className="text-gray-900 dark:text-slate-100 font-medium px-1.5 py-0.5">{item.label}</span>
           )}
         </span>
       ))}
@@ -813,7 +813,7 @@ function TextbooksTab({ isStaff }: TextbooksTabProps) {
   ];
 
   if (loadingGLs) {
-    return <div className="text-center text-gray-400 py-16">Загрузка...</div>;
+    return <div className="text-center text-gray-400 dark:text-slate-500 py-16">Загрузка...</div>;
   }
 
   return (
@@ -823,8 +823,8 @@ function TextbooksTab({ isStaff }: TextbooksTabProps) {
         {selectedGL && gradeLevels.length > 1 ? (
           <Breadcrumbs items={breadcrumbItems} />
         ) : selectedGL ? (
-          <div className="text-sm text-gray-500">
-            Параллель: <span className="font-medium text-gray-900">{selectedGL.name}</span>
+          <div className="text-sm text-gray-500 dark:text-slate-400">
+            Параллель: <span className="font-medium text-gray-900 dark:text-slate-100">{selectedGL.name}</span>
           </div>
         ) : (
           <div />
@@ -832,7 +832,7 @@ function TextbooksTab({ isStaff }: TextbooksTabProps) {
         {isStaff && (
           <button
             onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             <IconPlus />
             Учебник
@@ -845,7 +845,7 @@ function TextbooksTab({ isStaff }: TextbooksTabProps) {
         gradeLevels.length === 0 ? (
           <div className="text-center py-16">
             <div className="text-4xl mb-3">📚</div>
-            <p className="text-gray-500 text-sm">
+            <p className="text-gray-500 dark:text-slate-400 text-sm">
               {user?.is_student ? 'Вы не привязаны к классу' : 'Нет доступных параллелей'}
             </p>
           </div>
@@ -861,15 +861,15 @@ function TextbooksTab({ isStaff }: TextbooksTabProps) {
       {/* Список учебников */}
       {selectedGL && (
         loadingBooks ? (
-          <div className="text-center text-gray-400 py-16">Загрузка...</div>
+          <div className="text-center text-gray-400 dark:text-slate-500 py-16">Загрузка...</div>
         ) : textbooks.length === 0 ? (
           <div className="text-center py-16">
             <div className="text-4xl mb-3">📖</div>
-            <p className="text-gray-500 text-sm">Учебники для этой параллели ещё не загружены</p>
+            <p className="text-gray-500 dark:text-slate-400 text-sm">Учебники для этой параллели ещё не загружены</p>
             {isStaff && (
               <button
                 onClick={() => setShowUploadModal(true)}
-                className="mt-4 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="mt-4 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
               >
                 Загрузить учебник
               </button>
@@ -1275,15 +1275,15 @@ export default function LessonsPage() {
       {/* Заголовок */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Уроки</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Интерактивные уроки и презентации</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Уроки</h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Интерактивные уроки и презентации</p>
         </div>
 
         {isStaff && tab === 'mine' && (
           <div className="flex gap-2">
             <button
               onClick={() => setShowFolderModal(true)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
             >
               <IconPlus />
               Папка
@@ -1291,7 +1291,7 @@ export default function LessonsPage() {
             <button
               onClick={() => importFileRef.current?.click()}
               disabled={importing}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
               title="Импорт PDF или PPTX"
             >
               <IconDownload />
@@ -1306,7 +1306,7 @@ export default function LessonsPage() {
             />
             <button
               onClick={() => setShowLessonModal(true)}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
               <IconPlus />
               Урок
@@ -1316,13 +1316,13 @@ export default function LessonsPage() {
       </div>
 
       {/* Вкладки */}
-      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+      <div className="flex gap-1 bg-gray-100 dark:bg-slate-800 rounded-lg p-1 w-fit">
         {tabs.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`px-4 py-1.5 text-sm rounded-md font-medium transition-colors ${
-              tab === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              tab === t.key ? 'bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'
             }`}
           >
             {t.label}
@@ -1337,28 +1337,28 @@ export default function LessonsPage() {
       {tab === 'assignments' && (
         <div>
           {assignmentsLoading ? (
-            <div className="text-center text-gray-400 py-16">Загрузка…</div>
+            <div className="text-center text-gray-400 dark:text-slate-500 py-16">Загрузка…</div>
           ) : assignments.length === 0 ? (
             <div className="text-center py-16">
               <div className="text-4xl mb-3">📋</div>
-              <p className="text-gray-500">{isStaff ? 'Вы ещё не выдавали уроки' : 'Вам не выданы уроки'}</p>
+              <p className="text-gray-500 dark:text-slate-400">{isStaff ? 'Вы ещё не выдавали уроки' : 'Вам не выданы уроки'}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {assignments.map(a => (
-                <div key={a.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-sm transition-all">
+                <div key={a.id} className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden hover:shadow-sm transition-all">
                   <div className="h-16 flex items-center justify-center" style={{ backgroundColor: a.lesson_cover_color }}>
                     <span className="text-white opacity-60 text-2xl">📖</span>
                   </div>
                   <div className="p-4 space-y-1">
-                    <div className="font-medium text-gray-900 text-sm truncate">{a.lesson_title}</div>
-                    {a.school_class_name && <div className="text-xs text-gray-500">Класс: {a.school_class_name}</div>}
-                    {a.due_date && <div className="text-xs text-gray-500">Срок: {new Date(a.due_date).toLocaleString('ru', { day: 'numeric', month: 'long' })}</div>}
-                    {isStaff && <div className="text-xs text-gray-400">Выдано: {new Date(a.created_at).toLocaleDateString('ru')}</div>}
+                    <div className="font-medium text-gray-900 dark:text-slate-100 text-sm truncate">{a.lesson_title}</div>
+                    {a.school_class_name && <div className="text-xs text-gray-500 dark:text-slate-400">Класс: {a.school_class_name}</div>}
+                    {a.due_date && <div className="text-xs text-gray-500 dark:text-slate-400">Срок: {new Date(a.due_date).toLocaleString('ru', { day: 'numeric', month: 'long' })}</div>}
+                    {isStaff && <div className="text-xs text-gray-400 dark:text-slate-500">Выдано: {new Date(a.created_at).toLocaleDateString('ru')}</div>}
                     <div className="flex gap-2 pt-2">
                       <button
                         onClick={() => navigate(`/lessons/self-paced/${a.lesson}`)}
-                        className="flex-1 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+                        className="flex-1 px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-colors"
                       >
                         {isStaff ? 'Открыть' : 'Начать'}
                       </button>
@@ -1393,7 +1393,7 @@ export default function LessonsPage() {
       {/* Активные уроки */}
       {tab !== 'textbooks' && activeSessions.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-300 flex items-center gap-2">
             <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse inline-block" />
             Идёт сейчас
           </h2>
@@ -1402,7 +1402,7 @@ export default function LessonsPage() {
               <button
                 key={ses.id}
                 onClick={() => navigate(`/lessons/session/${ses.id}`)}
-                className="flex items-center gap-4 p-4 bg-white border-2 border-green-200 rounded-xl hover:border-green-400 hover:shadow-md transition-all text-left group"
+                className="flex items-center gap-4 p-4 bg-white dark:bg-slate-800 border-2 border-green-200 rounded-xl hover:border-green-400 hover:shadow-md transition-all text-left group"
               >
                 <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
                   <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
@@ -1410,10 +1410,10 @@ export default function LessonsPage() {
                   </svg>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-sm text-gray-900 truncate group-hover:text-green-700 transition-colors">
+                  <div className="font-semibold text-sm text-gray-900 dark:text-slate-100 truncate group-hover:text-green-700 transition-colors">
                     {ses.lesson_title}
                   </div>
-                  <div className="text-xs text-gray-500 truncate mt-0.5">
+                  <div className="text-xs text-gray-500 dark:text-slate-400 truncate mt-0.5">
                     {ses.teacher_name}{ses.school_class_name ? ` · ${ses.school_class_name}` : ''}
                   </div>
                 </div>
@@ -1432,11 +1432,11 @@ export default function LessonsPage() {
           {/* Корень «Все уроки» — карточки учителей */}
           {isTeachersRoot && (
             loading ? (
-              <div className="text-center text-gray-400 py-16">Загрузка...</div>
+              <div className="text-center text-gray-400 dark:text-slate-500 py-16">Загрузка...</div>
             ) : teachersOverview.length === 0 ? (
               <div className="text-center py-16">
                 <div className="text-4xl mb-3">📂</div>
-                <p className="text-gray-500 text-sm">В школе ещё нет ни одного урока</p>
+                <p className="text-gray-500 dark:text-slate-400 text-sm">В школе ещё нет ни одного урока</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -1454,17 +1454,17 @@ export default function LessonsPage() {
           {/* Папки и уроки (mine + all inside teacher) */}
           {!isTeachersRoot && isStaff && (
             loading ? (
-              <div className="text-center text-gray-400 py-16">Загрузка...</div>
+              <div className="text-center text-gray-400 dark:text-slate-500 py-16">Загрузка...</div>
             ) : (folders.length === 0 && lessons.length === 0) ? (
               <div className="text-center py-16">
                 <div className="text-4xl mb-3">📂</div>
-                <p className="text-gray-500 text-sm">
+                <p className="text-gray-500 dark:text-slate-400 text-sm">
                   {currentFolder ? 'Папка пуста' : 'У вас пока нет уроков'}
                 </p>
                 {isStaff && tab === 'mine' && (
                   <button
                     onClick={() => setShowLessonModal(true)}
-                    className="mt-4 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="mt-4 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                   >
                     Создать первый урок
                   </button>
@@ -1549,16 +1549,16 @@ export default function LessonsPage() {
       {/* Модал "Выдать урок" */}
       {issuingLesson && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setIssuingLesson(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold text-gray-900">Выдать урок</h2>
-            <p className="text-sm text-gray-500 truncate">📖 {issuingLesson.title}</p>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Выдать урок</h2>
+            <p className="text-sm text-gray-500 dark:text-slate-400 truncate">📖 {issuingLesson.title}</p>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Получатель</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Получатель</label>
               <div className="flex gap-2">
                 <button
                   onClick={() => setIssueTargetType('class')}
-                  className={`flex-1 py-1.5 text-sm rounded-lg border ${issueTargetType === 'class' ? 'border-blue-500 text-blue-700 bg-blue-50' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                  className={`flex-1 py-1.5 text-sm rounded-lg border ${issueTargetType === 'class' ? 'border-purple-500 text-purple-700 bg-purple-50' : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
                 >
                   Весь класс
                 </button>
@@ -1566,11 +1566,11 @@ export default function LessonsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Класс</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Класс</label>
               <select
                 value={issueClassId ?? ''}
                 onChange={e => setIssueClassId(Number(e.target.value) || null)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+                className="w-full border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400"
               >
                 <option value="">— выберите класс —</option>
                 {issueClasses.map(c => <option key={c.id} value={c.id}>{c.display_name}</option>)}
@@ -1578,23 +1578,23 @@ export default function LessonsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Срок выполнения (опционально)</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Срок выполнения (опционально)</label>
               <input
                 type="datetime-local"
                 value={issueDueDate}
                 onChange={e => setIssueDueDate(e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+                className="border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400"
               />
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setIssuingLesson(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => setIssuingLesson(null)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">
                 Отмена
               </button>
               <button
                 onClick={handleIssueLesson}
                 disabled={issueLoading || !issueClassId}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
               >
                 {issueLoading ? 'Выдаём…' : 'Выдать'}
               </button>
@@ -1611,13 +1611,13 @@ export default function LessonsPage() {
       {/* Оверлей импорта */}
       {importing && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-xl shadow-xl px-8 py-6 flex flex-col items-center gap-3">
-            <svg className="w-8 h-8 text-blue-600 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl px-8 py-6 flex flex-col items-center gap-3">
+            <svg className="w-8 h-8 text-purple-600 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
             </svg>
-            <p className="text-sm font-medium text-gray-700">Импорт презентации...</p>
-            <p className="text-xs text-gray-400">Это может занять несколько секунд</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-slate-300">Импорт презентации...</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500">Это может занять несколько секунд</p>
           </div>
         </div>
       )}

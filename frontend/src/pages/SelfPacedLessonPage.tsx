@@ -425,15 +425,15 @@ export default function SelfPacedLessonPage() {
   }, [loading]);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen bg-gray-900 text-white">Загрузка…</div>;
+    return <div className="flex items-center justify-center h-screen bg-gray-900 dark:bg-slate-900 text-white">Загрузка…</div>;
   }
 
   if (!lesson || slides.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white gap-4">
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-900 dark:bg-slate-900 text-white gap-4">
         <span className="text-5xl">📄</span>
         <p>Слайды не найдены</p>
-        <button onClick={() => navigate('/lessons')} className="px-4 py-2 bg-indigo-600 rounded-lg text-sm">К урокам</button>
+        <button onClick={() => navigate('/lessons')} className="px-4 py-2 bg-purple-600 rounded-lg text-sm">К урокам</button>
       </div>
     );
   }
@@ -441,19 +441,19 @@ export default function SelfPacedLessonPage() {
   const currentSlide = slides[currentIdx];
 
   return (
-    <div className="fixed inset-0 bg-gray-900 flex flex-col" style={{ userSelect: 'none' }}>
+    <div className="fixed inset-0 bg-gray-900 dark:bg-slate-900 flex flex-col" style={{ userSelect: 'none' }}>
       {/* Top bar */}
-      <div className="flex items-center gap-3 px-4 py-2 bg-gray-800 border-b border-gray-700 flex-shrink-0 min-h-[48px]">
-        <button onClick={() => navigate('/lessons')} className="text-gray-400 hover:text-white transition-colors p-1 rounded">
+      <div className="flex items-center gap-3 px-4 py-2 bg-gray-800 dark:bg-slate-700 border-b border-gray-700 flex-shrink-0 min-h-[48px]">
+        <button onClick={() => navigate('/lessons')} className="text-gray-400 dark:text-slate-500 hover:text-white transition-colors p-1 rounded">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </button>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-white truncate">{lesson.title}</div>
-          <div className="text-xs text-gray-400">Самостоятельное прохождение</div>
+          <div className="text-xs text-gray-400 dark:text-slate-500">Самостоятельное прохождение</div>
         </div>
-        <div className="text-sm text-gray-400 font-mono flex-shrink-0">{currentIdx + 1} / {slides.length}</div>
+        <div className="text-sm text-gray-400 dark:text-slate-500 font-mono flex-shrink-0">{currentIdx + 1} / {slides.length}</div>
       </div>
 
       {/* Slide area */}
@@ -475,11 +475,11 @@ export default function SelfPacedLessonPage() {
       </div>
 
       {/* Bottom nav */}
-      <div className="flex items-center justify-center gap-4 px-4 py-3 bg-gray-800 border-t border-gray-700 flex-shrink-0">
+      <div className="flex items-center justify-center gap-4 px-4 py-3 bg-gray-800 dark:bg-slate-700 border-t border-gray-700 flex-shrink-0">
         <button
           onClick={() => setCurrentIdx(i => Math.max(0, i - 1))}
           disabled={currentIdx === 0}
-          className="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm font-medium hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 bg-gray-700 dark:bg-slate-600 text-white rounded-lg text-sm font-medium hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           ← Назад
         </button>
@@ -489,7 +489,7 @@ export default function SelfPacedLessonPage() {
             <button
               key={i}
               onClick={() => setCurrentIdx(i)}
-              className={`w-2 h-2 rounded-full transition-colors ${i === currentIdx ? 'bg-indigo-400' : 'bg-gray-600 hover:bg-gray-400'}`}
+              className={`w-2 h-2 rounded-full transition-colors ${i === currentIdx ? 'bg-purple-400' : 'bg-gray-600 hover:bg-gray-400'}`}
             />
           ))}
         </div>
@@ -497,7 +497,7 @@ export default function SelfPacedLessonPage() {
         {currentIdx < slides.length - 1 ? (
           <button
             onClick={() => setCurrentIdx(i => Math.min(slides.length - 1, i + 1))}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-500 transition-colors"
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-500 transition-colors"
           >
             Далее →
           </button>

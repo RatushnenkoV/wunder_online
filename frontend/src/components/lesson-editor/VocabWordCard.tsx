@@ -117,38 +117,38 @@ export default function VocabWordCard({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3">
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm p-4 space-y-3">
       {/* Строка: русское слово + перевод + кнопка удалить */}
       <div className="flex items-start gap-2">
         {/* Русское слово */}
         <div className="flex-1 min-w-0">
-          <label className="text-xs text-gray-400 mb-1 block">Русское слово</label>
+          <label className="text-xs text-gray-400 dark:text-slate-500 mb-1 block">Русское слово</label>
           <input
             type="text"
             value={word.ru}
             onChange={e => onChange({ ...word, ru: e.target.value })}
             placeholder="Введите слово на русском..."
-            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-400"
+            className="w-full text-sm border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:border-purple-400"
           />
-          {translating && <span className="text-xs text-gray-400 mt-0.5 block">Переводим...</span>}
+          {translating && <span className="text-xs text-gray-400 dark:text-slate-500 mt-0.5 block">Переводим...</span>}
         </div>
 
         {/* Перевод */}
         <div className="flex-1 min-w-0">
-          <label className="text-xs text-gray-400 mb-1 block">{LANG_LABELS[lang]}</label>
+          <label className="text-xs text-gray-400 dark:text-slate-500 mb-1 block">{LANG_LABELS[lang]}</label>
           <div className="flex gap-1">
             <input
               type="text"
               value={word.target}
               onChange={e => onChange({ ...word, target: e.target.value })}
               placeholder="Перевод..."
-              className="flex-1 min-w-0 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-400"
+              className="flex-1 min-w-0 text-sm border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:border-purple-400"
             />
             <button
               onClick={() => speak(word.target, lang)}
               disabled={!word.target.trim()}
               title="Озвучить"
-              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 transition-colors"
+              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors"
             >
               🔊
             </button>
@@ -160,7 +160,7 @@ export default function VocabWordCard({
                 <button
                   key={i}
                   onClick={() => onChange({ ...word, target: s })}
-                  className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${word.target === s ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-blue-300'}`}
+                  className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${word.target === s ? 'bg-purple-100 border-purple-300 text-purple-700' : 'bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:border-purple-300'}`}
                 >
                   {s}
                 </button>
@@ -173,7 +173,7 @@ export default function VocabWordCard({
         {canDelete && (
           <button
             onClick={onDelete}
-            className="flex-shrink-0 mt-6 text-gray-300 hover:text-red-500 transition-colors text-xl leading-none"
+            className="flex-shrink-0 mt-6 text-gray-300 dark:text-slate-600 hover:text-red-500 transition-colors text-xl leading-none"
             title="Удалить слово"
           >×</button>
         )}
@@ -181,12 +181,12 @@ export default function VocabWordCard({
 
       {/* Картинки */}
       <div>
-        <label className="text-xs text-gray-400 mb-1.5 block">Картинка (иллюстрация)</label>
+        <label className="text-xs text-gray-400 dark:text-slate-500 mb-1.5 block">Картинка (иллюстрация)</label>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Выбранная картинка */}
           {word.imageUrl && (
             <div className="relative flex-shrink-0">
-              <img src={word.imageUrl} alt="" className="w-16 h-12 object-cover rounded-lg border-2 border-blue-400" />
+              <img src={word.imageUrl} alt="" className="w-16 h-12 object-cover rounded-lg border-2 border-purple-400" />
               <button
                 onClick={() => onChange({ ...word, imageUrl: '' })}
                 className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs leading-none flex items-center justify-center"
@@ -196,13 +196,13 @@ export default function VocabWordCard({
 
           {/* Thumbnails из Pixabay */}
           {searchingImg ? (
-            <span className="text-xs text-gray-400">Ищем картинки...</span>
+            <span className="text-xs text-gray-400 dark:text-slate-500">Ищем картинки...</span>
           ) : (
             pixImages.map((img, i) => (
               <button
                 key={i}
                 onClick={() => onChange({ ...word, imageUrl: img.webformatURL })}
-                className={`flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${word.imageUrl === img.webformatURL ? 'border-blue-500' : 'border-gray-200 hover:border-blue-300'}`}
+                className={`flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${word.imageUrl === img.webformatURL ? 'border-purple-500' : 'border-gray-200 dark:border-slate-700 hover:border-purple-300'}`}
                 title="Выбрать картинку"
               >
                 <img src={img.previewURL} alt="" className="w-full h-full object-cover" />
@@ -215,7 +215,7 @@ export default function VocabWordCard({
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
             title="Загрузить свою картинку"
-            className="flex-shrink-0 w-16 h-12 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 flex items-center justify-center text-gray-400 hover:text-blue-500 transition-colors text-xl disabled:opacity-50"
+            className="flex-shrink-0 w-16 h-12 rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-600 hover:border-purple-400 flex items-center justify-center text-gray-400 dark:text-slate-500 hover:text-purple-500 transition-colors text-xl disabled:opacity-50"
           >
             {uploading ? '⏳' : '📁'}
           </button>
@@ -228,7 +228,7 @@ export default function VocabWordCard({
           />
         </div>
         {pixImages.length === 0 && !searchingImg && word.target.trim() && (
-          <span className="text-xs text-gray-400 mt-1 block">Нет иллюстраций на Pixabay — загрузите свою</span>
+          <span className="text-xs text-gray-400 dark:text-slate-500 mt-1 block">Нет иллюстраций на Pixabay — загрузите свою</span>
         )}
       </div>
     </div>

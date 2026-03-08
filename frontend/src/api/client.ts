@@ -43,6 +43,11 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // Для запроса логина не пытаемся рефрешить — просто пробрасываем ошибку.
+    if (originalRequest.url?.includes('/auth/login/')) {
+      return Promise.reject(error);
+    }
+
     // Если обновление уже идёт — ставим запрос в очередь.
     if (isRefreshing) {
       return new Promise((resolve, reject) => {

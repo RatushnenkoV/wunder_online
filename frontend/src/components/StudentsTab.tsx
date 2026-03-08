@@ -380,15 +380,15 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
   return (
     <div>
       {message && (
-        <div className="bg-blue-50 text-blue-700 p-3 rounded mb-4 text-sm flex justify-between">
+        <div className="bg-purple-50 text-purple-700 p-3 rounded mb-4 text-sm flex justify-between">
           {message}
-          <button onClick={() => setMessage('')} className="text-blue-400 hover:text-blue-600 ml-4">×</button>
+          <button onClick={() => setMessage('')} className="text-purple-400 hover:text-purple-600 ml-4">×</button>
         </div>
       )}
 
       {importing && (
-        <div className="bg-blue-50 p-3 rounded mb-4 text-sm">
-          <div className="flex justify-between items-center mb-1 text-blue-700">
+        <div className="bg-purple-50 p-3 rounded mb-4 text-sm">
+          <div className="flex justify-between items-center mb-1 text-purple-700">
             {importProgress && importProgress.total > 0 ? (
               <>
                 <span>Импортирование... {importProgress.processed} / {importProgress.total}</span>
@@ -398,14 +398,14 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
               <span>Загрузка и обработка файла...</span>
             )}
           </div>
-          <div className="w-full bg-blue-100 rounded-full h-2 overflow-hidden">
+          <div className="w-full bg-purple-100 rounded-full h-2 overflow-hidden">
             {importProgress && importProgress.total > 0 ? (
               <div
-                className="bg-blue-500 h-2 rounded-full transition-all duration-200"
+                className="bg-purple-500 h-2 rounded-full transition-all duration-200"
                 style={{ width: `${Math.round(importProgress.processed / importProgress.total * 100)}%` }}
               />
             ) : (
-              <div className="bg-blue-400 h-2 rounded-full animate-pulse w-full" />
+              <div className="bg-purple-400 h-2 rounded-full animate-pulse w-full" />
             )}
           </div>
         </div>
@@ -418,7 +418,7 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
               Импорт завершён: создано {importResult.created}, обновлено {importResult.updated}
               {importResult.errors.length > 0 && `, ошибок: ${importResult.errors.length}`}
             </span>
-            <button onClick={() => setImportResult(null)} className="text-gray-400 hover:text-gray-600 ml-4">×</button>
+            <button onClick={() => setImportResult(null)} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 ml-4">×</button>
           </div>
           {importResult.errors.length > 0 && (
             <ul className="mt-2 space-y-0.5 text-yellow-700 text-xs max-h-32 overflow-y-auto">
@@ -429,11 +429,11 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
       )}
 
       <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
           По:
           {[10, 25, 50].map(n => (
             <button key={n} onClick={() => setPagination(p => ({ ...p, per_page: n }))}
-              className={`px-2 py-1 rounded ${pagination.per_page === n ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>
+              className={`px-2 py-1 rounded ${pagination.per_page === n ? 'bg-purple-600 text-white' : 'bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-600'}`}>
               {n}
             </button>
           ))}
@@ -444,39 +444,39 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
               {importing ? 'Импорт...' : 'Импорт из Excel'}
               <input type="file" accept=".xlsx" className="hidden" onChange={handleImportExcel} disabled={importing} />
             </label>
-            <button onClick={() => { setRows([emptyRow()]); setShowCreate(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+            <button onClick={() => { setRows([emptyRow()]); setShowCreate(true); }} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm">
               + Добавить
             </button>
           </div>
         )}
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-slate-900">
             <tr>
               <th className="px-4 py-2 text-left">
-                <button onClick={() => toggleSort('last_name')} className="font-medium text-gray-600 hover:text-gray-900">
+                <button onClick={() => toggleSort('last_name')} className="font-medium text-gray-600 dark:text-slate-400 hover:text-gray-900">
                   Фамилия{sortIcon('last_name')}
                 </button>
                 <input placeholder="Фильтр..." value={filters.last_name} onChange={e => setFilters(f => ({ ...f, last_name: e.target.value }))} className="block w-full border rounded px-2 py-1 text-xs mt-1 font-normal" />
               </th>
               <th className="px-4 py-2 text-left">
-                <button onClick={() => toggleSort('first_name')} className="font-medium text-gray-600 hover:text-gray-900">
+                <button onClick={() => toggleSort('first_name')} className="font-medium text-gray-600 dark:text-slate-400 hover:text-gray-900">
                   Имя{sortIcon('first_name')}
                 </button>
                 <input placeholder="Фильтр..." value={filters.first_name} onChange={e => setFilters(f => ({ ...f, first_name: e.target.value }))} className="block w-full border rounded px-2 py-1 text-xs mt-1 font-normal" />
               </th>
               <th className="px-4 py-2 text-left">
-                <span className="font-medium text-gray-600">Email</span>
+                <span className="font-medium text-gray-600 dark:text-slate-400">Email</span>
                 <input placeholder="Фильтр..." value={filters.email} onChange={e => setFilters(f => ({ ...f, email: e.target.value }))} className="block w-full border rounded px-2 py-1 text-xs mt-1 font-normal" />
               </th>
               <th className="px-4 py-2 text-left">
-                <span className="font-medium text-gray-600">Телефон</span>
+                <span className="font-medium text-gray-600 dark:text-slate-400">Телефон</span>
                 <input placeholder="Фильтр..." value={filters.phone} onChange={e => setFilters(f => ({ ...f, phone: e.target.value }))} className="block w-full border rounded px-2 py-1 text-xs mt-1 font-normal" />
               </th>
               <th className="px-4 py-2 text-left">
-                <button onClick={() => toggleSort('school_class')} className="font-medium text-gray-600 hover:text-gray-900">
+                <button onClick={() => toggleSort('school_class')} className="font-medium text-gray-600 dark:text-slate-400 hover:text-gray-900">
                   Класс{sortIcon('school_class')}
                 </button>
                 <select value={filters.school_class} onChange={e => setFilters(f => ({ ...f, school_class: e.target.value }))} className="block w-full border rounded px-2 py-1 text-xs mt-1 font-normal">
@@ -484,8 +484,8 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
                   {classes.map(c => <option key={c.id} value={c.id}>{c.display_name}</option>)}
                 </select>
               </th>
-              {!readOnly && <th className="px-4 py-2 text-left font-medium text-gray-600">Номер Л/Д</th>}
-              {!readOnly && <th className="px-4 py-2 text-left font-medium text-gray-600">Врем. пароль</th>}
+              {!readOnly && <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-400">Номер Л/Д</th>}
+              {!readOnly && <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-400">Врем. пароль</th>}
               {!readOnly && <th className="w-10"></th>}
             </tr>
           </thead>
@@ -493,29 +493,29 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
             {students.map(u => (
               <tr
                 key={u.id}
-                className={`hover:bg-gray-50 ${!readOnly ? 'cursor-pointer' : ''}`}
+                className={`hover:bg-gray-50 dark:hover:bg-slate-800 ${!readOnly ? 'cursor-pointer' : ''}`}
                 onClick={() => !readOnly && openEdit(u)}
                 onContextMenu={e => { e.preventDefault(); if (!readOnly) openContextMenu(u, e.clientX, e.clientY); }}
               >
                 <td className="px-4 py-2">{u.last_name}</td>
                 <td className="px-4 py-2">{u.first_name}</td>
-                <td className="px-4 py-2 text-gray-500" onClick={e => e.stopPropagation()}>
+                <td className="px-4 py-2 text-gray-500 dark:text-slate-400" onClick={e => e.stopPropagation()}>
                   {u.email ? (
                     <button onClick={() => copyToClipboard(u.email, `email_${u.id}`)} className="hover:underline cursor-copy text-left" title="Нажмите, чтобы скопировать">
                       {copiedField === `email_${u.id}` ? '✓ Скопировано' : u.email}
                     </button>
                   ) : '—'}
                 </td>
-                <td className="px-4 py-2 text-gray-500" onClick={e => e.stopPropagation()}>
+                <td className="px-4 py-2 text-gray-500 dark:text-slate-400" onClick={e => e.stopPropagation()}>
                   {u.phone ? (
                     <button onClick={() => copyToClipboard(u.phone, `phone_${u.id}`)} className="hover:underline cursor-copy text-left" title="Нажмите, чтобы скопировать">
                       {copiedField === `phone_${u.id}` ? '✓ Скопировано' : u.phone}
                     </button>
                   ) : '—'}
                 </td>
-                <td className="px-4 py-2 text-gray-500">{u.school_class_name || '—'}</td>
+                <td className="px-4 py-2 text-gray-500 dark:text-slate-400">{u.school_class_name || '—'}</td>
                 {!readOnly && (
-                  <td className="px-4 py-2 text-gray-500 font-mono text-xs">{u.personal_file_number || '—'}</td>
+                  <td className="px-4 py-2 text-gray-500 dark:text-slate-400 font-mono text-xs">{u.personal_file_number || '—'}</td>
                 )}
                 {!readOnly && (
                   <td className="px-4 py-2" onClick={e => e.stopPropagation()}>
@@ -534,7 +534,7 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
                   <td className="px-2 py-2 text-center">
                     <button
                       onClick={e => { e.stopPropagation(); openContextMenu(u, e.clientX, e.clientY); }}
-                      className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
+                      className="text-gray-400 dark:text-slate-500 hover:text-gray-600 p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
                     >
                       &#8942;
                     </button>
@@ -544,13 +544,13 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
             ))}
           </tbody>
         </table>
-        {students.length === 0 && <p className="text-center text-gray-400 py-8">Ученики не найдены</p>}
+        {students.length === 0 && <p className="text-center text-gray-400 dark:text-slate-500 py-8">Ученики не найдены</p>}
       </div>
 
       {pagination.pages > 1 && (
         <div className="flex justify-center gap-2 mt-4">
           <button onClick={() => loadList(pagination.page - 1)} disabled={pagination.page <= 1} className="px-3 py-1 rounded border text-sm disabled:opacity-30">&lt;</button>
-          <span className="px-3 py-1 text-sm text-gray-600">{pagination.page} / {pagination.pages} (всего: {pagination.total})</span>
+          <span className="px-3 py-1 text-sm text-gray-600 dark:text-slate-400">{pagination.page} / {pagination.pages} (всего: {pagination.total})</span>
           <button onClick={() => loadList(pagination.page + 1)} disabled={pagination.page >= pagination.pages} className="px-3 py-1 rounded border text-sm disabled:opacity-30">&gt;</button>
         </div>
       )}
@@ -562,12 +562,12 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
       {/* Create Modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowCreate(false)}>
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Добавление учеников</h3>
             <div className="overflow-auto flex-1">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs text-gray-500 border-b">
+                  <tr className="text-left text-xs text-gray-500 dark:text-slate-400 border-b">
                     <th className="pb-2 font-medium">Фамилия *</th>
                     <th className="pb-2 font-medium pl-2">Имя *</th>
                     <th className="pb-2 font-medium pl-2">Email</th>
@@ -608,10 +608,10 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
               </table>
             </div>
             <div className="flex justify-between items-center mt-4 pt-4 border-t">
-              <button onClick={() => setRows(r => [...r, emptyRow()])} className="text-blue-600 hover:text-blue-800 text-sm">+ Ещё строка</button>
+              <button onClick={() => setRows(r => [...r, emptyRow()])} className="text-purple-600 hover:text-purple-800 text-sm">+ Ещё строка</button>
               <div className="flex gap-2">
-                <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Отмена</button>
-                <button onClick={handleCreate} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Создать</button>
+                <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800">Отмена</button>
+                <button onClick={handleCreate} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">Создать</button>
               </div>
             </div>
           </div>
@@ -621,38 +621,38 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
       {/* Student Edit Modal */}
       {editUser && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setEditUser(null)}>
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Редактирование ученика</h3>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Фамилия *</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Фамилия *</label>
                 <input value={editForm.last_name} onChange={e => setEditForm(f => ({ ...f, last_name: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Имя *</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Имя *</label>
                 <input value={editForm.first_name} onChange={e => setEditForm(f => ({ ...f, first_name: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Email</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Email</label>
                 <input value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Телефон</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Телефон</label>
                 <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Дата рождения</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Дата рождения</label>
                 <input type="date" value={editForm.birth_date} onChange={e => setEditForm(f => ({ ...f, birth_date: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Класс</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Класс</label>
                 <select value={editForm.school_class} onChange={e => setEditForm(f => ({ ...f, school_class: e.target.value ? parseInt(e.target.value) : '' }))} className="w-full border rounded px-3 py-2 text-sm">
                   <option value="">Без класса</option>
                   {classes.map(c => <option key={c.id} value={c.id}>{c.display_name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Номер личного дела</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Номер личного дела</label>
                 <input value={editForm.personal_file_number} onChange={e => setEditForm(f => ({ ...f, personal_file_number: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm font-mono" placeholder="Б-31" />
               </div>
 
@@ -660,16 +660,16 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
               {studentProfileId !== null && (
                 <div className="border-t pt-3 mt-2">
                   <div className="flex justify-between items-center mb-2">
-                    <label className="text-sm font-medium text-gray-700">Родители</label>
-                    <button onClick={() => { setShowAddParent(v => !v); setAddParentMode('search'); }} className="text-xs text-blue-600 hover:text-blue-800">+ Добавить</button>
+                    <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Родители</label>
+                    <button onClick={() => { setShowAddParent(v => !v); setAddParentMode('search'); }} className="text-xs text-purple-600 hover:text-purple-800">+ Добавить</button>
                   </div>
                   {studentParents.length > 0 ? (
                     <div className="space-y-1.5 mb-2">
                       {studentParents.map(p => (
-                        <div key={p.id} className="flex justify-between items-center bg-gray-50 rounded px-3 py-1.5 text-sm">
+                        <div key={p.id} className="flex justify-between items-center bg-gray-50 dark:bg-slate-900 rounded px-3 py-1.5 text-sm">
                           <button
                             onClick={() => openCrossNavParent(p)}
-                            className="text-blue-600 hover:underline text-left flex-1 text-sm"
+                            className="text-purple-600 hover:underline text-left flex-1 text-sm"
                           >
                             {p.last_name} {p.first_name}{p.phone ? ` · ${p.phone}` : ''}
                           </button>
@@ -678,24 +678,24 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-400 mb-2">Родители не привязаны</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-500 mb-2">Родители не привязаны</p>
                   )}
                   {showAddParent && (
-                    <div className="border rounded-lg p-3 bg-gray-50 space-y-2">
+                    <div className="border rounded-lg p-3 bg-gray-50 dark:bg-slate-900 space-y-2">
                       <div className="flex gap-2 mb-1">
-                        <button onClick={() => setAddParentMode('search')} className={`text-xs px-2 py-1 rounded ${addParentMode === 'search' ? 'bg-blue-600 text-white' : 'bg-white border text-gray-600'}`}>Найти существующего</button>
-                        <button onClick={() => setAddParentMode('create')} className={`text-xs px-2 py-1 rounded ${addParentMode === 'create' ? 'bg-blue-600 text-white' : 'bg-white border text-gray-600'}`}>Создать нового</button>
+                        <button onClick={() => setAddParentMode('search')} className={`text-xs px-2 py-1 rounded ${addParentMode === 'search' ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-800 border text-gray-600 dark:text-slate-400'}`}>Найти существующего</button>
+                        <button onClick={() => setAddParentMode('create')} className={`text-xs px-2 py-1 rounded ${addParentMode === 'create' ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-800 border text-gray-600 dark:text-slate-400'}`}>Создать нового</button>
                       </div>
                       {addParentMode === 'search' ? (
                         <>
                           <input placeholder="Поиск по фамилии..." value={parentSearch} onChange={e => handleSearchParents(e.target.value)} className="w-full border rounded px-2 py-1.5 text-xs" />
                           {parentSearchResults.map(p => (
-                            <div key={p.id} className="flex justify-between items-center text-xs bg-white rounded px-2 py-1.5 border">
+                            <div key={p.id} className="flex justify-between items-center text-xs bg-white dark:bg-slate-800 rounded px-2 py-1.5 border">
                               <span>{p.last_name} {p.first_name}</span>
-                              <button onClick={() => handleLinkParent(p.id)} className="text-blue-600 hover:text-blue-800 ml-2">Привязать</button>
+                              <button onClick={() => handleLinkParent(p.id)} className="text-purple-600 hover:text-purple-800 ml-2">Привязать</button>
                             </div>
                           ))}
-                          {parentSearch && parentSearchResults.length === 0 && <p className="text-xs text-gray-400">Не найдено</p>}
+                          {parentSearch && parentSearchResults.length === 0 && <p className="text-xs text-gray-400 dark:text-slate-500">Не найдено</p>}
                         </>
                       ) : (
                         <div className="space-y-1.5">
@@ -705,7 +705,7 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
                           </div>
                           <input placeholder="Телефон" value={newParentForm.phone} onChange={e => setNewParentForm(f => ({ ...f, phone: e.target.value }))} className="w-full border rounded px-2 py-1.5 text-xs" />
                           <input placeholder="Telegram" value={newParentForm.telegram} onChange={e => setNewParentForm(f => ({ ...f, telegram: e.target.value }))} className="w-full border rounded px-2 py-1.5 text-xs" />
-                          <button onClick={handleCreateAndLinkParent} disabled={!newParentForm.first_name.trim() || !newParentForm.last_name.trim()} className="w-full bg-blue-600 text-white text-xs py-1.5 rounded disabled:opacity-50 hover:bg-blue-700">
+                          <button onClick={handleCreateAndLinkParent} disabled={!newParentForm.first_name.trim() || !newParentForm.last_name.trim()} className="w-full bg-purple-600 text-white text-xs py-1.5 rounded disabled:opacity-50 hover:bg-purple-700">
                             Создать и привязать
                           </button>
                         </div>
@@ -716,8 +716,8 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
               )}
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setEditUser(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Отмена</button>
-              <button onClick={handleEdit} disabled={!editForm.first_name.trim() || !editForm.last_name.trim()} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+              <button onClick={() => setEditUser(null)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800">Отмена</button>
+              <button onClick={handleEdit} disabled={!editForm.first_name.trim() || !editForm.last_name.trim()} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700 disabled:opacity-50">
                 Сохранить
               </button>
             </div>
@@ -728,42 +728,42 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
       {/* Parent cross-nav modal (z-[60], поверх карточки ученика) */}
       {crossNavParent && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60]" onClick={() => setCrossNavParent(null)}>
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
-              <button onClick={() => setCrossNavParent(null)} className="text-gray-400 hover:text-gray-600 text-sm">← Назад</button>
+              <button onClick={() => setCrossNavParent(null)} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 text-sm">← Назад</button>
               <h3 className="text-lg font-semibold">Карточка родителя</h3>
             </div>
             <div className="space-y-3">
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <label className="block text-sm text-gray-600 mb-1">Фамилия *</label>
+                  <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Фамилия *</label>
                   <input value={crossNavParentForm.last_name} onChange={e => setCrossNavParentForm(f => ({ ...f, last_name: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-sm text-gray-600 mb-1">Имя *</label>
+                  <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Имя *</label>
                   <input value={crossNavParentForm.first_name} onChange={e => setCrossNavParentForm(f => ({ ...f, first_name: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Телефон</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Телефон</label>
                 <input value={crossNavParentForm.phone} onChange={e => setCrossNavParentForm(f => ({ ...f, phone: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Email</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Email</label>
                 <input value={crossNavParentForm.email} onChange={e => setCrossNavParentForm(f => ({ ...f, email: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Telegram</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Telegram</label>
                 <input value={crossNavParentForm.telegram} onChange={e => setCrossNavParentForm(f => ({ ...f, telegram: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" placeholder="@username" />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Дата рождения</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Дата рождения</label>
                 <input type="date" value={crossNavParentForm.birth_date} onChange={e => setCrossNavParentForm(f => ({ ...f, birth_date: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
               </div>
               <div className="border-t pt-3">
-                <label className="block text-sm text-gray-600 mb-2">Дети</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-2">Дети</label>
                 {crossNavParentChildren.map(c => (
-                  <div key={c.student_profile_id} className="flex justify-between items-center bg-gray-50 rounded px-3 py-1.5 text-sm mb-1">
+                  <div key={c.student_profile_id} className="flex justify-between items-center bg-gray-50 dark:bg-slate-900 rounded px-3 py-1.5 text-sm mb-1">
                     <span>{c.last_name} {c.first_name}{c.school_class_name ? ` · ${c.school_class_name}` : ''}</span>
                     <button onClick={() => setCrossNavParentChildren(p => p.filter(x => x.student_profile_id !== c.student_profile_id))} className="text-red-400 text-xs ml-2">×</button>
                   </div>
@@ -775,16 +775,16 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
                   className="w-full border rounded px-2 py-1.5 text-sm mt-1"
                 />
                 {crossNavChildResults.map(s => (
-                  <div key={s.id} className="flex justify-between items-center text-sm bg-white rounded px-2 py-1.5 border mt-1">
+                  <div key={s.id} className="flex justify-between items-center text-sm bg-white dark:bg-slate-800 rounded px-2 py-1.5 border mt-1">
                     <span>{s.last_name} {s.first_name}{s.school_class_name ? ` · ${s.school_class_name}` : ''}</span>
-                    <button onClick={() => addChildToCrossNavParent(s)} className="text-blue-600 text-xs ml-2">Добавить</button>
+                    <button onClick={() => addChildToCrossNavParent(s)} className="text-purple-600 text-xs ml-2">Добавить</button>
                   </div>
                 ))}
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setCrossNavParent(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Отмена</button>
-              <button onClick={saveCrossNavParent} disabled={!crossNavParentForm.first_name.trim() || !crossNavParentForm.last_name.trim()} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+              <button onClick={() => setCrossNavParent(null)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800">Отмена</button>
+              <button onClick={saveCrossNavParent} disabled={!crossNavParentForm.first_name.trim() || !crossNavParentForm.last_name.trim()} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700 disabled:opacity-50">
                 Сохранить
               </button>
             </div>

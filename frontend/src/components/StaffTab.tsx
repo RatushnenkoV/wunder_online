@@ -12,7 +12,7 @@ const ROLE_OPTIONS = [
 
 function roleBadgeClass(role: string) {
   if (role === 'spps') return 'bg-yellow-100 text-yellow-700';
-  return 'bg-blue-100 text-blue-700';
+  return 'bg-purple-100 text-purple-700';
 }
 
 interface StaffRow {
@@ -194,62 +194,62 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
   return (
     <div>
       {message && (
-        <div className="bg-blue-50 text-blue-700 p-3 rounded mb-4 text-sm flex justify-between">
+        <div className="bg-purple-50 text-purple-700 p-3 rounded mb-4 text-sm flex justify-between">
           {message}
-          <button onClick={() => setMessage('')} className="text-blue-400 hover:text-blue-600 ml-4">x</button>
+          <button onClick={() => setMessage('')} className="text-purple-400 hover:text-purple-600 ml-4">x</button>
         </div>
       )}
 
       <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
           Показывать по:
           {[10, 25, 50].map(n => (
             <button key={n} onClick={() => setPagination(p => ({ ...p, per_page: n }))}
-              className={`px-2 py-1 rounded ${pagination.per_page === n ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>
+              className={`px-2 py-1 rounded ${pagination.per_page === n ? 'bg-purple-600 text-white' : 'bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-600'}`}>
               {n}
             </button>
           ))}
         </div>
         {!readOnly && (
-          <button onClick={openCreateModal} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+          <button onClick={openCreateModal} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm">
             + Добавить
           </button>
         )}
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-slate-900">
             <tr>
               <th className="px-4 py-2 text-left">
-                <button onClick={() => toggleSort('last_name')} className="font-medium text-gray-600 hover:text-gray-900">
+                <button onClick={() => toggleSort('last_name')} className="font-medium text-gray-600 dark:text-slate-400 hover:text-gray-900">
                   Фамилия{sortIcon('last_name')}
                 </button>
                 <input placeholder="Фильтр..." value={filters.last_name} onChange={e => setFilters(f => ({ ...f, last_name: e.target.value }))} className="block w-full border rounded px-2 py-1 text-xs mt-1 font-normal" />
               </th>
               <th className="px-4 py-2 text-left">
-                <button onClick={() => toggleSort('first_name')} className="font-medium text-gray-600 hover:text-gray-900">
+                <button onClick={() => toggleSort('first_name')} className="font-medium text-gray-600 dark:text-slate-400 hover:text-gray-900">
                   Имя{sortIcon('first_name')}
                 </button>
                 <input placeholder="Фильтр..." value={filters.first_name} onChange={e => setFilters(f => ({ ...f, first_name: e.target.value }))} className="block w-full border rounded px-2 py-1 text-xs mt-1 font-normal" />
               </th>
               <th className="px-4 py-2 text-left hidden sm:table-cell">
-                <span className="font-medium text-gray-600">Email</span>
+                <span className="font-medium text-gray-600 dark:text-slate-400">Email</span>
                 <input placeholder="Фильтр..." value={filters.email} onChange={e => setFilters(f => ({ ...f, email: e.target.value }))} className="block w-full border rounded px-2 py-1 text-xs mt-1 font-normal" />
               </th>
               <th className="px-4 py-2 text-left hidden sm:table-cell">
-                <span className="font-medium text-gray-600">Телефон</span>
+                <span className="font-medium text-gray-600 dark:text-slate-400">Телефон</span>
                 <input placeholder="Фильтр..." value={filters.phone} onChange={e => setFilters(f => ({ ...f, phone: e.target.value }))} className="block w-full border rounded px-2 py-1 text-xs mt-1 font-normal" />
               </th>
               <th className="px-4 py-2 text-left hidden sm:table-cell">
-                <span className="font-medium text-gray-600">Роли</span>
+                <span className="font-medium text-gray-600 dark:text-slate-400">Роли</span>
                 <select value={filters.role} onChange={e => setFilters(f => ({ ...f, role: e.target.value }))} className="block w-full border rounded px-2 py-1 text-xs mt-1 font-normal">
                   <option value="">Все</option>
                   {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </th>
-              <th className="px-4 py-2 text-left font-medium text-gray-600 hidden sm:table-cell">Врем. пароль</th>
+              <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-400 hidden sm:table-cell">Врем. пароль</th>
               {!readOnly && <th className="w-10 hidden sm:table-cell"></th>}
             </tr>
           </thead>
@@ -257,20 +257,20 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
             {users.map(u => (
               <tr
                 key={u.id}
-                className="hover:bg-gray-50 cursor-pointer"
+                className="hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer"
                 onClick={() => setViewUser(u)}
                 onContextMenu={e => { e.preventDefault(); if (!readOnly) openContextMenu(u, e.clientX, e.clientY); }}
               >
                 <td className="px-4 py-2">{u.last_name}</td>
                 <td className="px-4 py-2">{u.first_name}</td>
-                <td className="px-4 py-2 text-gray-500 hidden sm:table-cell" onClick={e => e.stopPropagation()}>
+                <td className="px-4 py-2 text-gray-500 dark:text-slate-400 hidden sm:table-cell" onClick={e => e.stopPropagation()}>
                   {u.email ? (
                     <button onClick={() => copyToClipboard(u.email, `email_${u.id}`)} className="hover:underline cursor-copy text-left" title="Нажмите, чтобы скопировать">
                       {copiedField === `email_${u.id}` ? '✓ Скопировано' : u.email}
                     </button>
                   ) : '—'}
                 </td>
-                <td className="px-4 py-2 text-gray-500 hidden sm:table-cell" onClick={e => e.stopPropagation()}>
+                <td className="px-4 py-2 text-gray-500 dark:text-slate-400 hidden sm:table-cell" onClick={e => e.stopPropagation()}>
                   {u.phone ? (
                     <button onClick={() => copyToClipboard(u.phone, `phone_${u.id}`)} className="hover:underline cursor-copy text-left" title="Нажмите, чтобы скопировать">
                       {copiedField === `phone_${u.id}` ? '✓ Скопировано' : u.phone}
@@ -306,7 +306,7 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
                   <td className="px-2 py-2 text-center hidden sm:table-cell">
                     <button
                       onClick={e => { e.stopPropagation(); openContextMenu(u, e.clientX, e.clientY); }}
-                      className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
+                      className="text-gray-400 dark:text-slate-500 hover:text-gray-600 p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
                     >
                       &#8942;
                     </button>
@@ -316,14 +316,14 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
             ))}
           </tbody>
         </table>
-        {users.length === 0 && <p className="text-center text-gray-400 py-8">Сотрудники не найдены</p>}
+        {users.length === 0 && <p className="text-center text-gray-400 dark:text-slate-500 py-8">Сотрудники не найдены</p>}
       </div>
 
       {/* Pagination */}
       {pagination.pages > 1 && (
         <div className="flex justify-center gap-2 mt-4">
           <button onClick={() => load(pagination.page - 1)} disabled={pagination.page <= 1} className="px-3 py-1 rounded border text-sm disabled:opacity-30">&lt;</button>
-          <span className="px-3 py-1 text-sm text-gray-600">{pagination.page} / {pagination.pages} (всего: {pagination.total})</span>
+          <span className="px-3 py-1 text-sm text-gray-600 dark:text-slate-400">{pagination.page} / {pagination.pages} (всего: {pagination.total})</span>
           <button onClick={() => load(pagination.page + 1)} disabled={pagination.page >= pagination.pages} className="px-3 py-1 rounded border text-sm disabled:opacity-30">&gt;</button>
         </div>
       )}
@@ -336,20 +336,20 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
       {/* Teacher View Card */}
       {viewUser && (
         <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50" onClick={() => setViewUser(null)}>
-          <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl p-6 w-full sm:max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-t-2xl sm:rounded-lg shadow-xl p-6 w-full sm:max-w-md" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-start mb-5">
               <h3 className="text-lg font-semibold">{viewUser.last_name} {viewUser.first_name}</h3>
-              <button onClick={() => setViewUser(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+              <button onClick={() => setViewUser(null)} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 text-xl leading-none">&times;</button>
             </div>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-gray-500">Email</span>
+                <span className="text-gray-500 dark:text-slate-400">Email</span>
                 <div className="flex items-center gap-2">
                   <span>{viewUser.email || '—'}</span>
                   {viewUser.email && (
                     <button
                       onClick={() => copyToClipboard(viewUser.email, 'email')}
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      className="text-gray-400 dark:text-slate-500 hover:text-gray-600 transition-colors"
                       title="Копировать"
                     >
                       {copiedField === 'email' ? (
@@ -362,13 +362,13 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
                 </div>
               </div>
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-gray-500">Телефон</span>
+                <span className="text-gray-500 dark:text-slate-400">Телефон</span>
                 <div className="flex items-center gap-2">
                   <span>{viewUser.phone || '—'}</span>
                   {viewUser.phone && (
                     <button
                       onClick={() => copyToClipboard(viewUser.phone, 'phone')}
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      className="text-gray-400 dark:text-slate-500 hover:text-gray-600 transition-colors"
                       title="Копировать"
                     >
                       {copiedField === 'phone' ? (
@@ -382,12 +382,12 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
               </div>
               {viewUser.birth_date && (
                 <div className="flex justify-between py-2 border-b">
-                  <span className="text-gray-500">Дата рождения</span>
+                  <span className="text-gray-500 dark:text-slate-400">Дата рождения</span>
                   <span>{new Date(viewUser.birth_date).toLocaleDateString('ru-RU')}</span>
                 </div>
               )}
               <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-gray-500">Роли</span>
+                <span className="text-gray-500 dark:text-slate-400">Роли</span>
                 <div className="flex flex-wrap gap-1 justify-end">
                   {viewUser.roles.filter(r => r !== 'parent').map(r => (
                     <span key={r} className={`${roleBadgeClass(r)} text-xs px-2 py-0.5 rounded`}>
@@ -403,7 +403,7 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
               </div>
               {viewUser.must_change_password && viewUser.temp_password && (
                 <div className="flex justify-between items-center py-2 border-b">
-                  <span className="text-gray-500">Врем. пароль</span>
+                  <span className="text-gray-500 dark:text-slate-400">Врем. пароль</span>
                   <button
                     onClick={() => copyToClipboard(viewUser.temp_password!, 'temp_card')}
                     className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs font-mono hover:bg-yellow-100 transition-colors cursor-copy"
@@ -418,13 +418,13 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
               <div className="flex gap-2 mt-6 pt-4 border-t">
                 <button
                   onClick={() => { openEdit(viewUser); setViewUser(null); }}
-                  className="flex-1 px-3 py-2 text-sm border rounded hover:bg-gray-50"
+                  className="flex-1 px-3 py-2 text-sm border rounded hover:bg-gray-50 dark:hover:bg-slate-800"
                 >
                   Изменить
                 </button>
                 <button
                   onClick={() => { handleResetPassword(viewUser); setViewUser(null); }}
-                  className="flex-1 px-3 py-2 text-sm border rounded hover:bg-gray-50"
+                  className="flex-1 px-3 py-2 text-sm border rounded hover:bg-gray-50 dark:hover:bg-slate-800"
                 >
                   Сбросить пароль
                 </button>
@@ -443,12 +443,12 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
       {/* Create Modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowCreate(false)}>
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Добавление сотрудников</h3>
             <div className="overflow-auto flex-1">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs text-gray-500 border-b">
+                  <tr className="text-left text-xs text-gray-500 dark:text-slate-400 border-b">
                     <th className="pb-2 font-medium">Фамилия *</th>
                     <th className="pb-2 font-medium pl-2">Имя *</th>
                     <th className="pb-2 font-medium pl-2">Email</th>
@@ -494,10 +494,10 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
               </table>
             </div>
             <div className="flex justify-between items-center mt-4 pt-4 border-t">
-              <button onClick={() => setRows(r => [...r, emptyRow()])} className="text-blue-600 hover:text-blue-800 text-sm">+ Ещё строка</button>
+              <button onClick={() => setRows(r => [...r, emptyRow()])} className="text-purple-600 hover:text-purple-800 text-sm">+ Ещё строка</button>
               <div className="flex gap-2">
-                <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Отмена</button>
-                <button onClick={handleCreate} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Создать</button>
+                <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800">Отмена</button>
+                <button onClick={handleCreate} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">Создать</button>
               </div>
             </div>
           </div>
@@ -507,31 +507,31 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
       {/* Edit Modal */}
       {editUser && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setEditUser(null)}>
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Редактирование сотрудника</h3>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Фамилия *</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Фамилия *</label>
                 <input value={editForm.last_name} onChange={e => setEditForm(f => ({ ...f, last_name: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Имя *</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Имя *</label>
                 <input value={editForm.first_name} onChange={e => setEditForm(f => ({ ...f, first_name: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Email</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Email</label>
                 <input value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Телефон</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Телефон</label>
                 <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Дата рождения</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Дата рождения</label>
                 <input type="date" value={editForm.birth_date} onChange={e => setEditForm(f => ({ ...f, birth_date: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Роли</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Роли</label>
                 <div className="flex gap-3">
                   {ROLE_OPTIONS.map(r => (
                     <label key={r.value} className="flex items-center gap-1 text-sm">
@@ -543,8 +543,8 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setEditUser(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Отмена</button>
-              <button onClick={handleEdit} disabled={!editForm.first_name.trim() || !editForm.last_name.trim()} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+              <button onClick={() => setEditUser(null)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800">Отмена</button>
+              <button onClick={handleEdit} disabled={!editForm.first_name.trim() || !editForm.last_name.trim()} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700 disabled:opacity-50">
                 Сохранить
               </button>
             </div>

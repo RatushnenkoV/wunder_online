@@ -258,7 +258,7 @@ export default function SchedulePage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h1 className="text-2xl font-bold text-gray-900">Расписание</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Расписание</h1>
       </div>
 
       {/* Main tabs */}
@@ -269,8 +269,8 @@ export default function SchedulePage() {
             onClick={() => setMainTab(key)}
             className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
               mainTab === key
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'
             }`}
           >
             {label}
@@ -290,18 +290,18 @@ export default function SchedulePage() {
             <div className="flex rounded-lg overflow-hidden border">
               <button
                 onClick={() => setDisplayMode('week')}
-                className={`px-3 py-1.5 text-sm ${displayMode === 'week' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                className={`px-3 py-1.5 text-sm ${displayMode === 'week' ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
               >Неделя</button>
               <button
                 onClick={() => setDisplayMode('day')}
-                className={`px-3 py-1.5 text-sm ${displayMode === 'day' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                className={`px-3 py-1.5 text-sm ${displayMode === 'day' ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
               >День</button>
             </div>
           )}
           {user?.is_admin && (
             <button
               onClick={() => setShowImport(true)}
-              className="px-4 py-2 rounded text-sm bg-indigo-600 text-white hover:bg-indigo-700"
+              className="px-4 py-2 rounded text-sm bg-purple-600 text-white hover:bg-purple-700"
             >
               Импорт из Excel
             </button>
@@ -310,7 +310,7 @@ export default function SchedulePage() {
             <button
               onClick={() => setEditing(!editing)}
               className={`px-4 py-2 rounded text-sm ${
-                editing ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                editing ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-300'
               }`}
             >
               {editing ? 'Готово' : 'Редактировать'}
@@ -320,7 +320,7 @@ export default function SchedulePage() {
       </div>
 
       {isStudent ? (
-        <div className="mb-4 text-sm text-gray-600">
+        <div className="mb-4 text-sm text-gray-600 dark:text-slate-400">
           Расписание класса: <strong>{user?.school_class_name ?? '—'}</strong>
         </div>
       ) : (
@@ -331,7 +331,7 @@ export default function SchedulePage() {
                 key={m.key}
                 onClick={() => { setViewMode(m.key); setSelectedId(null); setEditing(false); }}
                 className={`px-4 py-2 text-sm ${
-                  viewMode === m.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                  viewMode === m.key ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
                 }`}
               >
                 {m.label}
@@ -359,7 +359,7 @@ export default function SchedulePage() {
               key={d}
               onClick={() => setSelectedDay(d)}
               className={`px-3 py-1.5 rounded text-sm ${
-                selectedDay === d ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border hover:bg-gray-50'
+                selectedDay === d ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border hover:bg-gray-50 dark:hover:bg-slate-800'
               }`}
             >
               {WEEKDAY_LABELS[d].slice(0, 2)}
@@ -369,7 +369,7 @@ export default function SchedulePage() {
       )}
 
       {!selectedId ? (
-        <p className="text-gray-400 text-sm">Выберите элемент для отображения расписания</p>
+        <p className="text-gray-400 dark:text-slate-500 text-sm">Выберите элемент для отображения расписания</p>
       ) : (
         <ScheduleGrid
           lessons={displayedLessons}
@@ -391,15 +391,15 @@ export default function SchedulePage() {
 
       {selectedId && lessons.length > 0 && (viewMode === 'class' || viewMode === 'teacher') && (
         <div className="mt-6">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3">
             {viewMode === 'class' ? 'Часы по предметам' : 'Часы по предметам'}
           </h2>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-900">
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-600">Предмет</th>
-                  <th className="px-4 py-2 text-right font-medium text-gray-600">Часов в неделю</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-400">Предмет</th>
+                  <th className="px-4 py-2 text-right font-medium text-gray-600 dark:text-slate-400">Часов в неделю</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -411,13 +411,13 @@ export default function SchedulePage() {
                 )
                   .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
                   .map(([name, count]) => (
-                    <tr key={name} className="hover:bg-gray-50">
+                    <tr key={name} className="hover:bg-gray-50 dark:hover:bg-slate-800">
                       <td className="px-4 py-1.5">{name}</td>
-                      <td className="px-4 py-1.5 text-right text-gray-500">{count}</td>
+                      <td className="px-4 py-1.5 text-right text-gray-500 dark:text-slate-400">{count}</td>
                     </tr>
                   ))
                 }
-                <tr className="bg-gray-50 font-medium">
+                <tr className="bg-gray-50 dark:bg-slate-900 font-medium">
                   <td className="px-4 py-1.5">Итого</td>
                   <td className="px-4 py-1.5 text-right">{lessons.length}</td>
                 </tr>

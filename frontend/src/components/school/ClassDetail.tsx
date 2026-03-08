@@ -68,28 +68,28 @@ export default function ClassDetail({ schoolClass, onBack, onClassUpdated }: Pro
     <div>
       {/* Breadcrumbs */}
       <div className="flex items-center gap-2 mb-3 text-sm">
-        <button onClick={onBack} className="text-gray-500 hover:text-blue-600">Классы</button>
-        <span className="text-gray-300">/</span>
-        <span className="font-semibold text-blue-600">{currentClass.display_name}</span>
+        <button onClick={onBack} className="text-gray-500 dark:text-slate-400 hover:text-purple-600">Классы</button>
+        <span className="text-gray-300 dark:text-slate-600">/</span>
+        <span className="font-semibold text-purple-600">{currentClass.display_name}</span>
       </div>
 
       {/* Curator row */}
       <div className="flex items-center gap-3 mb-4 text-sm">
-        <span className="text-gray-500">Куратор:</span>
+        <span className="text-gray-500 dark:text-slate-400">Куратор:</span>
         {currentClass.curator_name ? (
-          <span className="font-medium text-gray-800">{currentClass.curator_name}</span>
+          <span className="font-medium text-gray-800 dark:text-slate-200">{currentClass.curator_name}</span>
         ) : (
-          <span className="text-gray-400 italic">не назначен</span>
+          <span className="text-gray-400 dark:text-slate-500 italic">не назначен</span>
         )}
         <div className="relative" ref={pickerRef}>
           <button
             onClick={() => { setShowCuratorPicker(v => !v); setCuratorSearch(''); }}
-            className="text-xs text-blue-600 hover:text-blue-800 border border-blue-200 rounded px-2 py-0.5"
+            className="text-xs text-purple-600 hover:text-purple-800 border border-purple-200 rounded px-2 py-0.5"
           >
             {currentClass.curator_name ? 'Изменить' : 'Назначить'}
           </button>
           {showCuratorPicker && (
-            <div className="absolute left-0 top-7 z-30 bg-white border rounded-lg shadow-lg w-64">
+            <div className="absolute left-0 top-7 z-30 bg-white dark:bg-slate-800 border rounded-lg shadow-lg w-64">
               <div className="p-2 border-b">
                 <input
                   autoFocus
@@ -112,12 +112,12 @@ export default function ClassDetail({ schoolClass, onBack, onClassUpdated }: Pro
                   <button
                     key={t.id}
                     onClick={() => handleSelectCurator(t.id)}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${t.id === currentClass.curator_id ? 'bg-blue-50 text-blue-700 font-medium' : ''}`}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-purple-50 ${t.id === currentClass.curator_id ? 'bg-purple-50 text-purple-700 font-medium' : ''}`}
                   >
                     {t.last_name} {t.first_name}
                   </button>
                 ))}
-                {filteredTeachers.length === 0 && <p className="text-xs text-gray-400 text-center py-3">Не найдено</p>}
+                {filteredTeachers.length === 0 && <p className="text-xs text-gray-400 dark:text-slate-500 text-center py-3">Не найдено</p>}
               </div>
             </div>
           )}
@@ -132,8 +132,8 @@ export default function ClassDetail({ schoolClass, onBack, onClassUpdated }: Pro
             onClick={() => setSubTab(tab.key)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
               subTab === tab.key
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'
             }`}
           >
             {tab.label}

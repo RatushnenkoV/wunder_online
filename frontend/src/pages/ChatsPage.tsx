@@ -72,7 +72,7 @@ function RoomAvatar({ room }: { room: ChatRoom }) {
   const initials = room.room_type === 'direct'
     ? `${room.other_user?.last_name?.[0] || ''}${room.other_user?.first_name?.[0] || ''}`.toUpperCase()
     : room.name[0]?.toUpperCase() || '#';
-  const color = room.room_type === 'group' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700';
+  const color = room.room_type === 'group' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700';
   return (
     <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold ${color}`}>
       {initials}
@@ -264,10 +264,10 @@ export default function ChatsPage() {
       {/* Шапка списка */}
       <div className="px-4 py-4" style={{ boxShadow: '0 1px 0 #f0f0f0' }}>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+          <h2 className="font-semibold text-gray-800 dark:text-slate-200 flex items-center gap-2">
             Чаты
             {totalUnread > 0 && (
-              <span className="bg-blue-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 leading-none">
+              <span className="bg-purple-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 leading-none">
                 {totalUnread}
               </span>
             )}
@@ -276,20 +276,20 @@ export default function ChatsPage() {
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setShowMenu((v) => !v)}
-              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              className="p-1.5 text-gray-400 dark:text-slate-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
               title="Новый чат"
             >
               <span className="text-lg leading-none select-none">♥</span>
             </button>
 
             {showMenu && (
-              <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg w-48 z-10 overflow-hidden"
+              <div className="absolute right-0 top-full mt-1 bg-white dark:bg-slate-800 rounded-xl shadow-lg w-48 z-10 overflow-hidden"
                 style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }}>
                 <button
                   onClick={() => { setShowNewDirect(true); setShowMenu(false); }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2"
                 >
-                  <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4 text-gray-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                       d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
@@ -298,10 +298,10 @@ export default function ChatsPage() {
                 {user?.is_admin && (
                   <button
                     onClick={() => { setShowCreateGroup(true); setShowMenu(false); }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-2"
                     style={{ boxShadow: '0 -1px 0 #f5f5f5' }}
                   >
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-4 h-4 text-gray-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                         d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
@@ -315,7 +315,7 @@ export default function ChatsPage() {
 
         {/* Поиск */}
         <div className="relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -323,7 +323,7 @@ export default function ChatsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Поиск чатов..."
-            className="w-full pl-9 pr-3 py-1.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-100"
+            className="w-full pl-9 pr-3 py-1.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-gray-100 dark:bg-slate-800"
           />
         </div>
       </div>
@@ -331,7 +331,7 @@ export default function ChatsPage() {
       {/* Список */}
       <div className="flex-1 overflow-y-auto">
         {filtered.length === 0 && (
-          <div className="px-4 py-8 text-center text-gray-400 text-sm">
+          <div className="px-4 py-8 text-center text-gray-400 dark:text-slate-500 text-sm">
             {search ? 'Ничего не найдено' : 'Нет чатов'}
           </div>
         )}
@@ -346,40 +346,40 @@ export default function ChatsPage() {
             <button
               key={room.id}
               onClick={() => selectRoom(room.id)}
-              className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-center gap-3 ${
+              className={`w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-3 ${
                 isActive
-                  ? 'bg-blue-50 border-l-[3px] border-l-blue-500'
+                  ? 'bg-purple-50 border-l-[3px] border-l-purple-500'
                   : 'border-l-[3px] border-l-transparent'
               }`}
             >
               <RoomAvatar room={room} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-0.5">
-                  <p className={`text-sm font-medium truncate ${isActive ? 'text-blue-700' : 'text-gray-800'}`}>
+                  <p className={`text-sm font-medium truncate ${isActive ? 'text-purple-700' : 'text-gray-800 dark:text-slate-200'}`}>
                     {roomName}
                   </p>
                   <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
                     {room.last_message && (
-                      <span className="text-[10px] text-gray-400">
+                      <span className="text-[10px] text-gray-400 dark:text-slate-500">
                         {formatTime(room.last_message.created_at)}
                       </span>
                     )}
                     {room.unread_count > 0 && (
-                      <span className="bg-blue-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 leading-none">
+                      <span className="bg-purple-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 leading-none">
                         {room.unread_count > 99 ? '99+' : room.unread_count}
                       </span>
                     )}
                   </div>
                 </div>
                 {room.last_message ? (
-                  <p className="text-xs text-gray-400 truncate">
+                  <p className="text-xs text-gray-400 dark:text-slate-500 truncate">
                     {room.room_type === 'group' && room.last_message.sender_name
                       ? `${room.last_message.sender_name.split(' ')[0]}: `
                       : ''}
                     {room.last_message.text || '[файл]'}
                   </p>
                 ) : (
-                  <p className="text-xs text-gray-300 italic">Нет сообщений</p>
+                  <p className="text-xs text-gray-300 dark:text-slate-600 italic">Нет сообщений</p>
                 )}
               </div>
             </button>
@@ -430,10 +430,10 @@ export default function ChatsPage() {
         // iOS Safari → объясняем
         if (perm === 'unsupported') {
           return (
-            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] bg-gray-50 border border-gray-200 rounded-2xl shadow-xl px-4 py-3 flex items-start gap-3 w-[calc(100%-2rem)] max-w-sm">
-              <span className="text-gray-400 flex-shrink-0 mt-0.5">{icon}</span>
-              <p className="flex-1 text-xs text-gray-500">Уведомления не поддерживаются в этом браузере</p>
-              <button onClick={() => setShowNotifBanner(false)} className="text-gray-400 hover:text-gray-500 flex-shrink-0">
+            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-xl px-4 py-3 flex items-start gap-3 w-[calc(100%-2rem)] max-w-sm">
+              <span className="text-gray-400 dark:text-slate-500 flex-shrink-0 mt-0.5">{icon}</span>
+              <p className="flex-1 text-xs text-gray-500 dark:text-slate-400">Уведомления не поддерживаются в этом браузере</p>
+              <button onClick={() => setShowNotifBanner(false)} className="text-gray-400 dark:text-slate-500 hover:text-gray-500 flex-shrink-0">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -445,13 +445,13 @@ export default function ChatsPage() {
         // Заблокировано пользователем ранее
         if (perm === 'denied') {
           return (
-            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] bg-gray-50 border border-gray-200 rounded-2xl shadow-xl px-4 py-3 flex items-start gap-3 w-[calc(100%-2rem)] max-w-sm">
-              <span className="text-gray-400 flex-shrink-0 mt-0.5">{icon}</span>
+            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-xl px-4 py-3 flex items-start gap-3 w-[calc(100%-2rem)] max-w-sm">
+              <span className="text-gray-400 dark:text-slate-500 flex-shrink-0 mt-0.5">{icon}</span>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-gray-600">Уведомления заблокированы</p>
-                <p className="text-xs text-gray-400 mt-0.5">Разрешите их в настройках браузера для этого сайта</p>
+                <p className="text-xs font-semibold text-gray-600 dark:text-slate-400">Уведомления заблокированы</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">Разрешите их в настройках браузера для этого сайта</p>
               </div>
-              <button onClick={() => setShowNotifBanner(false)} className="text-gray-400 hover:text-gray-500 flex-shrink-0">
+              <button onClick={() => setShowNotifBanner(false)} className="text-gray-400 dark:text-slate-500 hover:text-gray-500 flex-shrink-0">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -462,16 +462,16 @@ export default function ChatsPage() {
 
         // Ещё не спрашивали (default) — показываем кнопку
         return (
-          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3 w-[calc(100%-2rem)] max-w-sm">
-            <span className="text-blue-500 flex-shrink-0">{icon}</span>
-            <span className="flex-1 text-xs text-gray-700">Включить уведомления о новых сообщениях?</span>
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] bg-white dark:bg-slate-800 rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3 w-[calc(100%-2rem)] max-w-sm">
+            <span className="text-purple-500 flex-shrink-0">{icon}</span>
+            <span className="flex-1 text-xs text-gray-700 dark:text-slate-300">Включить уведомления о новых сообщениях?</span>
             <button
               onClick={requestNotifPermission}
-              className="text-blue-500 font-semibold text-xs hover:text-blue-600 whitespace-nowrap"
+              className="text-purple-500 font-semibold text-xs hover:text-purple-600 whitespace-nowrap"
             >
               Включить
             </button>
-            <button onClick={() => setShowNotifBanner(false)} className="text-gray-400 hover:text-gray-500 flex-shrink-0 ml-1">
+            <button onClick={() => setShowNotifBanner(false)} className="text-gray-400 dark:text-slate-500 hover:text-gray-500 flex-shrink-0 ml-1">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -491,7 +491,7 @@ export default function ChatsPage() {
       {/* ── Левая панель ── */}
       {/* Desktop: статичная; Mobile: фиксированный оверлей */}
       <div className={[
-        'flex flex-col bg-white',
+        'flex flex-col bg-white dark:bg-slate-800',
         // Desktop: обычный элемент flex
         'lg:relative lg:w-72 lg:flex-shrink-0 lg:translate-x-0 lg:z-auto lg:shadow-none',
         // Mobile: фиксированный оверлей
@@ -514,10 +514,10 @@ export default function ChatsPage() {
             onOpenList={() => setListOpen(true)}
           />
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400 bg-gray-50">
+          <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-slate-500 bg-gray-50 dark:bg-slate-900">
             {/* Кнопка открыть список на мобильном когда нет активного чата */}
             <button
-              className="lg:hidden mb-4 px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-medium"
+              className="lg:hidden mb-4 px-4 py-2 bg-purple-500 text-white rounded-xl text-sm font-medium"
               onClick={() => setListOpen(true)}
             >
               Открыть чаты

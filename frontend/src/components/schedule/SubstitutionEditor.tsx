@@ -145,29 +145,29 @@ export default function SubstitutionEditor({
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-semibold mb-1">
           {existingSub ? 'Редактировать замену' : 'Добавить замену'}
         </h3>
-        <p className="text-sm text-gray-500 mb-4 capitalize">
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-4 capitalize">
           {formatDate(date)}, урок {lessonNumber}
         </p>
 
         {originalLesson && (
-          <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm">
-            <div className="text-xs text-gray-400 mb-1 font-medium uppercase tracking-wide">По расписанию</div>
+          <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-3 mb-4 text-sm">
+            <div className="text-xs text-gray-400 dark:text-slate-500 mb-1 font-medium uppercase tracking-wide">По расписанию</div>
             {originalLesson.group_name && (
-              <div className="text-xs text-blue-500 font-medium">{originalLesson.group_name}</div>
+              <div className="text-xs text-purple-500 font-medium">{originalLesson.group_name}</div>
             )}
-            <div className="font-medium text-gray-700">{originalLesson.subject_name}</div>
-            {originalLesson.teacher_name && <div className="text-gray-500">{originalLesson.teacher_name}</div>}
-            {originalLesson.room_name && <div className="text-gray-400">каб. {originalLesson.room_name}</div>}
+            <div className="font-medium text-gray-700 dark:text-slate-300">{originalLesson.subject_name}</div>
+            {originalLesson.teacher_name && <div className="text-gray-500 dark:text-slate-400">{originalLesson.teacher_name}</div>}
+            {originalLesson.room_name && <div className="text-gray-400 dark:text-slate-500">каб. {originalLesson.room_name}</div>}
           </div>
         )}
 
         <div className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Класс *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Класс *</label>
             <select
               value={classId}
               onChange={e => setClassId(Number(e.target.value))}
@@ -181,7 +181,7 @@ export default function SubstitutionEditor({
 
           {showGroupSelector && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Группа</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Группа</label>
               <select
                 value={groupId}
                 onChange={e => setGroupId(e.target.value ? Number(e.target.value) : '')}
@@ -196,7 +196,7 @@ export default function SubstitutionEditor({
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Предмет *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Предмет *</label>
             {subjectOptions.length > 0 ? (
               <select
                 value={subjectName}
@@ -221,11 +221,11 @@ export default function SubstitutionEditor({
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-sm font-medium text-gray-700">Учитель</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Учитель</label>
               <button
                 type="button"
                 onClick={() => setShowAllTeachers(!showAllTeachers)}
-                className="text-xs text-blue-600 hover:text-blue-800"
+                className="text-xs text-purple-600 hover:text-purple-800"
               >
                 {showAllTeachers ? 'Только свободные' : `Показать всех (${teachers.length})`}
               </button>
@@ -250,11 +250,11 @@ export default function SubstitutionEditor({
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-sm font-medium text-gray-700">Кабинет</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Кабинет</label>
               <button
                 type="button"
                 onClick={() => setShowAllRooms(!showAllRooms)}
-                className="text-xs text-blue-600 hover:text-blue-800"
+                className="text-xs text-purple-600 hover:text-purple-800"
               >
                 {showAllRooms ? 'Только свободные' : `Показать все (${rooms.length})`}
               </button>
@@ -287,7 +287,7 @@ export default function SubstitutionEditor({
             )}
           </div>
           <div className="flex gap-2">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800">
               Отмена
             </button>
             <button

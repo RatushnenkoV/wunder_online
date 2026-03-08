@@ -210,28 +210,28 @@ export default function ScheduleGrid({
         className={`group/card relative ${roundedClass} px-2 py-1.5 h-full text-xs leading-tight transition flex-1 min-w-0 ${
           conflict
             ? 'bg-red-50 shadow-sm border border-red-200'
-            : 'bg-white shadow-sm border border-gray-100'
+            : 'bg-white dark:bg-slate-800 shadow-sm border border-gray-100 dark:border-slate-700'
         } ${editing ? 'cursor-grab active:cursor-grabbing' : ''} ${
           isDragging ? 'opacity-30' : ''
         } ${duplicating ? 'cursor-pointer' : ''}`}
       >
         {(lesson.group_name || (viewMode !== 'class' && isGroupLesson(lesson))) && (
-          <div className="text-[10px] font-medium text-blue-500 truncate mb-0.5">
+          <div className="text-[10px] font-medium text-purple-500 truncate mb-0.5">
             {lesson.group_name ?? 'Подгр.'}
           </div>
         )}
-        <div className={`font-medium truncate ${conflict ? 'text-red-700' : 'text-gray-900'}`}>{lesson.subject_name}</div>
+        <div className={`font-medium truncate ${conflict ? 'text-red-700' : 'text-gray-900 dark:text-slate-100'}`}>{lesson.subject_name}</div>
         {viewMode !== 'class' && (
-          <div className={`truncate ${conflict ? 'text-red-500' : 'text-gray-500'}`}>{lesson.class_name}</div>
+          <div className={`truncate ${conflict ? 'text-red-500' : 'text-gray-500 dark:text-slate-400'}`}>{lesson.class_name}</div>
         )}
         {viewMode !== 'teacher' && lesson.teacher_name && (
-          <div className={`truncate ${conflict ? 'text-red-500' : 'text-gray-500'}`}>{lesson.teacher_name}</div>
+          <div className={`truncate ${conflict ? 'text-red-500' : 'text-gray-500 dark:text-slate-400'}`}>{lesson.teacher_name}</div>
         )}
         {viewMode !== 'room' && lesson.room_name && (
-          <div className={`truncate ${conflict ? 'text-red-400' : 'text-gray-400'}`}>каб. {lesson.room_name}</div>
+          <div className={`truncate ${conflict ? 'text-red-400' : 'text-gray-400 dark:text-slate-500'}`}>каб. {lesson.room_name}</div>
         )}
         {conflict && reasons.length > 0 && (
-          <div className="hidden group-hover/card:block absolute z-20 left-1/2 -translate-x-1/2 top-full mt-1 bg-gray-900 text-white text-[11px] rounded-lg px-3 py-2 shadow-lg whitespace-nowrap pointer-events-none">
+          <div className="hidden group-hover/card:block absolute z-20 left-1/2 -translate-x-1/2 top-full mt-1 bg-gray-900 dark:bg-slate-900 text-white text-[11px] rounded-lg px-3 py-2 shadow-lg whitespace-nowrap pointer-events-none">
             <div className="font-medium mb-1">Конфликт:</div>
             {reasons.map((r, i) => (
               <div key={i}>{r}</div>
@@ -253,11 +253,11 @@ export default function ScheduleGrid({
       <div
         key={`empty-${side}`}
         onClick={() => handleCellClick(weekday, lessonNumber)}
-        className={`${roundedClass} px-2 py-1.5 h-full flex-1 min-w-0 flex items-center justify-center bg-gray-100 ${
-          editing ? 'hover:bg-blue-50 cursor-pointer' : ''
+        className={`${roundedClass} px-2 py-1.5 h-full flex-1 min-w-0 flex items-center justify-center bg-gray-100 dark:bg-slate-800 ${
+          editing ? 'hover:bg-purple-50 cursor-pointer' : ''
         }`}
       >
-        {editing && <span className="text-gray-300 text-xs">+</span>}
+        {editing && <span className="text-gray-300 dark:text-slate-600 text-xs">+</span>}
       </div>
     );
   };
@@ -265,17 +265,17 @@ export default function ScheduleGrid({
   return (
     <div className="overflow-x-auto">
       {duplicating && (
-        <div className="bg-blue-50 text-blue-700 p-3 rounded mb-3 text-sm flex justify-between items-center">
+        <div className="bg-purple-50 text-purple-700 p-3 rounded mb-3 text-sm flex justify-between items-center">
           <span>Кликните по свободной ячейке, чтобы вставить копию «{duplicating.subject_name}»</span>
-          <button onClick={() => setDuplicating(null)} className="text-blue-400 hover:text-blue-600 ml-4">Отмена</button>
+          <button onClick={() => setDuplicating(null)} className="text-purple-400 hover:text-purple-600 ml-4">Отмена</button>
         </div>
       )}
       <table className="w-full border-separate" style={{ borderSpacing: '6px' }}>
         <thead>
           <tr>
-            <th className="px-3 py-2 text-sm font-medium text-gray-500 w-12">#</th>
+            <th className="px-3 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 w-12">#</th>
             {visibleDays.map(d => (
-              <th key={d.num} className="px-3 py-2 text-sm font-medium text-gray-500">
+              <th key={d.num} className="px-3 py-2 text-sm font-medium text-gray-500 dark:text-slate-400">
                 {displayMode === 'day' ? d.full : d.short}
               </th>
             ))}
@@ -284,7 +284,7 @@ export default function ScheduleGrid({
         <tbody>
           {LESSON_NUMBERS.map(num => (
             <tr key={num}>
-              <td className="px-3 py-2 text-sm font-medium text-gray-500 text-center">
+              <td className="px-3 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 text-center">
                 {num}
               </td>
               {visibleDays.map(d => {
@@ -303,7 +303,7 @@ export default function ScheduleGrid({
                     className={`align-top ${displayMode === 'day' ? '' : 'min-w-[140px]'} h-[70px] p-0`}
                   >
                     {isSplit ? (
-                      <div className={`flex gap-px h-full rounded-lg ${canDrop ? 'ring-2 ring-blue-400 ring-dashed' : ''}`}>
+                      <div className={`flex gap-px h-full rounded-lg ${canDrop ? 'ring-2 ring-purple-400 ring-dashed' : ''}`}>
                         {cellLessons.length >= 1
                           ? renderLessonCard(cellLessons[0], true, 'left')
                           : renderEmptyHalf(d.num, num, 'left')
@@ -320,19 +320,19 @@ export default function ScheduleGrid({
                         onClick={() => handleCellClick(d.num, num)}
                         className={`rounded-lg px-3 py-2 h-full flex items-center justify-center transition ${
                           canDrop
-                            ? 'bg-blue-100 border-2 border-dashed border-blue-400'
+                            ? 'bg-purple-100 border-2 border-dashed border-purple-400'
                             : duplicating
-                              ? 'bg-gray-100 hover:bg-blue-50 cursor-pointer border border-dashed border-gray-200'
+                              ? 'bg-gray-100 dark:bg-slate-800 hover:bg-purple-50 cursor-pointer border border-dashed border-gray-200 dark:border-slate-700'
                               : editing
-                                ? 'bg-gray-100 hover:bg-blue-50 cursor-pointer'
-                                : 'bg-gray-100'
+                                ? 'bg-gray-100 dark:bg-slate-800 hover:bg-purple-50 cursor-pointer'
+                                : 'bg-gray-100 dark:bg-slate-800'
                         }`}
                       >
                         {editing && !duplicating && (
-                          <span className="text-gray-300 text-xs">+</span>
+                          <span className="text-gray-300 dark:text-slate-600 text-xs">+</span>
                         )}
                         {duplicating && (
-                          <span className="text-blue-300 text-xs">+</span>
+                          <span className="text-purple-300 text-xs">+</span>
                         )}
                       </div>
                     )}

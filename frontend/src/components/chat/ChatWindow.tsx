@@ -532,23 +532,23 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
     >
       {/* Fix 4: drag-over overlay */}
       {isDragOver && (
-        <div className="absolute inset-0 z-50 bg-blue-500/10 border-4 border-dashed border-blue-400 rounded-lg flex items-center justify-center pointer-events-none">
-          <div className="bg-white rounded-2xl px-8 py-5 shadow-xl text-center">
-            <svg className="w-10 h-10 text-blue-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="absolute inset-0 z-50 bg-purple-500/10 border-4 border-dashed border-purple-400 rounded-lg flex items-center justify-center pointer-events-none">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 shadow-xl text-center">
+            <svg className="w-10 h-10 text-purple-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
-            <p className="text-blue-600 font-medium text-sm">Отпустите для отправки файла</p>
+            <p className="text-purple-600 font-medium text-sm">Отпустите для отправки файла</p>
           </div>
         </div>
       )}
 
       {/* Шапка */}
-      <div className="px-4 py-3 bg-white flex items-center gap-2 flex-shrink-0" style={{ boxShadow: '0 1px 0 #f0f0f0' }}>
+      <div className="px-4 py-3 bg-white dark:bg-slate-800 flex items-center gap-2 flex-shrink-0" style={{ boxShadow: '0 1px 0 #f0f0f0' }}>
         {onOpenList && (
           <button
             onClick={onOpenList}
-            className="lg:hidden p-1.5 -ml-1 text-gray-400 hover:text-gray-600 rounded-lg"
+            className="lg:hidden p-1.5 -ml-1 text-gray-400 dark:text-slate-500 hover:text-gray-600 rounded-lg"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -558,12 +558,12 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
 
         {selectionMode ? (
           <>
-            <span className="text-sm text-gray-600 flex-1">
+            <span className="text-sm text-gray-600 dark:text-slate-400 flex-1">
               {selectedIds.size === 0 ? 'Выберите сообщения' : `Выбрано: ${selectedIds.size}`}
             </span>
             <button
               onClick={cancelSelection}
-              className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+              className="px-3 py-1.5 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg"
             >
               Отмена
             </button>
@@ -583,21 +583,21 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
           </>
         ) : (
           <>
-            <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold bg-blue-100 text-blue-700">
+            <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold bg-purple-100 text-purple-700">
               {room.room_type === 'direct'
                 ? `${room.other_user?.last_name?.[0] || ''}${room.other_user?.first_name?.[0] || ''}`.toUpperCase()
                 : roomName[0]?.toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-800 truncate">{roomName}</p>
+              <p className="font-semibold text-gray-800 dark:text-slate-200 truncate">{roomName}</p>
               {room.room_type === 'group' && (
-                <p className="text-xs text-gray-400">{membersCount} участн.</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">{membersCount} участн.</p>
               )}
             </div>
             {room.room_type === 'group' && (
               <button
                 onClick={() => setShowMembers(true)}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                className="p-2 text-gray-400 dark:text-slate-500 hover:text-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700"
                 title="Участники"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -613,21 +613,21 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
       {/* Список сообщений */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto py-2 px-2 bg-gray-50 relative"
+        className="flex-1 overflow-y-auto py-2 px-2 bg-gray-50 dark:bg-slate-900 relative"
         onScroll={handleScroll}
       >
         <div ref={topRef} className="h-1" />
 
         {loadingMore && (
           <div className="flex justify-center py-2">
-            <span className="text-xs text-gray-400">Загрузка...</span>
+            <span className="text-xs text-gray-400 dark:text-slate-500">Загрузка...</span>
           </div>
         )}
         {loadingHistory && (
-          <div className="flex justify-center py-10 text-gray-400 text-sm">Загрузка...</div>
+          <div className="flex justify-center py-10 text-gray-400 dark:text-slate-500 text-sm">Загрузка...</div>
         )}
         {!loadingHistory && messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+          <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-slate-500">
             <p>Нет сообщений</p>
             <p className="text-sm mt-1">Начните переписку!</p>
           </div>
@@ -636,7 +636,7 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
         {groupByDate(messages).map(({ date, messages: dayMsgs }) => (
           <div key={date}>
             <div className="flex justify-center my-3">
-              <span className="text-xs bg-gray-200 text-gray-500 px-3 py-0.5 rounded-full">
+              <span className="text-xs bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400 px-3 py-0.5 rounded-full">
                 {formatDateLabel(dayMsgs[0].created_at)}
               </span>
             </div>
@@ -665,7 +665,7 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
 
         {typingUsers.length > 0 && (
           <div className="px-4 py-1">
-            <span className="text-xs text-gray-400 italic">
+            <span className="text-xs text-gray-400 dark:text-slate-500 italic">
               {typingUsers.map((u) => u.name).join(', ')} печатает...
             </span>
           </div>
@@ -682,7 +682,7 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
             setNewMsgCount(0);
             api.post(`/chat/rooms/${room.id}/read/`).catch(() => {});
           }}
-          className="absolute bottom-24 right-4 z-30 flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium px-3 py-1.5 rounded-full shadow-lg transition-colors"
+          className="absolute bottom-24 right-4 z-30 flex items-center gap-1.5 bg-purple-500 hover:bg-purple-600 text-white text-xs font-medium px-3 py-1.5 rounded-full shadow-lg transition-colors"
         >
           {newMsgCount > 0 ? (
             <>
@@ -714,7 +714,7 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
 
       {/* Блок ввода */}
       {!selectionMode && (
-        <div className="bg-white flex-shrink-0" style={{ boxShadow: '0 -1px 0 #f0f0f0' }}>
+        <div className="bg-white dark:bg-slate-800 flex-shrink-0" style={{ boxShadow: '0 -1px 0 #f0f0f0' }}>
           {restrictionError && (
             <div className="flex items-center gap-2 px-4 py-2 bg-red-50 border-t border-red-100">
               <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -726,12 +726,12 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
           )}
 
           {replyTo && (
-            <div className="flex items-center gap-2 px-4 pt-2 pb-1 bg-blue-50">
-              <div className="flex-1 min-w-0 pl-2 border-l-2 border-blue-400">
-                <p className="text-xs font-medium text-blue-600 truncate">{replyTo.sender?.display_name}</p>
-                <p className="text-xs text-gray-600 truncate">{replyTo.text || '[файл]'}</p>
+            <div className="flex items-center gap-2 px-4 pt-2 pb-1 bg-purple-50">
+              <div className="flex-1 min-w-0 pl-2 border-l-2 border-purple-400">
+                <p className="text-xs font-medium text-purple-600 truncate">{replyTo.sender?.display_name}</p>
+                <p className="text-xs text-gray-600 dark:text-slate-400 truncate">{replyTo.text || '[файл]'}</p>
               </div>
-              <button onClick={() => setReplyTo(null)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+              <button onClick={() => setReplyTo(null)} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 flex-shrink-0">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -741,24 +741,24 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
 
           {/* @mention dropdown */}
           {mentionState && (mentionCandidates.length > 0 || mentionState.query === '') && (
-            <div className="mx-3 mb-1 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+            <div className="mx-3 mb-1 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto">
               {(mentionState.query === '' || 'all'.startsWith(mentionState.query)) && (
                 <button
                   onClick={() => insertMention('all')}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center gap-2"
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 flex items-center gap-2"
                 >
                   <span className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-700">@</span>
                   <span className="font-medium text-amber-700">@all</span>
-                  <span className="text-xs text-gray-400 ml-1">— все участники</span>
+                  <span className="text-xs text-gray-400 dark:text-slate-500 ml-1">— все участники</span>
                 </button>
               )}
               {mentionCandidates.map((m) => (
                 <button
                   key={m.user.id}
                   onClick={() => insertMention(m.user.last_name)}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center gap-2"
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 flex items-center gap-2"
                 >
-                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
+                  <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-700 flex-shrink-0">
                     {m.user.last_name[0]}{m.user.first_name[0]}
                   </div>
                   <span>{m.user.last_name} {m.user.first_name}</span>
@@ -770,7 +770,7 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
           <div className="flex items-end gap-2 px-3 py-3">
             <button
               onClick={() => setShowEmoji((v) => !v)}
-              className={`flex-shrink-0 p-2 rounded-full transition-colors ${showEmoji ? 'text-yellow-500 bg-yellow-50' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`flex-shrink-0 p-2 rounded-full transition-colors ${showEmoji ? 'text-yellow-500 bg-yellow-50' : 'text-gray-400 dark:text-slate-500 hover:text-gray-600'}`}
               title="Эмодзи"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -786,7 +786,7 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
                   <button
                     onClick={() => setShowAttachMenu((v) => !v)}
                     disabled={uploading}
-                    className={`p-2 disabled:opacity-50 rounded-full transition-colors ${showAttachMenu ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+                    className={`p-2 disabled:opacity-50 rounded-full transition-colors ${showAttachMenu ? 'text-purple-500 bg-purple-50' : 'text-gray-400 dark:text-slate-500 hover:text-gray-600'}`}
                     title="Прикрепить"
                   >
                     {uploading ? (
@@ -802,13 +802,13 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
                     )}
                   </button>
                   {showAttachMenu && (
-                    <div className="absolute bottom-full left-0 mb-1 bg-white shadow-lg rounded-xl border border-gray-100 p-1 flex flex-col gap-0.5 min-w-[130px] z-50">
+                    <div className="absolute bottom-full left-0 mb-1 bg-white dark:bg-slate-800 shadow-lg rounded-xl border border-gray-100 dark:border-slate-700 p-1 flex flex-col gap-0.5 min-w-[130px] z-50">
                       {canFile && (
                         <button
                           onClick={() => { setShowAttachMenu(false); fileInputRef.current?.click(); }}
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 text-left"
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 text-left"
                         >
-                          <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className="w-4 h-4 text-gray-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                               d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                           </svg>
@@ -818,9 +818,9 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
                       {canPoll && (
                         <button
                           onClick={() => { setShowAttachMenu(false); setShowPollModal(true); }}
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 text-left"
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 text-left"
                         >
-                          <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className="w-4 h-4 text-gray-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                               d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                           </svg>
@@ -830,9 +830,9 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
                       {canTask && (
                         <button
                           onClick={() => { setShowAttachMenu(false); setShowTaskModal(true); }}
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 text-left"
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 text-left"
                         >
-                          <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className="w-4 h-4 text-gray-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                               d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                           </svg>
@@ -852,7 +852,7 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               rows={1}
-              className="flex-1 border border-gray-200 rounded-2xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none max-h-32 overflow-y-auto bg-gray-50"
+              className="flex-1 border border-gray-200 dark:border-slate-700 rounded-2xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none max-h-32 overflow-y-auto bg-gray-50 dark:bg-slate-900"
               placeholder="Написать сообщение..."
               style={{ minHeight: '38px' }}
               onClick={() => setShowEmoji(false)}
@@ -861,7 +861,7 @@ export default function ChatWindow({ room, onRoomUpdated, onNewMessage, onOpenLi
             <button
               onClick={sendMessage}
               disabled={!input.trim()}
-              className="flex-shrink-0 p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-40 disabled:cursor-default transition-colors"
+              className="flex-shrink-0 p-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 disabled:opacity-40 disabled:cursor-default transition-colors"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -910,38 +910,38 @@ function PollCreatorModal({ roomId, onClose }: { roomId: number; onClose: () => 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-800">Создать опрос</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <h2 className="text-base font-semibold text-gray-800 dark:text-slate-200">Создать опрос</h2>
+          <button onClick={onClose} className="text-gray-400 dark:text-slate-500 hover:text-gray-600">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-600 block mb-1">Вопрос</label>
+          <label className="text-xs font-medium text-gray-600 dark:text-slate-400 block mb-1">Вопрос</label>
           <textarea
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             rows={2}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+            className="w-full border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
             placeholder="Введите вопрос..."
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-600 block mb-1">Варианты ответов</label>
+          <label className="text-xs font-medium text-gray-600 dark:text-slate-400 block mb-1">Варианты ответов</label>
           <div className="flex flex-col gap-2">
             {options.map((opt, i) => (
               <div key={i} className="flex items-center gap-2">
                 <input
                   value={opt}
                   onChange={(e) => setOptions((prev) => prev.map((o, idx) => idx === i ? e.target.value : o))}
-                  className="flex-1 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="flex-1 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
                   placeholder={`Вариант ${i + 1}`}
                 />
                 {options.length > 2 && (
-                  <button onClick={() => setOptions((prev) => prev.filter((_, idx) => idx !== i))} className="text-gray-400 hover:text-red-500 flex-shrink-0">
+                  <button onClick={() => setOptions((prev) => prev.filter((_, idx) => idx !== i))} className="text-gray-400 dark:text-slate-500 hover:text-red-500 flex-shrink-0">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -950,7 +950,7 @@ function PollCreatorModal({ roomId, onClose }: { roomId: number; onClose: () => 
               </div>
             ))}
             {options.length < 10 && (
-              <button onClick={() => setOptions((prev) => [...prev, ''])} className="text-sm text-blue-500 hover:text-blue-700 text-left mt-1">
+              <button onClick={() => setOptions((prev) => [...prev, ''])} className="text-sm text-purple-500 hover:text-purple-700 text-left mt-1">
                 + Добавить вариант
               </button>
             )}
@@ -958,14 +958,14 @@ function PollCreatorModal({ roomId, onClose }: { roomId: number; onClose: () => 
         </div>
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={isMultiple} onChange={(e) => setIsMultiple(e.target.checked)} className="rounded" />
-          <span className="text-sm text-gray-700">Мультивыбор</span>
+          <span className="text-sm text-gray-700 dark:text-slate-300">Мультивыбор</span>
         </label>
         <div className="flex gap-2 justify-end mt-2">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">Отмена</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl">Отмена</button>
           <button
             onClick={handleSubmit}
             disabled={submitting || !question.trim() || options.filter((o) => o.trim()).length < 2}
-            className="px-4 py-2 text-sm bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-40"
+            className="px-4 py-2 text-sm bg-purple-500 text-white rounded-xl hover:bg-purple-600 disabled:opacity-40"
           >
             {submitting ? 'Отправка...' : 'Создать опрос'}
           </button>
@@ -998,49 +998,49 @@ function TaskCreatorModal({ roomId, onClose }: { roomId: number; onClose: () => 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-800">Создать задачу в чате</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <h2 className="text-base font-semibold text-gray-800 dark:text-slate-200">Создать задачу в чате</h2>
+          <button onClick={onClose} className="text-gray-400 dark:text-slate-500 hover:text-gray-600">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-600 block mb-1">Название *</label>
+          <label className="text-xs font-medium text-gray-600 dark:text-slate-400 block mb-1">Название *</label>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
             placeholder="Название задачи..."
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-600 block mb-1">Описание</label>
+          <label className="text-xs font-medium text-gray-600 dark:text-slate-400 block mb-1">Описание</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+            className="w-full border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
             placeholder="Описание (необязательно)..."
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-600 block mb-1">Срок выполнения</label>
+          <label className="text-xs font-medium text-gray-600 dark:text-slate-400 block mb-1">Срок выполнения</label>
           <input
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
           />
         </div>
         <div className="flex gap-2 justify-end mt-2">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">Отмена</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl">Отмена</button>
           <button
             onClick={handleSubmit}
             disabled={submitting || !title.trim()}
-            className="px-4 py-2 text-sm bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-40"
+            className="px-4 py-2 text-sm bg-purple-500 text-white rounded-xl hover:bg-purple-600 disabled:opacity-40"
           >
             {submitting ? 'Отправка...' : 'Создать'}
           </button>

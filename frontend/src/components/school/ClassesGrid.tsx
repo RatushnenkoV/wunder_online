@@ -46,7 +46,7 @@ export default function ClassesGrid({ onSelect }: Props) {
   return (
     <div>
       <div className="flex justify-end mb-4">
-        <button onClick={() => setShowCreate(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+        <button onClick={() => setShowCreate(true)} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm">
           + Создать класс
         </button>
       </div>
@@ -57,15 +57,15 @@ export default function ClassesGrid({ onSelect }: Props) {
             key={cls.id}
             onClick={() => onSelect(cls)}
             onContextMenu={e => { e.preventDefault(); setCtxMenu({ cls, x: e.clientX, y: e.clientY }); }}
-            className="bg-white p-4 rounded-lg shadow hover:shadow-md transition text-center"
+            className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow hover:shadow-md transition text-center"
           >
             <div className="text-3xl mb-2">&#128193;</div>
             <div className="font-medium text-sm">{cls.display_name}</div>
-            <div className="text-xs text-gray-400">{cls.students_count} уч.</div>
+            <div className="text-xs text-gray-400 dark:text-slate-500">{cls.students_count} уч.</div>
           </button>
         ))}
         {classes.length === 0 && (
-          <p className="col-span-full text-gray-400 text-center py-8">Классы не созданы</p>
+          <p className="col-span-full text-gray-400 dark:text-slate-500 text-center py-8">Классы не созданы</p>
         )}
       </div>
 
@@ -75,21 +75,21 @@ export default function ClassesGrid({ onSelect }: Props) {
 
       {showCreate && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowCreate(false)}>
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Новый класс</h3>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Параллель (номер)</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Параллель (номер)</label>
                 <input type="number" min="1" max="11" value={gradeNumber} onChange={e => setGradeNumber(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" placeholder="1" />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Буква</label>
+                <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Буква</label>
                 <input value={letter} onChange={e => setLetter(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreate()} className="w-full border rounded px-3 py-2 text-sm" placeholder="А" />
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Отмена</button>
-              <button onClick={handleCreate} disabled={!gradeNumber || !letter.trim()} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+              <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800">Отмена</button>
+              <button onClick={handleCreate} disabled={!gradeNumber || !letter.trim()} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700 disabled:opacity-50">
                 Создать
               </button>
             </div>

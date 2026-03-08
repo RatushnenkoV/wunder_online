@@ -69,10 +69,10 @@ function StudentSearch({
         onChange={handleInput}
         onFocus={() => { if (options.length) setOpen(true); }}
         placeholder="Фамилия, имя или класс..."
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+        className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
       />
       {open && options.length > 0 && (
-        <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+        <ul className="absolute z-20 mt-1 w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
           {options.map(opt => (
             <li
               key={opt.student_profile_id}
@@ -80,7 +80,7 @@ function StudentSearch({
               className="px-3 py-2 text-sm hover:bg-yellow-50 cursor-pointer flex justify-between"
             >
               <span>{opt.last_name} {opt.first_name}</span>
-              <span className="text-gray-400 text-xs">{opt.school_class_name}</span>
+              <span className="text-gray-400 dark:text-slate-500 text-xs">{opt.school_class_name}</span>
             </li>
           ))}
         </ul>
@@ -140,39 +140,39 @@ function SubmitForm() {
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Дата</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Дата</label>
         <input
           type="date"
           value={date}
           onChange={e => setDate(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+          className="border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Ребёнок</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Ребёнок</label>
         <StudentSearch value={student} onChange={setStudent} />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">На каком уроке</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">На каком уроке</label>
         <input
           type="text"
           value={lesson}
           onChange={e => setLesson(e.target.value)}
           placeholder="Математика, 3-й урок..."
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+          className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Факт</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Факт</label>
         <textarea
           value={fact}
           onChange={e => setFact(e.target.value)}
           rows={5}
           placeholder="Опишите ситуацию подробно..."
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-y"
+          className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-y"
         />
       </div>
 
@@ -213,18 +213,18 @@ function ParentsInfo({ studentUserId }: { studentUserId: number }) {
 
   return (
     <div className="mt-1">
-      <button onClick={load} className="text-xs text-blue-600 hover:underline">
+      <button onClick={load} className="text-xs text-purple-600 hover:underline">
         {open ? 'Скрыть родителей' : 'Показать родителей'}
       </button>
       {open && (
         <div className="mt-2 space-y-1">
           {parents.length === 0 ? (
-            <p className="text-xs text-gray-400">Родители не указаны</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500">Родители не указаны</p>
           ) : parents.map(p => (
-            <div key={p.id} className="text-xs text-gray-700">
+            <div key={p.id} className="text-xs text-gray-700 dark:text-slate-300">
               <span className="font-medium">{p.last_name} {p.first_name}</span>
-              {p.phone && <span className="ml-2 text-gray-500">{p.phone}</span>}
-              {p.telegram && <span className="ml-2 text-blue-500">@{p.telegram}</span>}
+              {p.phone && <span className="ml-2 text-gray-500 dark:text-slate-400">{p.phone}</span>}
+              {p.telegram && <span className="ml-2 text-purple-500">@{p.telegram}</span>}
             </div>
           ))}
         </div>
@@ -267,34 +267,34 @@ function CreateTaskModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
-        <h3 className="text-base font-semibold text-gray-800">Создать задачу</h3>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <h3 className="text-base font-semibold text-gray-800 dark:text-slate-200">Создать задачу</h3>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Название задачи</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Название задачи</label>
           <input
             type="text"
             value={title}
             onChange={e => setTitle(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Срок (необязательно)</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Срок (необязательно)</label>
           <input
             type="date"
             value={dueDate}
             onChange={e => setDueDate(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
           />
         </div>
         <div className="flex gap-2 justify-end">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
             Отмена
           </button>
           <button
             onClick={create}
             disabled={loading || !title.trim()}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Создаю...' : 'Создать'}
           </button>
@@ -338,26 +338,26 @@ function EntryCard({ entry, onUpdate }: { entry: YellowListEntry; onUpdate: () =
   const current = detail ?? entry;
 
   return (
-    <div className={`border rounded-lg overflow-hidden ${!entry.is_read_by_spps ? 'border-yellow-400 bg-yellow-50/40' : 'border-gray-200 bg-white'}`}>
+    <div className={`border rounded-lg overflow-hidden ${!entry.is_read_by_spps ? 'border-yellow-400 bg-yellow-50/40' : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800'}`}>
       <button
-        className="w-full text-left px-4 py-3 flex items-start justify-between gap-3 hover:bg-gray-50/50 transition-colors"
+        className="w-full text-left px-4 py-3 flex items-start justify-between gap-3 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors"
         onClick={expand}
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-gray-500">{formatDate(entry.date)}</span>
+            <span className="text-xs text-gray-500 dark:text-slate-400">{formatDate(entry.date)}</span>
             {entry.lesson && (
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{entry.lesson}</span>
+              <span className="text-xs text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded">{entry.lesson}</span>
             )}
             {!entry.is_read_by_spps && (
               <span className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" title="Не прочитано" />
             )}
           </div>
-          <p className="text-sm text-gray-800 mt-1 line-clamp-2">{entry.fact}</p>
-          <p className="text-xs text-gray-400 mt-1">Подал(а): {entry.submitted_by_name}</p>
+          <p className="text-sm text-gray-800 dark:text-slate-200 mt-1 line-clamp-2">{entry.fact}</p>
+          <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Подал(а): {entry.submitted_by_name}</p>
         </div>
         <svg
-          className={`w-4 h-4 text-gray-400 flex-shrink-0 mt-1 transition-transform ${expanded ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-gray-400 dark:text-slate-500 flex-shrink-0 mt-1 transition-transform ${expanded ? 'rotate-180' : ''}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -365,23 +365,23 @@ function EntryCard({ entry, onUpdate }: { entry: YellowListEntry; onUpdate: () =
       </button>
 
       {expanded && (
-        <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-4">
+        <div className="px-4 pb-4 border-t border-gray-100 dark:border-slate-700 pt-3 space-y-4">
           <div>
-            <p className="text-xs font-medium text-gray-500 mb-1">Факт</p>
-            <p className="text-sm text-gray-800 whitespace-pre-wrap">{current.fact}</p>
+            <p className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Факт</p>
+            <p className="text-sm text-gray-800 dark:text-slate-200 whitespace-pre-wrap">{current.fact}</p>
           </div>
 
           <div>
-            <p className="text-xs font-medium text-gray-500 mb-2">Комментарии СППС</p>
+            <p className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-2">Комментарии СППС</p>
             {current.comments.length === 0 ? (
-              <p className="text-xs text-gray-400">Нет комментариев</p>
+              <p className="text-xs text-gray-400 dark:text-slate-500">Нет комментариев</p>
             ) : (
               <div className="space-y-2">
                 {current.comments.map(c => (
-                  <div key={c.id} className="bg-gray-50 rounded-lg px-3 py-2">
-                    <p className="text-xs font-medium text-gray-600">{c.created_by_name}</p>
-                    <p className="text-sm text-gray-800 mt-0.5 whitespace-pre-wrap">{c.text}</p>
-                    <p className="text-xs text-gray-400 mt-1">{formatDate(c.created_at)}</p>
+                  <div key={c.id} className="bg-gray-50 dark:bg-slate-900 rounded-lg px-3 py-2">
+                    <p className="text-xs font-medium text-gray-600 dark:text-slate-400">{c.created_by_name}</p>
+                    <p className="text-sm text-gray-800 dark:text-slate-200 mt-0.5 whitespace-pre-wrap">{c.text}</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{formatDate(c.created_at)}</p>
                   </div>
                 ))}
               </div>
@@ -392,7 +392,7 @@ function EntryCard({ entry, onUpdate }: { entry: YellowListEntry; onUpdate: () =
                 onChange={e => setCommentText(e.target.value)}
                 rows={2}
                 placeholder="Добавить комментарий..."
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
+                className="flex-1 border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
               />
               <button
                 onClick={addComment}
@@ -406,7 +406,7 @@ function EntryCard({ entry, onUpdate }: { entry: YellowListEntry; onUpdate: () =
 
           <button
             onClick={() => setCreateTaskModal(true)}
-            className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+            className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -464,18 +464,18 @@ function EntryList() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries]);
 
-  if (loading) return <div className="text-sm text-gray-400 py-8 text-center">Загрузка...</div>;
-  if (studentKeys.length === 0) return <div className="text-sm text-gray-400 py-8 text-center">Заявок пока нет</div>;
+  if (loading) return <div className="text-sm text-gray-400 dark:text-slate-500 py-8 text-center">Загрузка...</div>;
+  if (studentKeys.length === 0) return <div className="text-sm text-gray-400 dark:text-slate-500 py-8 text-center">Заявок пока нет</div>;
 
   const selectedEntries = selectedKey ? (grouped[selectedKey] ?? []) : [];
   const [selUserIdStr, selStudentName, selStudentClass] = selectedKey?.split('__') ?? ['', '', ''];
   const selStudentUserId = Number(selUserIdStr);
 
   return (
-    <div className="flex border border-gray-200 rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 220px)', minHeight: '400px' }}>
+    <div className="flex border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 220px)', minHeight: '400px' }}>
 
       {/* ── Left panel: student list ── */}
-      <div className="w-56 flex-shrink-0 border-r border-gray-200 overflow-y-auto bg-white">
+      <div className="w-56 flex-shrink-0 border-r border-gray-200 dark:border-slate-700 overflow-y-auto bg-white dark:bg-slate-800">
         {studentKeys.map(key => {
           const group = grouped[key];
           const [, name, cls] = key.split('__');
@@ -486,22 +486,22 @@ function EntryList() {
               key={key}
               onClick={() => setSelectedKey(key)}
               className={[
-                'w-full text-left px-3 py-3 border-b border-gray-100 transition-colors',
+                'w-full text-left px-3 py-3 border-b border-gray-100 dark:border-slate-700 transition-colors',
                 isSelected
                   ? 'bg-yellow-50 border-l-2 border-l-yellow-400'
-                  : 'hover:bg-gray-50 border-l-2 border-l-transparent',
+                  : 'hover:bg-gray-50 dark:hover:bg-slate-800 border-l-2 border-l-transparent',
               ].join(' ')}
             >
               <div className="flex items-center justify-between gap-1 min-w-0">
-                <span className="text-sm font-medium text-gray-800 truncate">{name}</span>
+                <span className="text-sm font-medium text-gray-800 dark:text-slate-200 truncate">{name}</span>
                 {unread > 0 && (
                   <span className="bg-yellow-400 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none flex-shrink-0">
                     {unread}
                   </span>
                 )}
               </div>
-              <div className="text-xs text-gray-400 mt-0.5">{cls}</div>
-              <div className="text-xs text-gray-400">{group.length} {group.length === 1 ? 'заявка' : group.length < 5 ? 'заявки' : 'заявок'}</div>
+              <div className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{cls}</div>
+              <div className="text-xs text-gray-400 dark:text-slate-500">{group.length} {group.length === 1 ? 'заявка' : group.length < 5 ? 'заявки' : 'заявок'}</div>
             </button>
           );
         })}
@@ -512,10 +512,10 @@ function EntryList() {
         {selectedKey && selectedEntries.length > 0 ? (
           <div className="p-4 space-y-3">
             {/* Student header */}
-            <div className="pb-3 border-b border-gray-100">
+            <div className="pb-3 border-b border-gray-100 dark:border-slate-700">
               <div className="flex items-baseline gap-2">
-                <span className="font-semibold text-gray-800">{selStudentName}</span>
-                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{selStudentClass}</span>
+                <span className="font-semibold text-gray-800 dark:text-slate-200">{selStudentName}</span>
+                <span className="text-xs text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded">{selStudentClass}</span>
               </div>
               <ParentsInfo studentUserId={selStudentUserId} />
             </div>
@@ -528,7 +528,7 @@ function EntryList() {
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full text-sm text-gray-400">
+          <div className="flex items-center justify-center h-full text-sm text-gray-400 dark:text-slate-500">
             Выберите ученика
           </div>
         )}
@@ -547,15 +547,15 @@ export default function YellowListPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Жёлтый список</h1>
-        <p className="text-sm text-gray-500 mt-1">Фиксация инцидентов и наблюдений по ученикам</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Жёлтый список</h1>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Фиксация инцидентов и наблюдений по ученикам</p>
       </div>
 
-      <div className="flex gap-1 mb-6 border-b border-gray-200">
+      <div className="flex gap-1 mb-6 border-b border-gray-200 dark:border-slate-700">
         <button
           onClick={() => setTab('submit')}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
-            tab === 'submit' ? 'border-yellow-500 text-yellow-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+            tab === 'submit' ? 'border-yellow-500 text-yellow-700' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'
           }`}
         >
           Подать заявку
@@ -564,7 +564,7 @@ export default function YellowListPage() {
           <button
             onClick={() => setTab('list')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              tab === 'list' ? 'border-yellow-500 text-yellow-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+              tab === 'list' ? 'border-yellow-500 text-yellow-700' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'
             }`}
           >
             Список

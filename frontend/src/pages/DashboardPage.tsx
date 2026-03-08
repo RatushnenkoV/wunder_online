@@ -49,13 +49,13 @@ function SlotCard({ slot, onNavigate }: { slot: TeacherSlot; onNavigate: (ctpId:
   const displayRoom = (sub && status !== 'replaced') ? sub.room_name : lesson?.room_name;
 
   const cardBg = isReplaced
-    ? 'bg-gray-50 border-gray-200 opacity-70'
+    ? 'bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-700 opacity-70'
     : status !== 'normal'
     ? 'bg-amber-50 border-amber-200'
-    : 'bg-white border-gray-100 shadow-sm';
+    : 'bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700 shadow-sm';
 
   const hoverClass = canNavigate
-    ? 'cursor-pointer hover:border-blue-300 hover:shadow-md transition-shadow'
+    ? 'cursor-pointer hover:border-purple-300 hover:shadow-md transition-shadow'
     : '';
 
   return (
@@ -65,7 +65,7 @@ function SlotCard({ slot, onNavigate }: { slot: TeacherSlot; onNavigate: (ctpId:
     >
       <div className="px-4 py-3 flex items-start gap-3">
         <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5 ${
-          isReplaced ? 'bg-gray-200 text-gray-400' : 'bg-gray-100 text-gray-600'
+          isReplaced ? 'bg-gray-200 dark:bg-slate-700 text-gray-400 dark:text-slate-500' : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'
         }`}>
           {lessonNumber}
         </div>
@@ -75,24 +75,24 @@ function SlotCard({ slot, onNavigate }: { slot: TeacherSlot; onNavigate: (ctpId:
             {status !== 'normal' && (
               <span className={`text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-full ${
                 isReplaced
-                  ? 'bg-gray-200 text-gray-500'
+                  ? 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400'
                   : 'bg-amber-200 text-amber-800'
               }`}>
                 {isReplaced ? 'ЗАМЕНЁН' : 'ЗАМЕНА'}
               </span>
             )}
-            <span className={`text-sm font-semibold ${isReplaced ? 'text-gray-400' : 'text-gray-900'}`}>
+            <span className={`text-sm font-semibold ${isReplaced ? 'text-gray-400 dark:text-slate-500' : 'text-gray-900 dark:text-slate-100'}`}>
               {displayClass}
             </span>
             {displayGroup && (
-              <span className="text-xs text-blue-500">({displayGroup})</span>
+              <span className="text-xs text-purple-500">({displayGroup})</span>
             )}
             {displayRoom && (
-              <span className="text-xs text-gray-400 ml-auto">каб. {displayRoom}</span>
+              <span className="text-xs text-gray-400 dark:text-slate-500 ml-auto">каб. {displayRoom}</span>
             )}
           </div>
 
-          <div className={`text-sm mt-0.5 ${isReplaced ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+          <div className={`text-sm mt-0.5 ${isReplaced ? 'line-through text-gray-400 dark:text-slate-500' : 'text-gray-700 dark:text-slate-300'}`}>
             {displaySubject}
           </div>
 
@@ -108,7 +108,7 @@ function SlotCard({ slot, onNavigate }: { slot: TeacherSlot; onNavigate: (ctpId:
             </div>
           )}
           {isReplaced && (
-            <div className="text-xs text-gray-400 mt-0.5">
+            <div className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
               ведёт: {sub?.teacher_name ?? '—'}
             </div>
           )}
@@ -116,25 +116,25 @@ function SlotCard({ slot, onNavigate }: { slot: TeacherSlot; onNavigate: (ctpId:
       </div>
 
       {!isReplaced && (
-        <div className={`px-4 py-2 border-t ${status === 'normal' ? 'border-gray-100' : 'border-amber-100'} flex items-center gap-2`}>
+        <div className={`px-4 py-2 border-t ${status === 'normal' ? 'border-gray-100 dark:border-slate-700' : 'border-amber-100'} flex items-center gap-2`}>
           <svg
             xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            className={topic ? 'text-blue-400' : 'text-gray-300'}
+            className={topic ? 'text-purple-400' : 'text-gray-300 dark:text-slate-600'}
           >
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
           </svg>
           {topic ? (
-            <span className="text-sm text-blue-600 truncate">{topic.title}</span>
+            <span className="text-sm text-purple-600 truncate">{topic.title}</span>
           ) : (
-            <span className="text-sm text-gray-400 italic">Тема не найдена</span>
+            <span className="text-sm text-gray-400 dark:text-slate-500 italic">Тема не найдена</span>
           )}
           {topic && (
             <svg
               xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
               fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              className="text-blue-300 ml-auto flex-shrink-0"
+              className="text-purple-300 ml-auto flex-shrink-0"
             >
               <polyline points="9 18 15 12 9 6"/>
             </svg>
@@ -220,7 +220,7 @@ function TeacherDashboard() {
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => shiftDate(-1)}
-          className="p-2 rounded hover:bg-gray-100 text-gray-500"
+          className="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-400"
           title="Предыдущий день"
         >
           ←
@@ -231,12 +231,12 @@ function TeacherDashboard() {
             type="date"
             value={date}
             onChange={e => e.target.value && setDate(e.target.value)}
-            className="border rounded px-2 py-1 text-sm text-gray-500 w-36"
+            className="border rounded px-2 py-1 text-sm text-gray-500 dark:text-slate-400 w-36"
           />
         </div>
         <button
           onClick={() => shiftDate(1)}
-          className="p-2 rounded hover:bg-gray-100 text-gray-500"
+          className="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-400"
           title="Следующий день"
         >
           →
@@ -244,7 +244,7 @@ function TeacherDashboard() {
         {!isToday && (
           <button
             onClick={() => setDate(todayISO())}
-            className="text-sm text-blue-600 hover:text-blue-800 ml-1"
+            className="text-sm text-purple-600 hover:text-purple-800 ml-1"
           >
             Сегодня
           </button>
@@ -254,12 +254,12 @@ function TeacherDashboard() {
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3].map(i => (
-            <div key={i} className="bg-white border border-gray-100 rounded-xl h-20 animate-pulse" />
+            <div key={i} className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl h-20 animate-pulse" />
           ))}
         </div>
       ) : slots.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8 text-center">
-          <p className="text-gray-400">Нет уроков на этот день</p>
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm p-8 text-center">
+          <p className="text-gray-400 dark:text-slate-500">Нет уроков на этот день</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -309,13 +309,13 @@ function StudentSlotCard({ slot }: { slot: StudentSlot }) {
 
   const cardBg = hasChange
     ? 'bg-amber-50 border-amber-200'
-    : 'bg-white border-gray-100 shadow-sm';
+    : 'bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700 shadow-sm';
 
   return (
     <div className={`rounded-xl border ${cardBg}`}>
       <div className="px-4 py-3 flex items-start gap-3">
         <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5 ${
-          hasChange ? 'bg-amber-200 text-amber-700' : 'bg-gray-100 text-gray-600'
+          hasChange ? 'bg-amber-200 text-amber-700' : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'
         }`}>
           {lessonNumber}
         </div>
@@ -326,13 +326,13 @@ function StudentSlotCard({ slot }: { slot: StudentSlot }) {
                 ЗАМЕНА
               </span>
             )}
-            <span className="text-sm font-semibold text-gray-900">{displaySubject}</span>
+            <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{displaySubject}</span>
             {displayRoom && (
-              <span className="text-xs text-gray-400 ml-auto">каб. {displayRoom}</span>
+              <span className="text-xs text-gray-400 dark:text-slate-500 ml-auto">каб. {displayRoom}</span>
             )}
           </div>
           {displayTeacher && (
-            <div className="text-sm text-gray-500 mt-0.5">{displayTeacher}</div>
+            <div className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{displayTeacher}</div>
           )}
           {subjectChanged && (
             <div className="text-xs text-amber-600 mt-0.5">вместо: {lesson!.subject_name}</div>
@@ -347,24 +347,24 @@ function StudentSlotCard({ slot }: { slot: StudentSlot }) {
         <button
           disabled={!hasDetails}
           onClick={() => hasDetails && setExpanded(e => !e)}
-          className={`w-full px-4 py-2 border-t ${hasChange ? 'border-amber-100' : 'border-gray-100'} flex items-center gap-2 ${hasDetails ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'}`}
+          className={`w-full px-4 py-2 border-t ${hasChange ? 'border-amber-100' : 'border-gray-100 dark:border-slate-700'} flex items-center gap-2 ${hasDetails ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800' : 'cursor-default'}`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            className={topic ? 'text-blue-400' : 'text-gray-300'}
+            className={topic ? 'text-purple-400' : 'text-gray-300 dark:text-slate-600'}
           >
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
           </svg>
           {topic ? (
-            <span className="text-sm text-blue-600 truncate flex-1 text-left">{topic.title}</span>
+            <span className="text-sm text-purple-600 truncate flex-1 text-left">{topic.title}</span>
           ) : (
-            <span className="text-sm text-gray-400 italic">Тема не указана</span>
+            <span className="text-sm text-gray-400 dark:text-slate-500 italic">Тема не указана</span>
           )}
           {hasDetails && (
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
               fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              className={`text-blue-300 flex-shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`}
+              className={`text-purple-300 flex-shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`}
             >
               <polyline points="9 18 15 12 9 6"/>
             </svg>
@@ -373,20 +373,20 @@ function StudentSlotCard({ slot }: { slot: StudentSlot }) {
       )}
 
       {expanded && hasDetails && (
-        <div className="px-4 pb-3 border-t border-gray-100 space-y-3 pt-3">
+        <div className="px-4 pb-3 border-t border-gray-100 dark:border-slate-700 space-y-3 pt-3">
           {topic!.homework && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Домашнее задание</label>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{topic!.homework}</p>
+              <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1">Домашнее задание</label>
+              <p className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{topic!.homework}</p>
             </div>
           )}
           {(topic!.resources?.length ?? 0) > 0 && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Материалы</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1">Материалы</label>
               <ul className="space-y-1">
                 {topic!.resources.map((r, i) => (
                   <li key={i}>
-                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm text-purple-600 hover:underline">
                       {r.title || r.url}
                     </a>
                   </li>
@@ -396,11 +396,11 @@ function StudentSlotCard({ slot }: { slot: StudentSlot }) {
           )}
           {(topic!.files?.length ?? 0) > 0 && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Файлы</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1">Файлы</label>
               <ul className="space-y-1">
                 {topic!.files.map(f => (
                   <li key={f.id}>
-                    <a href={f.file} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                    <a href={f.file} target="_blank" rel="noopener noreferrer" className="text-sm text-purple-600 hover:underline">
                       {f.original_name}
                     </a>
                   </li>
@@ -484,34 +484,34 @@ function StudentScheduleDashboard() {
   const isToday = date === todayISO();
 
   if (!classId) {
-    return <p className="text-gray-400 py-8 text-center">Класс не указан в профиле</p>;
+    return <p className="text-gray-400 dark:text-slate-500 py-8 text-center">Класс не указан в профиле</p>;
   }
 
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => shiftDate(-1)} className="p-2 rounded hover:bg-gray-100 text-gray-500" title="Предыдущий день">←</button>
+        <button onClick={() => shiftDate(-1)} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-400" title="Предыдущий день">←</button>
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold capitalize">{formatDateRu(date)}</h2>
           <input
             type="date" value={date}
             onChange={e => e.target.value && setDate(e.target.value)}
-            className="border rounded px-2 py-1 text-sm text-gray-500 w-36"
+            className="border rounded px-2 py-1 text-sm text-gray-500 dark:text-slate-400 w-36"
           />
         </div>
-        <button onClick={() => shiftDate(1)} className="p-2 rounded hover:bg-gray-100 text-gray-500" title="Следующий день">→</button>
+        <button onClick={() => shiftDate(1)} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-400" title="Следующий день">→</button>
         {!isToday && (
-          <button onClick={() => setDate(todayISO())} className="text-sm text-blue-600 hover:text-blue-800 ml-1">Сегодня</button>
+          <button onClick={() => setDate(todayISO())} className="text-sm text-purple-600 hover:text-purple-800 ml-1">Сегодня</button>
         )}
       </div>
 
       {loading ? (
         <div className="space-y-2">
-          {[1, 2, 3].map(i => <div key={i} className="bg-white border border-gray-100 rounded-xl h-20 animate-pulse" />)}
+          {[1, 2, 3].map(i => <div key={i} className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl h-20 animate-pulse" />)}
         </div>
       ) : slots.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8 text-center">
-          <p className="text-gray-400">Нет уроков на этот день</p>
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm p-8 text-center">
+          <p className="text-gray-400 dark:text-slate-500">Нет уроков на этот день</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -552,40 +552,40 @@ function StudentDashboard({ studentId }: { studentId?: number } = {}) {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => shiftDate(-1)} className="p-2 rounded hover:bg-gray-100 text-gray-500" title="Предыдущий день">&#8592;</button>
+        <button onClick={() => shiftDate(-1)} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-400" title="Предыдущий день">&#8592;</button>
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold capitalize">{formatDateRu(date)}</h2>
           <input
             type="date"
             value={date}
             onChange={e => e.target.value && setDate(e.target.value)}
-            className="border rounded px-2 py-1 text-sm text-gray-500 w-36"
+            className="border rounded px-2 py-1 text-sm text-gray-500 dark:text-slate-400 w-36"
           />
         </div>
-        <button onClick={() => shiftDate(1)} className="p-2 rounded hover:bg-gray-100 text-gray-500" title="Следующий день">&#8594;</button>
+        <button onClick={() => shiftDate(1)} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-400" title="Следующий день">&#8594;</button>
         {!isToday && (
-          <button onClick={() => setDate(todayISO())} className="text-sm text-blue-600 hover:text-blue-800 ml-1">Сегодня</button>
+          <button onClick={() => setDate(todayISO())} className="text-sm text-purple-600 hover:text-purple-800 ml-1">Сегодня</button>
         )}
       </div>
 
       {loading ? (
-        <p className="text-gray-400 text-center py-8">Загрузка...</p>
+        <p className="text-gray-400 dark:text-slate-500 text-center py-8">Загрузка...</p>
       ) : topics.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <p className="text-gray-400">Нет тем на этот день</p>
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-8 text-center">
+          <p className="text-gray-400 dark:text-slate-500">Нет тем на этот день</p>
         </div>
       ) : (
         <div className="space-y-2">
           {topics.map(topic => (
-            <div key={topic.id} className="bg-white rounded-lg shadow">
+            <div key={topic.id} className="bg-white dark:bg-slate-800 rounded-lg shadow">
               <button
                 onClick={() => hasDetails(topic) ? setExpandedId(expandedId === topic.id ? null : topic.id) : undefined}
-                className={`w-full text-left px-4 py-3 flex items-center gap-3 ${hasDetails(topic) ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'}`}
+                className={`w-full text-left px-4 py-3 flex items-center gap-3 ${hasDetails(topic) ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800' : 'cursor-default'}`}
               >
-                <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded shrink-0">{topic.subject_name}</span>
-                <span className="text-sm text-gray-800 flex-1">{topic.title}</span>
+                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded shrink-0">{topic.subject_name}</span>
+                <span className="text-sm text-gray-800 dark:text-slate-200 flex-1">{topic.title}</span>
                 {hasDetails(topic) && (
-                  <span className={`text-gray-400 text-xs transition-transform ${expandedId === topic.id ? 'rotate-90' : ''}`}>&#9654;</span>
+                  <span className={`text-gray-400 dark:text-slate-500 text-xs transition-transform ${expandedId === topic.id ? 'rotate-90' : ''}`}>&#9654;</span>
                 )}
               </button>
 
@@ -593,17 +593,17 @@ function StudentDashboard({ studentId }: { studentId?: number } = {}) {
                 <div className="px-4 pb-3 border-t space-y-3 pt-3">
                   {topic.homework && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Домашнее задание</label>
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{topic.homework}</p>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1">Домашнее задание</label>
+                      <p className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{topic.homework}</p>
                     </div>
                   )}
                   {topic.resources.length > 0 && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Материалы</label>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1">Материалы</label>
                       <ul className="space-y-1">
                         {topic.resources.map((r, i) => (
                           <li key={i}>
-                            <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 hover:underline">
+                            <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm text-purple-600 hover:text-purple-800 hover:underline">
                               {r.title || r.url}
                             </a>
                           </li>
@@ -613,11 +613,11 @@ function StudentDashboard({ studentId }: { studentId?: number } = {}) {
                   )}
                   {topic.files.length > 0 && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Файлы</label>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1">Файлы</label>
                       <ul className="space-y-1">
                         {topic.files.map(f => (
                           <li key={f.id}>
-                            <a href={f.file} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 hover:underline">
+                            <a href={f.file} target="_blank" rel="noopener noreferrer" className="text-sm text-purple-600 hover:text-purple-800 hover:underline">
                               {f.original_name}
                             </a>
                           </li>
@@ -645,7 +645,7 @@ function ParentDashboard() {
   );
 
   if (children.length === 0) {
-    return <p className="text-gray-400 py-8 text-center">Нет привязанных учеников</p>;
+    return <p className="text-gray-400 dark:text-slate-500 py-8 text-center">Нет привязанных учеников</p>;
   }
 
   return (
@@ -658,12 +658,12 @@ function ParentDashboard() {
               onClick={() => setActiveChildId(c.id)}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition ${
                 activeChildId === c.id
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'
               }`}
             >
               {c.last_name} {c.first_name}
-              <span className="ml-1.5 text-xs text-gray-400">({c.school_class_name})</span>
+              <span className="ml-1.5 text-xs text-gray-400 dark:text-slate-500">({c.school_class_name})</span>
             </button>
           ))}
         </div>
@@ -712,17 +712,17 @@ export default function DashboardPage() {
     <div>
       <h1 className="text-2xl font-bold mb-6">Добро пожаловать, {user.first_name}!</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Link to="/ktp" className="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
-          <h2 className="text-lg font-semibold text-blue-600 mb-2">КТП</h2>
-          <p className="text-gray-500 text-sm">Календарно-тематическое планирование</p>
+        <Link to="/ktp" className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow hover:shadow-md transition">
+          <h2 className="text-lg font-semibold text-purple-600 mb-2">КТП</h2>
+          <p className="text-gray-500 dark:text-slate-400 text-sm">Календарно-тематическое планирование</p>
         </Link>
-        <Link to="/admin/people" className="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
-          <h2 className="text-lg font-semibold text-blue-600 mb-2">Люди</h2>
-          <p className="text-gray-500 text-sm">Сотрудники и ученики</p>
+        <Link to="/admin/people" className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow hover:shadow-md transition">
+          <h2 className="text-lg font-semibold text-purple-600 mb-2">Люди</h2>
+          <p className="text-gray-500 dark:text-slate-400 text-sm">Сотрудники и ученики</p>
         </Link>
-        <Link to="/admin/school" className="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
-          <h2 className="text-lg font-semibold text-blue-600 mb-2">Школа</h2>
-          <p className="text-gray-500 text-sm">Классы, предметы, параллели, выходные</p>
+        <Link to="/admin/school" className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow hover:shadow-md transition">
+          <h2 className="text-lg font-semibold text-purple-600 mb-2">Школа</h2>
+          <p className="text-gray-500 dark:text-slate-400 text-sm">Классы, предметы, параллели, выходные</p>
         </Link>
       </div>
     </div>

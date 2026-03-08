@@ -50,43 +50,43 @@ export default function GroupsTab({ groups, staffList, isAdmin, onGroupsChange }
         <form onSubmit={createGroup} className="flex gap-3">
           <input type="text" value={newGroupName} onChange={e => setNewGroupName(e.target.value)}
             placeholder="Название новой группы"
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            className="flex-1 border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
           <button type="submit" disabled={creating || !newGroupName.trim()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap">
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 whitespace-nowrap">
             + Создать группу
           </button>
         </form>
       )}
 
       {groups.length === 0 && (
-        <div className="text-center py-16 text-gray-400">
+        <div className="text-center py-16 text-gray-400 dark:text-slate-500">
           <p className="text-lg">Групп пока нет</p>
           {isAdmin && <p className="text-sm mt-1">Создайте первую группу выше</p>}
         </div>
       )}
 
       {groups.map(group => (
-        <div key={group.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div key={group.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4">
             <button onClick={() => setExpandedId(expandedId === group.id ? null : group.id)}
               className="flex items-center gap-2 text-left min-w-0">
-              <svg className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${expandedId === group.id ? 'rotate-90' : ''}`}
+              <svg className={`w-4 h-4 text-gray-400 dark:text-slate-500 flex-shrink-0 transition-transform ${expandedId === group.id ? 'rotate-90' : ''}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
-              <span className="font-semibold text-gray-900">{group.name}</span>
-              <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">
+              <span className="font-semibold text-gray-900 dark:text-slate-100">{group.name}</span>
+              <span className="text-xs text-gray-400 dark:text-slate-500 bg-gray-100 dark:bg-slate-800 rounded-full px-2 py-0.5">
                 {group.members_detail.length} участн.
               </span>
               {group.is_member && (
-                <span className="text-xs text-blue-600 bg-blue-50 rounded-full px-2 py-0.5">вы участник</span>
+                <span className="text-xs text-purple-600 bg-purple-50 rounded-full px-2 py-0.5">вы участник</span>
               )}
             </button>
             <div className="flex items-center gap-2 flex-shrink-0 ml-3">
               {!isAdmin && (
                 <button onClick={() => joinLeave(group.id, group.is_member)}
                   className={`text-sm px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                    group.is_member ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-blue-600 text-white hover:bg-blue-700'
+                    group.is_member ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-purple-600 text-white hover:bg-purple-700'
                   }`}>
                   {group.is_member ? 'Покинуть' : 'Вступить'}
                 </button>
@@ -101,7 +101,7 @@ export default function GroupsTab({ groups, staffList, isAdmin, onGroupsChange }
           </div>
 
           {expandedId === group.id && (
-            <div className="border-t border-gray-100 px-5 py-4">
+            <div className="border-t border-gray-100 dark:border-slate-700 px-5 py-4">
               {isAdmin ? (
                 <div className="grid grid-cols-2 gap-2">
                   {staffList.map(user => {
@@ -109,10 +109,10 @@ export default function GroupsTab({ groups, staffList, isAdmin, onGroupsChange }
                     return (
                       <button key={user.id} onClick={() => toggleMember(group.id, user.id, isMember)}
                         className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm border transition-colors text-left ${
-                          isMember ? 'bg-blue-50 border-blue-300 text-blue-800' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                          isMember ? 'bg-purple-50 border-purple-300 text-purple-800' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800'
                         }`}>
                         <div className={`w-4 h-4 rounded flex-shrink-0 border-2 flex items-center justify-center ${
-                          isMember ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                          isMember ? 'bg-purple-600 border-purple-600' : 'border-gray-300 dark:border-slate-600'
                         }`}>
                           {isMember && (
                             <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10" stroke="currentColor" strokeWidth={2}>
@@ -128,9 +128,9 @@ export default function GroupsTab({ groups, staffList, isAdmin, onGroupsChange }
               ) : (
                 <div className="space-y-1">
                   {group.members_detail.length === 0
-                    ? <p className="text-sm text-gray-400">Участников пока нет</p>
+                    ? <p className="text-sm text-gray-400 dark:text-slate-500">Участников пока нет</p>
                     : group.members_detail.map(m => (
-                        <div key={m.id} className="text-sm text-gray-700">{m.last_name} {m.first_name}</div>
+                        <div key={m.id} className="text-sm text-gray-700 dark:text-slate-300">{m.last_name} {m.first_name}</div>
                       ))}
                 </div>
               )}

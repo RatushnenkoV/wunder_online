@@ -60,25 +60,25 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
         e.dataTransfer.effectAllowed = 'move';
         onDragStart(task.id);
       }}
-      className={`bg-white rounded-xl border border-gray-200 shadow-sm transition-shadow select-none ${
+      className={`bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm transition-shadow select-none ${
         task.status !== 'done' ? 'cursor-grab active:cursor-grabbing hover:shadow-md' : ''
       }`}
     >
       {/* Заголовок карточки */}
       <button className="w-full text-left px-4 py-3" onClick={() => setExpanded(v => !v)}>
         <div className="flex items-start justify-between gap-2">
-          <span className="text-sm font-medium text-gray-900 leading-snug">{task.title}</span>
+          <span className="text-sm font-medium text-gray-900 dark:text-slate-100 leading-snug">{task.title}</span>
           <div className="flex items-center gap-1 flex-shrink-0">
             {dueDateLabel && (
               <span className={`text-xs whitespace-nowrap px-1.5 py-0.5 rounded-full ${
-                isPast ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
+                isPast ? 'bg-red-100 text-red-700' : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400'
               }`}>{dueDateLabel}</span>
             )}
             {onHide && (
               <span
                 role="button"
                 onClick={e => { e.stopPropagation(); onHide(); }}
-                className="text-gray-300 hover:text-gray-500 transition-colors text-base leading-none px-1 -mr-1"
+                className="text-gray-300 dark:text-slate-600 hover:text-gray-500 transition-colors text-base leading-none px-1 -mr-1"
                 title="Скрыть задачу">
                 ×
               </span>
@@ -87,10 +87,10 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
         </div>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {task.assigned_to_name && (
-            <span className="text-xs text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">{task.assigned_to_name}</span>
+            <span className="text-xs text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 rounded-full px-2 py-0.5">{task.assigned_to_name}</span>
           )}
           {task.assigned_group_name && (
-            <span className="text-xs text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">{task.assigned_group_name}</span>
+            <span className="text-xs text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 rounded-full px-2 py-0.5">{task.assigned_group_name}</span>
           )}
           {task.taken_by_name && (
             <span className="text-xs text-amber-700 bg-amber-50 rounded-full px-2 py-0.5">
@@ -101,7 +101,7 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
             <span className="text-xs text-orange-700 bg-orange-50 rounded-full px-2 py-0.5">на доработке</span>
           )}
           {task.files.length > 0 && (
-            <span className="text-xs text-gray-400 flex items-center gap-1">
+            <span className="text-xs text-gray-400 dark:text-slate-500 flex items-center gap-1">
               <FileIcon /> {task.files.length}
             </span>
           )}
@@ -110,7 +110,7 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
 
       {/* Раскрытая часть */}
       {expanded && (
-        <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
+        <div className="px-4 pb-4 border-t border-gray-100 dark:border-slate-700 pt-3 space-y-3">
           {/* Комментарий к доработке */}
           {task.status === 'in_progress' && task.review_comment && (
             <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-sm text-orange-800">
@@ -121,13 +121,13 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
 
           {/* Описание с активными ссылками */}
           {task.description && (
-            <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
+            <p className="text-sm text-gray-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed">
               {linkify(task.description)}
             </p>
           )}
 
           {/* Мета-информация */}
-          <div className="text-xs text-gray-400 space-y-0.5">
+          <div className="text-xs text-gray-400 dark:text-slate-500 space-y-0.5">
             <div>Постановщик: {task.created_by_name}</div>
             {task.taken_by_name && <div>Взял в работу: {task.taken_by_name}</div>}
           </div>
@@ -140,11 +140,11 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
                   <FileIcon />
                   <a href={f.url} target="_blank" rel="noopener noreferrer"
                     onClick={e => e.stopPropagation()}
-                    className="text-blue-600 hover:underline truncate flex-1">
+                    className="text-purple-600 hover:underline truncate flex-1">
                     {f.original_name}
                   </a>
                   <button onClick={() => handleDeleteFile(f.id)}
-                    className="text-gray-300 hover:text-red-500 flex-shrink-0 transition-colors" title="Удалить файл">
+                    className="text-gray-300 dark:text-slate-600 hover:text-red-500 flex-shrink-0 transition-colors" title="Удалить файл">
                     &times;
                   </button>
                 </div>
@@ -154,10 +154,10 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
 
           {/* Сдача ученика (из проектного задания) */}
           {task.submission && (
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 space-y-2">
-              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Работа ученика</p>
+            <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 space-y-2">
+              <p className="text-xs font-medium text-purple-600 uppercase tracking-wide">Работа ученика</p>
               {task.submission.text && (
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{task.submission.text}</p>
+                <p className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{task.submission.text}</p>
               )}
               {task.submission.files.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
@@ -168,7 +168,7 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={e => e.stopPropagation()}
-                      className="flex items-center gap-1.5 bg-white border border-blue-200 rounded-lg px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100 transition-colors"
+                      className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-purple-200 rounded-lg px-2.5 py-1 text-xs text-purple-700 hover:bg-purple-100 transition-colors"
                     >
                       <FileIcon />
                       <span className="max-w-[160px] truncate">{f.original_name}</span>
@@ -177,7 +177,7 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
                 </div>
               )}
               {!task.submission.text && task.submission.files.length === 0 && (
-                <p className="text-xs text-gray-400">Работа сдана без текста и файлов</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">Работа сдана без текста и файлов</p>
               )}
             </div>
           )}
@@ -187,7 +187,7 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
             <div>
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
               <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFile}
-                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 transition-colors disabled:opacity-50">
+                className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-slate-400 hover:text-purple-600 transition-colors disabled:opacity-50">
                 <FileIcon />
                 {uploadingFile ? 'Загрузка...' : 'Прикрепить файл'}
               </button>
@@ -203,7 +203,7 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
                   .map(t => (
                     <button key={t.to} onClick={() => onStatusChange(task, t.to)}
                       className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                        t.to === 'done' ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-blue-600 text-white hover:bg-blue-700'
+                        t.to === 'done' ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-purple-600 text-white hover:bg-purple-700'
                       }`}>
                       {t.label}
                     </button>
@@ -232,7 +232,7 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
                     </button>
                     <button
                       onClick={() => { setSendBackMode(false); setSendBackComment(''); }}
-                      className="text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
+                      className="text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors">
                       Отмена
                     </button>
                   </div>
@@ -245,7 +245,7 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
           <div className="flex items-center justify-between pt-1">
             {task.can_reassign && task.status !== 'done' && (
               <button onClick={() => onReassign(task)}
-                className="text-xs text-gray-500 hover:text-blue-600 transition-colors">
+                className="text-xs text-gray-500 dark:text-slate-400 hover:text-purple-600 transition-colors">
                 Переназначить
               </button>
             )}

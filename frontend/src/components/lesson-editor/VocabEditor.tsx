@@ -95,22 +95,22 @@ export default function VocabEditor({ slide, lessonId, onSaved }: { slide: Slide
 
   return (
     <div className="flex flex-col h-full">
-      <div className="h-10 border-b border-gray-200 bg-white flex items-center px-4 gap-3">
-        <span className="text-sm text-gray-500">📚 Редактор словаря</span>
-        <span className="text-xs text-gray-400">{content.words.length} слов</span>
+      <div className="h-10 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center px-4 gap-3">
+        <span className="text-sm text-gray-500 dark:text-slate-400">📚 Редактор словаря</span>
+        <span className="text-xs text-gray-400 dark:text-slate-500">{content.words.length} слов</span>
       </div>
-      <div className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-slate-900">
         <div className="max-w-3xl mx-auto p-6 space-y-6">
 
           {/* Язык */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Язык перевода</h3>
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm p-4">
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-3">Язык перевода</h3>
             <div className="flex gap-3">
               {(['en', 'kk'] as const).map(l => (
                 <label key={l} className="flex items-center gap-2 cursor-pointer">
                   <input type="radio" name={`lang_${slide.id}`} checked={content.targetLang === l}
-                    onChange={() => setLang(l)} className="accent-blue-600" />
-                  <span className="text-sm text-gray-700">{LANG_LABELS[l]}</span>
+                    onChange={() => setLang(l)} className="accent-purple-600" />
+                  <span className="text-sm text-gray-700 dark:text-slate-300">{LANG_LABELS[l]}</span>
                 </label>
               ))}
             </div>
@@ -118,7 +118,7 @@ export default function VocabEditor({ slide, lessonId, onSaved }: { slide: Slide
 
           {/* Слова */}
           <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Слова</h3>
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-3">Слова</h3>
             <div className="space-y-3">
               {content.words.map((w, idx) => (
                 <VocabWordCard
@@ -133,7 +133,7 @@ export default function VocabEditor({ slide, lessonId, onSaved }: { slide: Slide
               ))}
               <button
                 onClick={addWord}
-                className="w-full py-3 text-sm text-blue-500 hover:text-blue-700 border-2 border-dashed border-blue-200 hover:border-blue-400 rounded-xl transition-colors font-medium"
+                className="w-full py-3 text-sm text-purple-500 hover:text-purple-700 border-2 border-dashed border-purple-200 hover:border-purple-400 rounded-xl transition-colors font-medium"
               >
                 + Добавить слово
               </button>
@@ -141,10 +141,10 @@ export default function VocabEditor({ slide, lessonId, onSaved }: { slide: Slide
           </div>
 
           {/* Типы заданий */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Типы заданий</h3>
-              <div className="flex gap-4 text-xs text-gray-400 font-medium">
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Типы заданий</h3>
+              <div className="flex gap-4 text-xs text-gray-400 dark:text-slate-500 font-medium">
                 <span>Выбор</span>
                 <span>Ввод</span>
               </div>
@@ -152,21 +152,21 @@ export default function VocabEditor({ slide, lessonId, onSaved }: { slide: Slide
             <div className="space-y-2">
               {taskRows.map(({ label, choiceKey, inputKey }) => (
                 <div key={choiceKey} className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-gray-700 flex-1">{label}</span>
+                  <span className="text-sm text-gray-700 dark:text-slate-300 flex-1">{label}</span>
                   <div className="flex gap-6 flex-shrink-0">
                     <input
                       type="checkbox"
                       checked={!!content.tasks[choiceKey]}
                       onChange={e => setTask(choiceKey, e.target.checked)}
                       disabled={content.tasks[choiceKey] && activeTasks === 1}
-                      className="w-4 h-4 accent-blue-600 cursor-pointer"
+                      className="w-4 h-4 accent-purple-600 cursor-pointer"
                     />
                     <input
                       type="checkbox"
                       checked={!!content.tasks[inputKey]}
                       onChange={e => setTask(inputKey, e.target.checked)}
                       disabled={content.tasks[inputKey] && activeTasks === 1}
-                      className="w-4 h-4 accent-blue-600 cursor-pointer"
+                      className="w-4 h-4 accent-purple-600 cursor-pointer"
                     />
                   </div>
                 </div>
@@ -178,37 +178,37 @@ export default function VocabEditor({ slide, lessonId, onSaved }: { slide: Slide
           </div>
 
           {/* Повторения */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Повторения</h3>
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm p-4">
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-3">Повторения</h3>
             <div className="flex items-center gap-4 flex-wrap">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={content.repetitions === 'until_correct'}
                   onChange={e => setReps(e.target.checked ? 'until_correct' : 1)}
-                  className="w-4 h-4 accent-blue-600"
+                  className="w-4 h-4 accent-purple-600"
                 />
-                <span className="text-sm text-gray-700">Повторять до безошибочного</span>
+                <span className="text-sm text-gray-700 dark:text-slate-300">Повторять до безошибочного</span>
               </label>
               {content.repetitions !== 'until_correct' && (
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setReps(Math.max(1, repsValue - 1))}
                     disabled={repsValue <= 1}
-                    className="w-8 h-8 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors font-bold text-lg leading-none flex items-center justify-center"
+                    className="w-8 h-8 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-30 transition-colors font-bold text-lg leading-none flex items-center justify-center"
                   >−</button>
-                  <span className="w-8 text-center text-sm font-semibold text-gray-800">{repsValue}</span>
+                  <span className="w-8 text-center text-sm font-semibold text-gray-800 dark:text-slate-200">{repsValue}</span>
                   <button
                     onClick={() => setReps(Math.min(10, repsValue + 1))}
                     disabled={repsValue >= 10}
-                    className="w-8 h-8 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 disabled:opacity-30 transition-colors font-bold text-lg leading-none flex items-center justify-center"
+                    className="w-8 h-8 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-30 transition-colors font-bold text-lg leading-none flex items-center justify-center"
                   >+</button>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="text-xs text-gray-500 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+          <div className="text-xs text-gray-500 dark:text-slate-400 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
             💡 Слово считается выученным, когда все активные типы заданий выполнены без ошибок. Картинки ищутся автоматически на Pixabay при вводе перевода.
           </div>
 
