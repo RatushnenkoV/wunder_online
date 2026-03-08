@@ -229,7 +229,7 @@ npm run build
 
 Создай файл сервиса:
 ```bash
-sudo nano /etc/systemd/system/wunder.service
+sudo nano /etc/systemd/system/daphne.service
 ```
 
 Вставь содержимое:
@@ -392,7 +392,7 @@ sudo systemctl restart daphne
 
 # Frontend (если были изменения)
 cd /var/www/wunder/frontend
-npm install
+npm install --legacy-peer-deps
 npm run build
 ```
 
