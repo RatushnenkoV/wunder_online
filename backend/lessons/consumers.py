@@ -1,11 +1,11 @@
 import json
 import logging
 import uuid
+from urllib.parse import parse_qs
 
 from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
-from django.contrib.auth.models import AnonymousUser
 from django.db import models
 
 from .models import Slide, LessonSession, FormAnswer
@@ -14,11 +14,29 @@ from .utils import compute_form_results
 logger = logging.getLogger(__name__)
 
 
+def _parse_qs_int(scope, key):
+    """Извлекает первое целочисленное значение из query string."""
+    qs = parse_qs(scope.get('query_string', b'').decode())
+    vals = qs.get(key, [])
+    if vals:
+        try:
+            return int(vals[0])
+        except (ValueError, TypeError):
+            pass
+    return None
+
+
 class DiscussionConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.slide_id = self.scope['url_route']['kwargs']['slide_id']
-        self.room_group_name = f'discussion_{self.slide_id}'
         self.user = self.scope['user']
+        # session_id из query string — если передан, хранить данные в LessonSession
+        self.lesson_session_id = _parse_qs_int(self.scope, 'session_id')
+
+        if self.lesson_session_id:
+            self.room_group_name = f'discussion_{self.slide_id}_{self.lesson_session_id}'
+        else:
+            self.room_group_name = f'discussion_{self.slide_id}'
 
         if not self.user or not self.user.is_authenticated:
             await self.close(code=4001)
@@ -42,12 +60,12 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
 
         await self.accept()
 
-        content = slide.content or {}
+        init_data = await self.load_init_data()
         await self.send(text_data=json.dumps({
             'type': 'init',
-            'stickers': content.get('stickers', []),
-            'arrows': content.get('arrows', []),
-            'topic': content.get('topic', ''),
+            'stickers': init_data.get('stickers', []),
+            'arrows': init_data.get('arrows', []),
+            'topic': init_data.get('topic', ''),
         }))
 
     async def disconnect(self, close_code):
@@ -138,34 +156,61 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
     # ── Group message handlers ──────────────────────────────────────────────────
 
     async def sticker_added(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'sticker_added', 'sticker': event['sticker'],
-        }))
+        await self.send(text_data=json.dumps({'type': 'sticker_added', 'sticker': event['sticker']}))
 
     async def sticker_updated(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'sticker_updated', 'sticker': event['sticker'],
-        }))
+        await self.send(text_data=json.dumps({'type': 'sticker_updated', 'sticker': event['sticker']}))
 
     async def sticker_deleted(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'sticker_deleted', 'id': event['id'],
-        }))
+        await self.send(text_data=json.dumps({'type': 'sticker_deleted', 'id': event['id']}))
 
     async def arrow_added(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'arrow_added', 'arrow': event['arrow'],
-        }))
+        await self.send(text_data=json.dumps({'type': 'arrow_added', 'arrow': event['arrow']}))
 
     async def arrow_deleted(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'arrow_deleted', 'id': event['id'],
-        }))
+        await self.send(text_data=json.dumps({'type': 'arrow_deleted', 'id': event['id']}))
 
     async def topic_updated(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'topic_updated', 'topic': event['topic'],
-        }))
+        await self.send(text_data=json.dumps({'type': 'topic_updated', 'topic': event['topic']}))
+
+    # ── Хелперы: загрузка/сохранение с учётом режима (сессия vs редактор) ──────
+
+    @sync_to_async
+    def load_init_data(self):
+        if self.lesson_session_id:
+            try:
+                session = LessonSession.objects.get(id=self.lesson_session_id)
+                return session.discussion_data.get(str(self.slide_id), {})
+            except LessonSession.DoesNotExist:
+                return {}
+        else:
+            try:
+                slide = Slide.objects.get(id=self.slide_id)
+                return slide.content or {}
+            except Slide.DoesNotExist:
+                return {}
+
+    def _get_board_data(self, obj):
+        if self.lesson_session_id:
+            return obj.discussion_data.get(str(self.slide_id), {})
+        else:
+            return obj.content or {}
+
+    def _save_board_data(self, obj, board_data):
+        if self.lesson_session_id:
+            data = dict(obj.discussion_data or {})
+            data[str(self.slide_id)] = board_data
+            obj.discussion_data = data
+            obj.save(update_fields=['discussion_data'])
+        else:
+            obj.content = board_data
+            obj.save(update_fields=['content'])
+
+    def _get_model(self):
+        if self.lesson_session_id:
+            return LessonSession.objects.get(id=self.lesson_session_id)
+        else:
+            return Slide.objects.get(id=self.slide_id)
 
     # ── DB helpers ──────────────────────────────────────────────────────────────
 
@@ -179,30 +224,26 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
     @sync_to_async
     def save_sticker(self, sticker):
         try:
-            slide = Slide.objects.get(id=self.slide_id)
-            content = dict(slide.content or {})
-            stickers = list(content.get('stickers', []))
-            stickers.append(sticker)
-            content['stickers'] = stickers
-            slide.content = content
-            slide.save()
-        except Slide.DoesNotExist:
+            obj = self._get_model()
+            board = dict(self._get_board_data(obj))
+            board['stickers'] = list(board.get('stickers', [])) + [sticker]
+            self._save_board_data(obj, board)
+        except (Slide.DoesNotExist, LessonSession.DoesNotExist):
             pass
 
     @sync_to_async
     def do_update_sticker(self, sticker_id, updates):
         try:
-            slide = Slide.objects.get(id=self.slide_id)
-            content = dict(slide.content or {})
-            stickers = list(content.get('stickers', []))
+            obj = self._get_model()
+            board = dict(self._get_board_data(obj))
+            stickers = list(board.get('stickers', []))
             for s in stickers:
                 if s.get('id') == sticker_id:
                     s.update(updates)
-                    content['stickers'] = stickers
-                    slide.content = content
-                    slide.save()
+                    board['stickers'] = stickers
+                    self._save_board_data(obj, board)
                     return s
-        except Slide.DoesNotExist:
+        except (Slide.DoesNotExist, LessonSession.DoesNotExist):
             pass
         return None
 
@@ -211,44 +252,37 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
         if self.user.is_admin or self.user.is_teacher:
             return True
         try:
-            slide = Slide.objects.get(id=self.slide_id)
-            content = slide.content or {}
-            for s in content.get('stickers', []):
+            obj = self._get_model()
+            board = self._get_board_data(obj)
+            for s in board.get('stickers', []):
                 if s.get('id') == sticker_id:
                     return s.get('author_id') == self.user.id
-        except Slide.DoesNotExist:
+        except (Slide.DoesNotExist, LessonSession.DoesNotExist):
             pass
         return False
 
     @sync_to_async
     def do_remove_sticker(self, sticker_id):
         try:
-            slide = Slide.objects.get(id=self.slide_id)
-            content = dict(slide.content or {})
-            content['stickers'] = [
-                s for s in content.get('stickers', []) if s.get('id') != sticker_id
-            ]
-            # Remove arrows that referenced this sticker
-            content['arrows'] = [
-                a for a in content.get('arrows', [])
+            obj = self._get_model()
+            board = dict(self._get_board_data(obj))
+            board['stickers'] = [s for s in board.get('stickers', []) if s.get('id') != sticker_id]
+            board['arrows'] = [
+                a for a in board.get('arrows', [])
                 if a.get('from_id') != sticker_id and a.get('to_id') != sticker_id
             ]
-            slide.content = content
-            slide.save()
-        except Slide.DoesNotExist:
+            self._save_board_data(obj, board)
+        except (Slide.DoesNotExist, LessonSession.DoesNotExist):
             pass
 
     @sync_to_async
     def save_arrow(self, arrow):
         try:
-            slide = Slide.objects.get(id=self.slide_id)
-            content = dict(slide.content or {})
-            arrows = list(content.get('arrows', []))
-            arrows.append(arrow)
-            content['arrows'] = arrows
-            slide.content = content
-            slide.save()
-        except Slide.DoesNotExist:
+            obj = self._get_model()
+            board = dict(self._get_board_data(obj))
+            board['arrows'] = list(board.get('arrows', [])) + [arrow]
+            self._save_board_data(obj, board)
+        except (Slide.DoesNotExist, LessonSession.DoesNotExist):
             pass
 
     @sync_to_async
@@ -256,81 +290,54 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
         if self.user.is_admin or self.user.is_teacher:
             return True
         try:
-            slide = Slide.objects.get(id=self.slide_id)
-            content = slide.content or {}
-            for a in content.get('arrows', []):
+            obj = self._get_model()
+            board = self._get_board_data(obj)
+            for a in board.get('arrows', []):
                 if a.get('id') == arrow_id:
                     return a.get('author_id') == self.user.id
-        except Slide.DoesNotExist:
+        except (Slide.DoesNotExist, LessonSession.DoesNotExist):
             pass
         return False
 
     @sync_to_async
     def do_remove_arrow(self, arrow_id):
         try:
-            slide = Slide.objects.get(id=self.slide_id)
-            content = dict(slide.content or {})
-            content['arrows'] = [a for a in content.get('arrows', []) if a.get('id') != arrow_id]
-            slide.content = content
-            slide.save()
-        except Slide.DoesNotExist:
+            obj = self._get_model()
+            board = dict(self._get_board_data(obj))
+            board['arrows'] = [a for a in board.get('arrows', []) if a.get('id') != arrow_id]
+            self._save_board_data(obj, board)
+        except (Slide.DoesNotExist, LessonSession.DoesNotExist):
             pass
 
     @sync_to_async
     def do_update_topic(self, topic):
         try:
-            slide = Slide.objects.get(id=self.slide_id)
-            content = dict(slide.content or {})
-            content['topic'] = topic
-            slide.content = content
-            slide.save()
-        except Slide.DoesNotExist:
+            obj = self._get_model()
+            board = dict(self._get_board_data(obj))
+            board['topic'] = topic
+            self._save_board_data(obj, board)
+        except (Slide.DoesNotExist, LessonSession.DoesNotExist):
             pass
 
     @database_sync_to_async
     def _can_access_slide(self, user, slide):
-        """Проверяет доступ пользователя к слайду.
-
-        Разрешено:
-        - is_admin
-        - is_teacher (любой учитель, владелец урока или нет — педагогам разрешён просмотр)
-        - ученик из класса, для которого есть активная сессия этого урока
-        - ученик, у которого есть назначение (LessonAssignment) на этот урок
-        """
         if user.is_admin or user.is_teacher:
             return True
-
         if not user.is_student:
             return False
-
         lesson = slide.lesson
-
-        # Проверяем активную сессию: есть ли сессия урока для класса ученика
         try:
             from school.models import StudentProfile
             profile = StudentProfile.objects.select_related('school_class').get(user=user)
             student_class = profile.school_class
         except Exception:
-            # Нет профиля ученика — нет доступа
             return False
-
-        active_session_exists = LessonSession.objects.filter(
-            lesson=lesson,
-            school_class=student_class,
-            is_active=True,
-        ).exists()
-        if active_session_exists:
+        if LessonSession.objects.filter(lesson=lesson, school_class=student_class, is_active=True).exists():
             return True
-
-        # Проверяем назначение урока (самостоятельное прохождение)
         from .models import LessonAssignment
-        assignment_exists = LessonAssignment.objects.filter(
-            lesson=lesson,
-        ).filter(
-            # назначение на класс ученика ИЛИ напрямую на ученика
+        return LessonAssignment.objects.filter(lesson=lesson).filter(
             models.Q(school_class=student_class) | models.Q(student=user)
         ).exists()
-        return assignment_exists
 
 
 # ─── LessonSessionConsumer ────────────────────────────────────────────────────
@@ -350,13 +357,11 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
             await self.close(code=4004)
             return
 
-        # Студентам нельзя подключаться к завершённой сессии
         is_presenter = session.teacher_id == self.user.id or self.user.is_admin
         if not session.is_active and not is_presenter:
             await self.close(code=4403)
             return
 
-        # Проверяем членство: учитель/admin — пропускаем, студент — только из класса сессии
         if not await self._can_access_session(self.user, session):
             logger.warning(
                 '[LessonSession] user %s denied access to session %s (not a member)',
@@ -403,7 +408,6 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
 
         msg_type = data.get('type')
 
-        # form_answer доступен ВСЕМ аутентифицированным участникам (не только учителю)
         if msg_type == 'form_answer':
             slide_id = data.get('slide_id')
             answers = data.get('answers', [])
@@ -425,12 +429,10 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
                                slide_id, type(answers).__name__)
             return
 
-        # Остальные команды — только для учителя/admin
         is_presenter = session.teacher_id == self.user.id or self.user.is_admin
         logger.info('[LessonSession] is_presenter=%s  teacher_id=%s  user_id=%s',
                     is_presenter, session.teacher_id, self.user.id)
 
-        # quiz_answer доступен только студентам (обрабатываем до проверки is_presenter)
         if msg_type == 'quiz_answer':
             if not is_presenter:
                 slide_id = data.get('slide_id')
@@ -449,10 +451,7 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
                             correct = -1
                             time_limit_ms = 30000
                         is_correct = (option_index == correct)
-                        if is_correct:
-                            points = max(100, round(1000 - (elapsed_ms / max(time_limit_ms, 1)) * 900))
-                        else:
-                            points = 0
+                        points = max(100, round(1000 - (elapsed_ms / max(time_limit_ms, 1)) * 900)) if is_correct else 0
                         await self.save_quiz_answer(slide_id, question_idx, option_index, elapsed_ms, points)
                         answered_count = await self.get_quiz_answered_count(slide_id, question_idx)
                         try:
@@ -462,7 +461,6 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
                             )
                         except Exception as e:
                             logger.error('[LessonSession] quiz_answer_received broadcast failed: %s', e)
-                        # Прямое подтверждение отвечавшему студенту
                         await self.send(text_data=json.dumps({
                             'type': 'quiz_answer_confirmed',
                             'slide_id': slide_id,
@@ -493,10 +491,7 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
         elif msg_type == 'end_session':
             await self.do_end_session()
             try:
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {'type': 'session_ended'},
-                )
+                await self.channel_layer.group_send(self.room_group_name, {'type': 'session_ended'})
             except Exception as e:
                 logger.error('[LessonSession] group_send end_session failed: %s', e)
 
@@ -505,8 +500,7 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
             if action in ('play', 'pause'):
                 try:
                     await self.channel_layer.group_send(
-                        self.room_group_name,
-                        {'type': 'video_control', 'action': action},
+                        self.room_group_name, {'type': 'video_control', 'action': action},
                     )
                 except Exception as e:
                     logger.error('[LessonSession] video_control broadcast failed: %s', e)
@@ -518,10 +512,7 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
                 slide = await self.get_slide_by_id(slide_id)
                 if slide and slide.slide_type == 'quiz':
                     questions = (slide.content or {}).get('questions', [])
-                    if 0 <= question_idx < len(questions):
-                        time_limit = questions[question_idx].get('time_limit', 30)
-                    else:
-                        time_limit = 30
+                    time_limit = questions[question_idx].get('time_limit', 30) if 0 <= question_idx < len(questions) else 30
                     try:
                         await self.channel_layer.group_send(
                             self.room_group_name,
@@ -538,10 +529,7 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
                     slide = await self.get_slide_by_id(slide_id)
                     if slide:
                         questions = (slide.content or {}).get('questions', [])
-                        if 0 <= question_idx < len(questions):
-                            correct = questions[question_idx].get('correct', -1)
-                        else:
-                            correct = -1
+                        correct = questions[question_idx].get('correct', -1) if 0 <= question_idx < len(questions) else -1
                         leaderboard = await self.get_quiz_leaderboard()
                         answer_stats = await self.get_quiz_answer_stats(slide_id, question_idx)
                         try:
@@ -562,26 +550,18 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
     # ── Group message handlers ────────────────────────────────────────────────
 
     async def slide_changed(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'slide_changed',
-            'slide_id': event['slide_id'],
-        }))
+        await self.send(text_data=json.dumps({'type': 'slide_changed', 'slide_id': event['slide_id']}))
 
     async def session_ended(self, event):
         await self.send(text_data=json.dumps({'type': 'session_ended'}))
 
     async def form_results_updated(self, event):
         await self.send(text_data=json.dumps({
-            'type': 'form_results_updated',
-            'slide_id': event['slide_id'],
-            'results': event['results'],
+            'type': 'form_results_updated', 'slide_id': event['slide_id'], 'results': event['results'],
         }))
 
     async def video_control(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'video_control',
-            'action': event['action'],
-        }))
+        await self.send(text_data=json.dumps({'type': 'video_control', 'action': event['action']}))
 
     async def quiz_started(self, event):
         await self.send(text_data=json.dumps({
@@ -613,30 +593,15 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def _can_access_session(self, user, session):
-        """Проверяет доступ пользователя к сессии урока.
-
-        Разрешено:
-        - is_admin
-        - учитель сессии (session.teacher)
-        - любой другой учитель (педагогам разрешён просмотр)
-        - ученик из класса сессии (session.school_class)
-        """
         if user.is_admin or user.is_teacher:
             return True
-
         if not user.is_student:
             return False
-
         if session.school_class_id is None:
-            # Сессия без класса — разрешаем всем аутентифицированным
             return True
-
         try:
             from school.models import StudentProfile
-            return StudentProfile.objects.filter(
-                user=user,
-                school_class_id=session.school_class_id,
-            ).exists()
+            return StudentProfile.objects.filter(user=user, school_class_id=session.school_class_id).exists()
         except Exception:
             return False
 
@@ -697,16 +662,12 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
     @sync_to_async
     def save_quiz_answer(self, slide_id, question_idx, option_index, elapsed_ms, points):
         fa, _ = FormAnswer.objects.get_or_create(
-            session_id=self.session_id,
-            slide_id=slide_id,
-            student=self.user,
+            session_id=self.session_id, slide_id=slide_id, student=self.user,
             defaults={'answers': {}},
         )
         if not isinstance(fa.answers, dict):
             fa.answers = {}
-        fa.answers[str(question_idx)] = {
-            'option_index': option_index, 'elapsed_ms': elapsed_ms, 'points': points,
-        }
+        fa.answers[str(question_idx)] = {'option_index': option_index, 'elapsed_ms': elapsed_ms, 'points': points}
         fa.save(update_fields=['answers'])
 
     @sync_to_async
@@ -717,18 +678,15 @@ class LessonSessionConsumer(AsyncWebsocketConsumer):
 
     @sync_to_async
     def get_quiz_leaderboard(self):
-        answers = FormAnswer.objects.filter(
-            session_id=self.session_id,
-        ).select_related('student')
+        answers = FormAnswer.objects.filter(session_id=self.session_id).select_related('student')
         totals: dict = {}
         for fa in answers:
             sid = fa.student_id
             name = f'{fa.student.first_name} {fa.student.last_name}'.strip() or f'User {sid}'
             if sid not in totals:
                 totals[sid] = {'id': sid, 'name': name, 'points': 0}
-            ans_data = fa.answers
-            if isinstance(ans_data, dict):
-                for v in ans_data.values():
+            if isinstance(fa.answers, dict):
+                for v in fa.answers.values():
                     if isinstance(v, dict) and 'points' in v:
                         totals[sid]['points'] += v['points']
         return sorted(totals.values(), key=lambda x: -x['points'])

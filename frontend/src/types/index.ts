@@ -253,6 +253,11 @@ export interface Task {
   can_reassign: boolean;
   review_comment: string;
   files: TaskFile[];
+  submission: {
+    text: string;
+    files: { id: number; original_name: string; file_url: string; file_size: number }[];
+    submitted_at: string | null;
+  } | null;
   created_at: string;
   updated_at: string;
   completed_at: string | null;
@@ -641,6 +646,12 @@ export interface ChatTaskPreview {
   user_took: boolean;
 }
 
+export interface ChatReactionSummary {
+  emoji: string;
+  count: number;
+  user_reacted: boolean;
+}
+
 export interface ChatMessage {
   id: number;
   room: number;
@@ -651,6 +662,7 @@ export interface ChatMessage {
   attachments: ChatAttachment[];
   poll: ChatPoll | null;
   task_preview: ChatTaskPreview | null;
+  reactions: ChatReactionSummary[];
   created_at: string;
   updated_at: string;
   is_deleted: boolean;
@@ -696,6 +708,15 @@ export interface ChatRoom {
 
 export interface ChatRoomDetail extends ChatRoom {
   members: ChatMember[];
+}
+
+export interface ChatRestriction {
+  student_id: number;
+  message_cooldown: number;
+  muted_until: string | null;
+  no_links: boolean;
+  no_files: boolean;
+  no_polls: boolean;
 }
 
 // ─── ScheduleLesson ───────────────────────────────────────────────────────────

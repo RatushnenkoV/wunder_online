@@ -56,6 +56,19 @@ export default function TasksPage() {
     }
   }, [loadData, isStaff]);
 
+  // Обновление при переключении вкладки и по интервалу
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadData();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    const interval = setInterval(loadData, 30_000);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(interval);
+    };
+  }, [loadData]);
+
   const updateTask = (updated: Task) => {
     setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
     // Если задача вышла из done — убрать из скрытых

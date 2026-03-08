@@ -18,7 +18,11 @@ from .serializers import (
     ClassGroupSerializer, ClassSubjectSerializer, RoomSerializer,
     ScheduleLessonSerializer, SubstitutionSerializer, LessonTimeSlotSerializer, AhoRequestSerializer,
 )
-from .services import import_classes, import_students_from_excel
+import io
+import threading
+import time
+import uuid
+from .services import import_classes, import_students_from_excel_streaming
 from . import schedule_import as sched_import
 from core.validators import validate_file_mime, ALLOWED_EXCEL
 from django.core.exceptions import ValidationError
@@ -233,7 +237,22 @@ def import_classes_view(request):
     })
 
 
-# --- Import students from Excel ---
+# --- Import students from Excel (background thread + polling) ---
+
+# In-memory task store: task_id -> task dict
+# Cleaned up after TTL expires.
+_import_tasks: dict = {}
+_import_tasks_lock = threading.Lock()
+_TASK_TTL = 3600  # seconds
+
+
+def _cleanup_old_tasks():
+    """Must be called while holding _import_tasks_lock."""
+    now = time.time()
+    expired = [k for k, v in _import_tasks.items() if now - v.get('created_at', now) > _TASK_TTL]
+    for k in expired:
+        del _import_tasks[k]
+
 
 @api_view(['POST'])
 @permission_classes([IsAdmin, PasswordChanged])
@@ -245,16 +264,57 @@ def import_students_excel_view(request):
     if not file.name.lower().endswith('.xlsx'):
         return Response({'detail': 'Поддерживается только формат .xlsx'}, status=status.HTTP_400_BAD_REQUEST)
 
-    try:
-        result = import_students_from_excel(file)
-    except Exception as e:
-        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    # Read into memory so the file is available after the request ends
+    file_data = file.read()
+    task_id = str(uuid.uuid4())
 
-    return Response({
-        'created': result['created'],
-        'updated': result['updated'],
-        'errors': result['errors'],
-    })
+    with _import_tasks_lock:
+        _cleanup_old_tasks()
+        _import_tasks[task_id] = {
+            'status': 'running',
+            'processed': 0,
+            'total': 0,
+            'created': 0,
+            'updated': 0,
+            'created_at': time.time(),
+        }
+
+    def run():
+        try:
+            for event in import_students_from_excel_streaming(io.BytesIO(file_data)):
+                with _import_tasks_lock:
+                    if event['type'] in ('start', 'progress'):
+                        _import_tasks[task_id].update({
+                            'processed': event.get('processed', 0),
+                            'total': event['total'],
+                            'created': event.get('created', 0),
+                            'updated': event.get('updated', 0),
+                        })
+                    elif event['type'] == 'done':
+                        _import_tasks[task_id].update({
+                            'status': 'done',
+                            'processed': event['created'] + event['updated'],
+                            'total': event['created'] + event['updated'],
+                            'created': event['created'],
+                            'updated': event['updated'],
+                            'errors': event['errors'],
+                        })
+        except Exception as exc:
+            with _import_tasks_lock:
+                _import_tasks[task_id].update({'status': 'error', 'detail': str(exc)})
+
+    threading.Thread(target=run, daemon=True).start()
+    return Response({'task_id': task_id})
+
+
+@api_view(['GET'])
+@permission_classes([IsAdmin, PasswordChanged])
+def import_students_excel_status(request, task_id):
+    with _import_tasks_lock:
+        task = _import_tasks.get(task_id)
+    if not task:
+        return Response({'detail': 'Задача не найдена'}, status=status.HTTP_404_NOT_FOUND)
+    return Response(task)
 
 
 # --- Class Groups ---

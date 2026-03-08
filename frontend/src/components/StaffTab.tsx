@@ -263,8 +263,20 @@ export default function StaffTab({ readOnly = false }: { readOnly?: boolean }) {
               >
                 <td className="px-4 py-2">{u.last_name}</td>
                 <td className="px-4 py-2">{u.first_name}</td>
-                <td className="px-4 py-2 text-gray-500 hidden sm:table-cell">{u.email || '—'}</td>
-                <td className="px-4 py-2 text-gray-500 hidden sm:table-cell">{u.phone || '—'}</td>
+                <td className="px-4 py-2 text-gray-500 hidden sm:table-cell" onClick={e => e.stopPropagation()}>
+                  {u.email ? (
+                    <button onClick={() => copyToClipboard(u.email, `email_${u.id}`)} className="hover:underline cursor-copy text-left" title="Нажмите, чтобы скопировать">
+                      {copiedField === `email_${u.id}` ? '✓ Скопировано' : u.email}
+                    </button>
+                  ) : '—'}
+                </td>
+                <td className="px-4 py-2 text-gray-500 hidden sm:table-cell" onClick={e => e.stopPropagation()}>
+                  {u.phone ? (
+                    <button onClick={() => copyToClipboard(u.phone, `phone_${u.id}`)} className="hover:underline cursor-copy text-left" title="Нажмите, чтобы скопировать">
+                      {copiedField === `phone_${u.id}` ? '✓ Скопировано' : u.phone}
+                    </button>
+                  ) : '—'}
+                </td>
                 <td className="px-4 py-2 hidden sm:table-cell">
                   <div className="flex flex-wrap gap-1">
                     {u.roles.filter(r => r !== 'parent').map(r => (

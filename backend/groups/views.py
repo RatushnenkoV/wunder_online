@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from django.core.exceptions import ValidationError
 from accounts.permissions import PasswordChanged
 from core.validators import validate_file_mime, ALLOWED_IMAGES, ALLOWED_PDF, ALLOWED_EXCEL
-from .models import ChatRoom, ChatMember, ChatMessage, MessageAttachment, ChatPoll, ChatPollOption, ChatPollVote, ChatTaskTake
+from .models import ChatRoom, ChatMember, ChatMessage, MessageAttachment, ChatPoll, ChatPollOption, ChatPollVote, ChatTaskTake, StudentChatRestriction, ChatAllowedEmoji, ChatReaction
 
 ALLOWED_CHAT_FILES = ALLOWED_IMAGES + ALLOWED_PDF + ALLOWED_EXCEL
 from .permissions import can_start_direct, get_available_dm_users
@@ -29,7 +29,14 @@ def broadcast(room_id, event):
 
 
 def _is_room_member(room, user):
-    return user.is_admin or room.members_rel.filter(user=user).exists()
+    """Проверяет право доступа к комнате.
+    Admins могут читать групповые чаты (модерация), но не личные переписки."""
+    if room.members_rel.filter(user=user).exists():
+        return True
+    # Admin может видеть групповые чаты, но не личную переписку (direct)
+    if user.is_admin and room.room_type == ChatRoom.TYPE_GROUP:
+        return True
+    return False
 
 
 # ─── Rooms ────────────────────────────────────────────────────────────────────
@@ -123,9 +130,10 @@ class ChatRoomDetailView(APIView):
     def delete(self, request, pk):
         if not request.user.is_admin:
             return Response({'detail': 'Только администраторы могут удалять чаты.'}, status=403)
-        room, err = self._get_room(pk, request.user)
-        if err:
-            return err
+        try:
+            room = ChatRoom.objects.get(pk=pk)
+        except ChatRoom.DoesNotExist:
+            return Response({'detail': 'Чат не найден.'}, status=404)
         room.delete()
         return Response(status=204)
 
@@ -211,7 +219,7 @@ class ChatMessagesView(APIView):
         if err:
             return err
 
-        qs = room.messages.select_related('sender', 'reply_to__sender').prefetch_related('attachments')
+        qs = room.messages.select_related('sender', 'reply_to__sender').prefetch_related('attachments', 'reactions')
         before_id = request.query_params.get('before')
         if before_id:
             qs = qs.filter(id__lt=before_id)
@@ -263,6 +271,18 @@ class ChatFileUploadView(APIView):
         uploaded = request.FILES.get('file')
         if not uploaded:
             return Response({'detail': 'Файл не прикреплён.'}, status=400)
+
+        # Проверка ограничений для учеников
+        if request.user.is_student:
+            try:
+                r = StudentChatRestriction.objects.get(student=request.user)
+                from django.utils import timezone
+                if r.muted_until and r.muted_until > timezone.now():
+                    return Response({'detail': 'Вы временно лишены возможности писать.'}, status=403)
+                if r.no_files:
+                    return Response({'detail': 'Вам запрещено отправлять файлы.'}, status=403)
+            except StudentChatRestriction.DoesNotExist:
+                pass
 
         try:
             validate_file_mime(uploaded, ALLOWED_CHAT_FILES, label='файл чата')
@@ -364,6 +384,18 @@ class ChatPollCreateView(APIView):
         if not _is_room_member(room, request.user):
             return Response({'detail': 'Нет доступа.'}, status=403)
 
+        # Проверка ограничений для учеников
+        if request.user.is_student:
+            try:
+                r = StudentChatRestriction.objects.get(student=request.user)
+                from django.utils import timezone
+                if r.muted_until and r.muted_until > timezone.now():
+                    return Response({'detail': 'Вы временно лишены возможности писать.'}, status=403)
+                if r.no_polls:
+                    return Response({'detail': 'Вам запрещено создавать опросы.'}, status=403)
+            except StudentChatRestriction.DoesNotExist:
+                pass
+
         question = request.data.get('question', '').strip()
         options_data = request.data.get('options', [])
         is_multiple = bool(request.data.get('is_multiple', False))
@@ -463,6 +495,86 @@ class ChatTaskCreateView(APIView):
         return Response(serialized, status=201)
 
 
+# ─── Student Chat Restrictions ────────────────────────────────────────────────
+
+class StudentRestrictionView(APIView):
+    """
+    GET  /api/chat/restrictions/<student_id>/  — получить ограничения
+    PUT  /api/chat/restrictions/<student_id>/  — установить/обновить (любой взрослый)
+    """
+    permission_classes = [PasswordChanged]
+
+    def _can_manage(self, user):
+        return user.is_admin or user.is_teacher or user.is_parent
+
+    def get(self, request, student_id):
+        if not self._can_manage(request.user):
+            return Response({'detail': 'Нет прав.'}, status=403)
+        try:
+            r = StudentChatRestriction.objects.get(student_id=student_id)
+        except StudentChatRestriction.DoesNotExist:
+            return Response({
+                'student_id': student_id,
+                'message_cooldown': 0,
+                'muted_until': None,
+                'no_links': False,
+                'no_files': False,
+                'no_polls': False,
+            })
+        return Response({
+            'student_id': r.student_id,
+            'message_cooldown': r.message_cooldown,
+            'muted_until': r.muted_until.isoformat() if r.muted_until else None,
+            'no_links': r.no_links,
+            'no_files': r.no_files,
+            'no_polls': r.no_polls,
+            'set_by': r.set_by_id,
+            'updated_at': r.updated_at.isoformat(),
+        })
+
+    def put(self, request, student_id):
+        if not self._can_manage(request.user):
+            return Response({'detail': 'Нет прав.'}, status=403)
+        try:
+            target = User.objects.get(pk=student_id)
+        except User.DoesNotExist:
+            return Response({'detail': 'Пользователь не найден.'}, status=404)
+        if not target.is_student:
+            return Response({'detail': 'Ограничения применимы только к ученикам.'}, status=400)
+
+        restriction, _ = StudentChatRestriction.objects.get_or_create(
+            student=target,
+            defaults={'set_by': request.user},
+        )
+        restriction.set_by = request.user
+        if 'message_cooldown' in request.data:
+            restriction.message_cooldown = max(0, int(request.data['message_cooldown']))
+        if 'muted_until' in request.data:
+            val = request.data['muted_until']
+            if val:
+                from django.utils.dateparse import parse_datetime
+                restriction.muted_until = parse_datetime(val)
+            else:
+                restriction.muted_until = None
+        if 'no_links' in request.data:
+            restriction.no_links = bool(request.data['no_links'])
+        if 'no_files' in request.data:
+            restriction.no_files = bool(request.data['no_files'])
+        if 'no_polls' in request.data:
+            restriction.no_polls = bool(request.data['no_polls'])
+        restriction.save()
+
+        return Response({
+            'student_id': restriction.student_id,
+            'message_cooldown': restriction.message_cooldown,
+            'muted_until': restriction.muted_until.isoformat() if restriction.muted_until else None,
+            'no_links': restriction.no_links,
+            'no_files': restriction.no_files,
+            'no_polls': restriction.no_polls,
+            'updated_at': restriction.updated_at.isoformat(),
+        })
+
+
 class ChatTaskTakeView(APIView):
     permission_classes = [PasswordChanged]
 
@@ -520,3 +632,104 @@ class ChatTaskTakeView(APIView):
             'takers': takers,
         })
         return Response({'ok': True, 'takers': takers})
+
+
+# ─── Emoji reactions ──────────────────────────────────────────────────────────
+
+class ChatAllowedEmojiView(APIView):
+    """GET — список разрешённых эмодзи; PUT (admin) — установить список."""
+    permission_classes = [PasswordChanged]
+
+    def get(self, request):
+        emojis = list(ChatAllowedEmoji.objects.values_list('emoji', flat=True))
+        if not emojis:
+            emojis = ChatAllowedEmoji.DEFAULT_EMOJIS
+        return Response(emojis)
+
+    def put(self, request):
+        if not request.user.is_admin:
+            return Response({'detail': 'Только администраторы.'}, status=403)
+        emojis = request.data.get('emojis', [])
+        ChatAllowedEmoji.objects.all().delete()
+        for i, e in enumerate(emojis[:20]):
+            e = str(e).strip()
+            if e:
+                ChatAllowedEmoji.objects.create(emoji=e, order=i)
+        return Response(list(ChatAllowedEmoji.objects.values_list('emoji', flat=True)))
+
+
+class ChatMessageReactView(APIView):
+    """POST /chat/messages/<id>/react/ — переключить реакцию (toggle)."""
+    permission_classes = [PasswordChanged]
+
+    def post(self, request, msg_id):
+        try:
+            msg = ChatMessage.objects.select_related('room').get(pk=msg_id)
+        except ChatMessage.DoesNotExist:
+            return Response({'detail': 'Сообщение не найдено.'}, status=404)
+        if not _is_room_member(msg.room, request.user):
+            return Response({'detail': 'Нет доступа.'}, status=403)
+        if msg.is_deleted:
+            return Response({'detail': 'Сообщение удалено.'}, status=400)
+
+        emoji = request.data.get('emoji', '').strip()
+        if not emoji:
+            return Response({'detail': 'Требуется emoji.'}, status=400)
+
+        # One reaction per user per message: remove existing, then add new unless toggling same
+        already_same = ChatReaction.objects.filter(message=msg, user=request.user, emoji=emoji).exists()
+        ChatReaction.objects.filter(message=msg, user=request.user).delete()
+        if not already_same:
+            ChatReaction.objects.create(message=msg, user=request.user, emoji=emoji)
+
+        # Aggregate reactions
+        from collections import Counter
+        all_reactions = list(ChatReaction.objects.filter(message=msg))
+        counts = Counter(r.emoji for r in all_reactions)
+        my_emojis = set(r.emoji for r in all_reactions if r.user_id == request.user.id)
+        reactions = [
+            {'emoji': e, 'count': c, 'user_reacted': e in my_emojis}
+            for e, c in sorted(counts.items())
+        ]
+
+        broadcast(msg.room_id, {
+            'type': 'chat_reaction_updated',
+            'message_id': msg_id,
+            'reactions': reactions,
+        })
+        return Response(reactions)
+
+
+# ─── Bulk delete ──────────────────────────────────────────────────────────────
+
+class ChatBulkDeleteView(APIView):
+    """POST /chat/rooms/<pk>/messages/bulk-delete/ — массовое удаление."""
+    permission_classes = [PasswordChanged]
+
+    def post(self, request, pk):
+        try:
+            room = ChatRoom.objects.get(pk=pk)
+        except ChatRoom.DoesNotExist:
+            return Response({'detail': 'Чат не найден.'}, status=404)
+        if not _is_room_member(room, request.user):
+            return Response({'detail': 'Нет доступа.'}, status=403)
+
+        ids = request.data.get('ids', [])
+        if not ids or not isinstance(ids, list):
+            return Response({'detail': 'Требуется список ids.'}, status=400)
+
+        deleted = 0
+        for msg_id in ids[:50]:
+            try:
+                msg = ChatMessage.objects.get(pk=msg_id, room=room, is_deleted=False)
+            except ChatMessage.DoesNotExist:
+                continue
+            if not request.user.is_admin and msg.sender_id != request.user.id:
+                continue
+            msg.is_deleted = True
+            msg.text = ''
+            msg.save(update_fields=['is_deleted', 'text'])
+            broadcast(pk, {'type': 'chat_message_deleted', 'message_id': msg_id})
+            deleted += 1
+
+        return Response({'deleted': deleted})

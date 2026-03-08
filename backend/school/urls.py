@@ -9,6 +9,7 @@ urlpatterns = [
     path('classes/<int:class_id>/students/', views.class_students),
     path('classes/import/', views.import_classes_view),
     path('students/import-excel/', views.import_students_excel_view),
+    path('students/import-excel/status/<str:task_id>/', views.import_students_excel_status),
     path('subjects/', views.subject_list_create),
     path('subjects/<int:pk>/', views.subject_delete),
     path('grade-subjects/', views.grade_subject_list_create),

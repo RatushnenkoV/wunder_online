@@ -7,6 +7,8 @@ from .views import (
     ChatUsersView, ChatDirectView,
     ChatPollCreateView, ChatPollVoteView,
     ChatTaskCreateView, ChatTaskTakeView,
+    StudentRestrictionView,
+    ChatAllowedEmojiView, ChatMessageReactView, ChatBulkDeleteView,
 )
 
 urlpatterns = [
@@ -14,6 +16,7 @@ urlpatterns = [
     path('rooms/<int:pk>/', ChatRoomDetailView.as_view()),
     path('rooms/<int:pk>/members/', ChatMembersView.as_view()),
     path('rooms/<int:pk>/members/<int:user_pk>/', ChatMembersView.as_view()),
+    path('rooms/<int:pk>/messages/bulk-delete/', ChatBulkDeleteView.as_view()),
     path('rooms/<int:pk>/messages/', ChatMessagesView.as_view()),
     path('rooms/<int:pk>/messages/<int:msg_id>/', ChatMessagesView.as_view()),
     path('rooms/<int:pk>/files/', ChatFileUploadView.as_view()),
@@ -22,6 +25,9 @@ urlpatterns = [
     path('rooms/<int:room_id>/chat-tasks/', ChatTaskCreateView.as_view()),
     path('rooms/<int:room_id>/chat-tasks/<int:task_id>/take/', ChatTaskTakeView.as_view()),
     path('polls/<int:poll_id>/vote/', ChatPollVoteView.as_view()),
+    path('messages/<int:msg_id>/react/', ChatMessageReactView.as_view()),
+    path('emojis/', ChatAllowedEmojiView.as_view()),
     path('users/', ChatUsersView.as_view()),
     path('direct/', ChatDirectView.as_view()),
+    path('restrictions/<int:student_id>/', StudentRestrictionView.as_view()),
 ]

@@ -88,6 +88,11 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
 ]
 
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',  # для обычных паролей
+    'django.contrib.auth.hashers.MD5PasswordHasher',      # для bulk-импорта временных паролей
+]
+
 LANGUAGE_CODE = 'ru'
 TIME_ZONE = 'Europe/Moscow'
 USE_I18N = True

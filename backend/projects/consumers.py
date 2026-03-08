@@ -1,10 +1,15 @@
 import json
+import re
 
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.utils import timezone
 
+from groups.models import StudentChatRestriction
 from .models import Project, ProjectMember, ProjectPost
 from .serializers import ProjectPostSerializer
+
+_URL_PATTERN = re.compile(r'https?://|www\.', re.IGNORECASE)
 
 
 class ProjectConsumer(AsyncWebsocketConsumer):
@@ -41,6 +46,14 @@ class ProjectConsumer(AsyncWebsocketConsumer):
             text = data.get('text', '').strip()
             if not text:
                 return
+
+            # Проверяем ограничения для учеников
+            if self.user.is_student:
+                error = await self.check_restrictions(text)
+                if error:
+                    await self.send(text_data=json.dumps({'type': 'restriction_error', 'detail': error}))
+                    return
+
             post = await self.save_post(text)
             serialized = await self.serialize_post(post)
             await self.channel_layer.group_send(
@@ -90,6 +103,19 @@ class ProjectConsumer(AsyncWebsocketConsumer):
                 'display_name': event['display_name'],
             }))
 
+    async def project_assignment_updated(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'assignment_updated',
+            'assignment_id': event['assignment_id'],
+        }))
+
+    async def project_submission_updated(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'submission_updated',
+            'assignment_id': event['assignment_id'],
+            'student_id': event['student_id'],
+        }))
+
     # ─── DB helpers ────────────────────────────────────────────────────────────
 
     @sync_to_async
@@ -116,3 +142,36 @@ class ProjectConsumer(AsyncWebsocketConsumer):
     def serialize_post(self, post):
         serializer = ProjectPostSerializer(post)
         return serializer.data
+
+    @sync_to_async
+    def check_restrictions(self, text):
+        """Возвращает строку с ошибкой если ученик нарушает ограничения, иначе None."""
+        try:
+            r = StudentChatRestriction.objects.get(student=self.user)
+        except StudentChatRestriction.DoesNotExist:
+            return None
+
+        now = timezone.now()
+
+        # Мьют
+        if r.muted_until and r.muted_until > now:
+            delta = r.muted_until - now
+            minutes = int(delta.total_seconds() / 60)
+            return f'Вы временно лишены возможности писать ещё {minutes} мин.'
+
+        # Проверка ссылок
+        if r.no_links and _URL_PATTERN.search(text):
+            return 'Вам запрещено отправлять ссылки.'
+
+        # Cooldown (считаем по постам проекта)
+        if r.message_cooldown > 0:
+            last_post = ProjectPost.objects.filter(
+                author=self.user
+            ).order_by('-created_at').first()
+            if last_post:
+                elapsed = (now - last_post.created_at).total_seconds()
+                if elapsed < r.message_cooldown:
+                    wait = int(r.message_cooldown - elapsed) + 1
+                    return f'Подождите {wait} сек. перед следующим сообщением.'
+
+        return None

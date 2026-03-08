@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from .models import ChatRoom, ChatMember, ChatMessage, MessageAttachment, ChatPoll, ChatPollOption
+from .models import ChatRoom, ChatMember, ChatMessage, MessageAttachment, ChatPoll, ChatPollOption, ChatReaction
 
 User = get_user_model()
 
@@ -73,11 +73,13 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     reply_to_preview = serializers.SerializerMethodField()
     poll = serializers.SerializerMethodField()
     task_preview = serializers.SerializerMethodField()
+    reactions = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatMessage
         fields = ['id', 'room', 'sender', 'text', 'reply_to', 'reply_to_preview',
-                  'attachments', 'poll', 'task_preview', 'created_at', 'updated_at', 'is_deleted']
+                  'attachments', 'poll', 'task_preview', 'reactions',
+                  'created_at', 'updated_at', 'is_deleted']
 
     def get_reply_to_preview(self, obj):
         if not obj.reply_to_id:
@@ -119,6 +121,19 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             'takers': takers,
             'user_took': user_took,
         }
+
+    def get_reactions(self, obj):
+        request = self.context.get('request')
+        reactions = list(obj.reactions.all())  # uses prefetch cache when available
+        if not reactions:
+            return []
+        from collections import Counter
+        counts = Counter(r.emoji for r in reactions)
+        my_emojis = set(r.emoji for r in reactions if request and r.user_id == request.user.id)
+        return [
+            {'emoji': emoji, 'count': count, 'user_reacted': emoji in my_emojis}
+            for emoji, count in sorted(counts.items())
+        ]
 
 
 class ChatMemberSerializer(serializers.ModelSerializer):

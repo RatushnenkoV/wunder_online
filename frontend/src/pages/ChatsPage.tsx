@@ -95,6 +95,9 @@ export default function ChatsPage() {
   const prevUnreadRef = useRef<Record<number, number>>({});
   const activeRoomIdRef = useRef<number | null>(null);
   activeRoomIdRef.current = activeRoomId;
+  // Локальное время прочтения: roomId -> ISO-строка.
+  // Если last_message.created_at <= этого времени → unread_count считаем 0.
+  const lastReadTimeRef = useRef<Record<number, string>>({});
 
   // Показать баннер разрешения уведомлений
   useEffect(() => {
@@ -120,15 +123,29 @@ export default function ChatsPage() {
 
   // Обновить список комнат + диспатч события для сайдбара
   const applyRooms = useCallback((newRooms: ChatRoom[], isInitial = false) => {
-    setRooms(newRooms);
+    // Мержим серверные данные с локальным состоянием прочтения.
+    // Если last_message.created_at <= нашего lastReadTime — считаем unread = 0,
+    // чтобы значок не «возвращался» после поллинга когда чат уже прочитан.
+    const mergedRooms = newRooms.map((serverRoom) => {
+      const lastReadTs = lastReadTimeRef.current[serverRoom.id];
+      if (lastReadTs && serverRoom.unread_count > 0) {
+        const lastMsgTs = serverRoom.last_message?.created_at;
+        if (!lastMsgTs || lastMsgTs <= lastReadTs) {
+          return { ...serverRoom, unread_count: 0 };
+        }
+      }
+      return serverRoom;
+    });
 
-    const total = newRooms.reduce((s, r) => s + r.unread_count, 0);
+    setRooms(mergedRooms);
+
+    const total = mergedRooms.reduce((s, r) => s + r.unread_count, 0);
     window.dispatchEvent(new CustomEvent('chat:unread:update', { detail: total }));
 
     if (!isInitial) {
       // Проверяем новые сообщения в не-активных комнатах
       const prev = prevUnreadRef.current;
-      newRooms.forEach((room) => {
+      mergedRooms.forEach((room) => {
         const prevCount = prev[room.id];
         if (prevCount === undefined) return; // первый раз — не уведомляем
         if (room.unread_count > prevCount && room.id !== activeRoomIdRef.current) {
@@ -143,7 +160,7 @@ export default function ChatsPage() {
         }
       });
     }
-    prevUnreadRef.current = Object.fromEntries(newRooms.map((r) => [r.id, r.unread_count]));
+    prevUnreadRef.current = Object.fromEntries(mergedRooms.map((r) => [r.id, r.unread_count]));
   }, []);
 
   // Первоначальная загрузка
@@ -186,26 +203,27 @@ export default function ChatsPage() {
 
   // Когда в активном чате приходит новое сообщение через WS
   const handleNewMessage = useCallback((message: ChatMessage) => {
-    setRooms((prev) => prev.map((r) => {
-      if (r.id !== message.room) return r;
-      return {
-        ...r,
-        last_message: {
-          id: message.id,
-          text: message.text,
-          sender_id: message.sender?.id ?? null,
-          sender_name: message.sender?.display_name ?? '',
-          created_at: message.created_at,
-        },
-        // Если это наше сообщение или мы в этом чате — unread = 0
-        unread_count: 0,
-      };
-    }));
-    // Обновить счётчик в сайдбаре (unread = 0 для активного чата)
+    // Обновляем локальное время прочтения — мы видим это сообщение
+    lastReadTimeRef.current[message.room] = new Date().toISOString();
+
     setRooms((prev) => {
-      const total = prev.reduce((s, r) => s + r.unread_count, 0);
+      const updated = prev.map((r) => {
+        if (r.id !== message.room) return r;
+        return {
+          ...r,
+          last_message: {
+            id: message.id,
+            text: message.text,
+            sender_id: message.sender?.id ?? null,
+            sender_name: message.sender?.display_name ?? '',
+            created_at: message.created_at,
+          },
+          unread_count: 0,
+        };
+      });
+      const total = updated.reduce((s, r) => s + r.unread_count, 0);
       window.dispatchEvent(new CustomEvent('chat:unread:update', { detail: total }));
-      return prev;
+      return updated;
     });
   }, []);
 
@@ -226,9 +244,16 @@ export default function ChatsPage() {
 
   const selectRoom = (id: number) => {
     setActiveRoomId(id);
-    setListOpen(false); // закрыть оверлей на мобильном
-    // Сбросить unread для выбранной комнаты локально
-    setRooms((prev) => prev.map((r) => r.id === id ? { ...r, unread_count: 0 } : r));
+    setListOpen(false);
+    // Записываем время прочтения — поллинг не будет возвращать бейдж для этого чата
+    lastReadTimeRef.current[id] = new Date().toISOString();
+    // Сбросить unread локально
+    setRooms((prev) => {
+      const updated = prev.map((r) => r.id === id ? { ...r, unread_count: 0 } : r);
+      const total = updated.reduce((s, r) => s + r.unread_count, 0);
+      window.dispatchEvent(new CustomEvent('chat:unread:update', { detail: total }));
+      return updated;
+    });
   };
 
   const totalUnread = rooms.reduce((sum, r) => sum + r.unread_count, 0);
@@ -254,9 +279,7 @@ export default function ChatsPage() {
               className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
               title="Новый чат"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
+              <span className="text-lg leading-none select-none">♥</span>
             </button>
 
             {showMenu && (

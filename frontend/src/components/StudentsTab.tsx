@@ -89,6 +89,7 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
   // Excel import
   const [importResult, setImportResult] = useState<{ created: number; updated: number; errors: string[] } | null>(null);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ processed: number; total: number; created: number; updated: number } | null>(null);
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -96,18 +97,46 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
     if (!file) return;
     setImporting(true);
     setImportResult(null);
+    setImportProgress(null);
+
     try {
       const form = new FormData();
       form.append('file', file);
-      const res = await api.post('/school/students/import-excel/', form, {
+      const startRes = await api.post('/school/students/import-excel/', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setImportResult(res.data);
-      loadList(1);
-    } catch (err: any) {
-      setMessage(err.response?.data?.detail || 'Ошибка импорта');
+      const taskId: string = startRes.data.task_id;
+
+      await new Promise<void>((resolve, reject) => {
+        const interval = setInterval(async () => {
+          try {
+            const res = await api.get(`/school/students/import-excel/status/${taskId}/`);
+            const task = res.data;
+            if (task.status === 'running') {
+              setImportProgress({ processed: task.processed, total: task.total, created: task.created, updated: task.updated });
+            } else if (task.status === 'done') {
+              clearInterval(interval);
+              setImportResult({ created: task.created, updated: task.updated, errors: task.errors ?? [] });
+              setImportProgress(null);
+              loadList(1);
+              resolve();
+            } else if (task.status === 'error') {
+              clearInterval(interval);
+              setMessage(task.detail || 'Ошибка импорта');
+              reject();
+            }
+          } catch {
+            clearInterval(interval);
+            setMessage('Ошибка получения статуса импорта');
+            reject();
+          }
+        }, 400);
+      });
+    } catch {
+      // errors already shown via setMessage
     } finally {
       setImporting(false);
+      setImportProgress(null);
     }
   };
 
@@ -358,6 +387,31 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
         </div>
       )}
 
+      {importing && (
+        <div className="bg-blue-50 p-3 rounded mb-4 text-sm">
+          <div className="flex justify-between items-center mb-1 text-blue-700">
+            {importProgress && importProgress.total > 0 ? (
+              <>
+                <span>Импортирование... {importProgress.processed} / {importProgress.total}</span>
+                <span className="text-xs">создано: {importProgress.created}, обновлено: {importProgress.updated}</span>
+              </>
+            ) : (
+              <span>Загрузка и обработка файла...</span>
+            )}
+          </div>
+          <div className="w-full bg-blue-100 rounded-full h-2 overflow-hidden">
+            {importProgress && importProgress.total > 0 ? (
+              <div
+                className="bg-blue-500 h-2 rounded-full transition-all duration-200"
+                style={{ width: `${Math.round(importProgress.processed / importProgress.total * 100)}%` }}
+              />
+            ) : (
+              <div className="bg-blue-400 h-2 rounded-full animate-pulse w-full" />
+            )}
+          </div>
+        </div>
+      )}
+
       {importResult && (
         <div className={`p-3 rounded mb-4 text-sm ${importResult.errors.length > 0 ? 'bg-yellow-50' : 'bg-green-50'}`}>
           <div className="flex justify-between">
@@ -446,8 +500,20 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
               >
                 <td className="px-4 py-2">{u.last_name}</td>
                 <td className="px-4 py-2">{u.first_name}</td>
-                <td className="px-4 py-2 text-gray-500">{u.email || '—'}</td>
-                <td className="px-4 py-2 text-gray-500">{u.phone || '—'}</td>
+                <td className="px-4 py-2 text-gray-500" onClick={e => e.stopPropagation()}>
+                  {u.email ? (
+                    <button onClick={() => copyToClipboard(u.email, `email_${u.id}`)} className="hover:underline cursor-copy text-left" title="Нажмите, чтобы скопировать">
+                      {copiedField === `email_${u.id}` ? '✓ Скопировано' : u.email}
+                    </button>
+                  ) : '—'}
+                </td>
+                <td className="px-4 py-2 text-gray-500" onClick={e => e.stopPropagation()}>
+                  {u.phone ? (
+                    <button onClick={() => copyToClipboard(u.phone, `phone_${u.id}`)} className="hover:underline cursor-copy text-left" title="Нажмите, чтобы скопировать">
+                      {copiedField === `phone_${u.id}` ? '✓ Скопировано' : u.phone}
+                    </button>
+                  ) : '—'}
+                </td>
                 <td className="px-4 py-2 text-gray-500">{u.school_class_name || '—'}</td>
                 {!readOnly && (
                   <td className="px-4 py-2 text-gray-500 font-mono text-xs">{u.personal_file_number || '—'}</td>
