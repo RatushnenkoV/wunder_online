@@ -114,7 +114,7 @@
 | GET | `/api/ktp/` | all | Список КТП (своих / публичных) |
 | POST | `/api/ktp/` | teacher | Создать КТП |
 | GET | `/api/ktp/<pk>/` | all | КТП с темами |
-| PUT | `/api/ktp/<pk>/` | teacher (owner) | Обновить КТП |
+| PUT | `/api/ktp/<pk>/` | teacher (owner) | Обновить КТП (is_public, school_class, subject) |
 | DELETE | `/api/ktp/<pk>/` | teacher (owner) | Удалить КТП |
 | POST | `/api/ktp/<pk>/topics/` | teacher | Создать тему |
 | PUT | `/api/ktp/topics/<pk>/` | teacher | Обновить тему |

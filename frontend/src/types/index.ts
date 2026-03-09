@@ -117,6 +117,12 @@ export interface Topic {
   files: TopicFile[];
   lesson: number | null;
   lesson_title: string | null;
+  comments: string;
+  self_study_links: string;
+  additional_resources: string;
+  individual_folder: string;
+  ksp: string;
+  presentation_link: string;
   created_at: string;
 }
 
@@ -143,6 +149,13 @@ export interface Holiday {
   id: number;
   date: string;
   description: string;
+}
+
+export interface SchoolBreak {
+  id: number;
+  name: string;
+  start_date: string;
+  end_date: string;
 }
 
 export interface AuthTokens {

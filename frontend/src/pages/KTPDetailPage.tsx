@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
-import type { CTPDetail, Topic, TopicFile, SchoolClass, Lesson } from '../types';
+import type { CTPDetail, Topic, TopicFile, SchoolClass, Lesson, Subject } from '../types';
 import ContextMenu from '../components/ContextMenu';
 import type { MenuItem } from '../components/ContextMenu';
 
@@ -38,6 +38,11 @@ export default function KTPDetailPage() {
   const [ctxMenu, setCtxMenu] = useState<{ topic: Topic; x: number; y: number } | null>(null);
 
   const [pickerLessons, setPickerLessons] = useState<Lesson[]>([]);
+
+  // CTP meta editing (subject / class / visibility)
+  const [showEditMeta, setShowEditMeta] = useState(false);
+  const [metaForm, setMetaForm] = useState({ school_class: 0, subject: 0, is_public: true });
+  const [metaSubjects, setMetaSubjects] = useState<Subject[]>([]);
 
   // Schedule info
   const [scheduleInfo, setScheduleInfo] = useState<ScheduleInfo | null>(null);
@@ -133,6 +138,31 @@ export default function KTPDetailPage() {
     }
   };
 
+  const openEditMeta = () => {
+    if (!ctp) return;
+    setMetaForm({ school_class: ctp.school_class, subject: ctp.subject, is_public: ctp.is_public });
+    // Load classes if not loaded yet
+    if (classes.length === 0) {
+      api.get('/school/classes/').then(r => setClasses(r.data)).catch(() => {});
+    }
+    // Load subjects for current class
+    api.get(`/school/classes/${ctp.school_class}/schedule-subjects/`).then(r => {
+      if (r.data.length > 0) {
+        setMetaSubjects(r.data);
+      } else {
+        api.get('/school/subjects/').then(r2 => setMetaSubjects(r2.data)).catch(() => {});
+      }
+    }).catch(() => api.get('/school/subjects/').then(r => setMetaSubjects(r.data)).catch(() => {}));
+    setShowEditMeta(true);
+  };
+
+  const handleUpdateMeta = async () => {
+    await api.put(`/ktp/${id}/`, metaForm);
+    setShowEditMeta(false);
+    load();
+    loadScheduleInfo();
+  };
+
   const handleUpdateTopic = async () => {
     if (!editTopic) return;
     await api.put(`/ktp/topics/${editTopic.id}/`, {
@@ -141,6 +171,12 @@ export default function KTPDetailPage() {
       homework: editTopic.homework,
       resources: editTopic.resources,
       lesson: editTopic.lesson,
+      comments: editTopic.comments,
+      self_study_links: editTopic.self_study_links,
+      additional_resources: editTopic.additional_resources,
+      individual_folder: editTopic.individual_folder,
+      ksp: editTopic.ksp,
+      presentation_link: editTopic.presentation_link,
     });
     setEditTopic(null);
     load();
@@ -340,7 +376,12 @@ export default function KTPDetailPage() {
     <div>
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="text-2xl font-bold">{ctp.subject_name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">{ctp.subject_name}</h1>
+            {canEdit && (
+              <button onClick={openEditMeta} className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700" title="Редактировать">✏️</button>
+            )}
+          </div>
           <p className="text-gray-500 dark:text-slate-400">
             {ctp.class_name} | Учитель: {ctp.teacher_name}
             {!ctp.is_public && <span className="ml-2 bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded">Скрытый</span>}
@@ -384,12 +425,37 @@ export default function KTPDetailPage() {
 
       {/* Toolbar */}
       {canEdit && (
-        <div className="flex gap-2 mb-4 flex-wrap">
-          <form onSubmit={handleAddTopic} className="flex gap-2 flex-1">
-            <input placeholder="Новая тема..." value={newTitle} onChange={e => setNewTitle(e.target.value)} className="border rounded px-3 py-2 text-sm flex-1" />
-            <button type="submit" className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">+</button>
-          </form>
-          <button onClick={() => setShowBulk(!showBulk)} className="bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 px-3 py-2 rounded text-sm hover:bg-gray-300">Пакетно</button>
+        <div className="flex gap-2 mb-4 flex-wrap items-start">
+          {!showBulk ? (
+            <form onSubmit={handleAddTopic} className="flex gap-2 flex-1">
+              <input placeholder="Новая тема..." value={newTitle} onChange={e => setNewTitle(e.target.value)} className="border rounded px-3 py-2 text-sm flex-1" />
+              <button type="submit" className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">+</button>
+            </form>
+          ) : (
+            <div className="flex-1">
+              <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1">Каждая строка — отдельная тема</label>
+              <div className="flex gap-2">
+                <textarea
+                  value={bulkTitles}
+                  onChange={e => setBulkTitles(e.target.value)}
+                  rows={4}
+                  className="border rounded px-3 py-2 text-sm flex-1 resize-none"
+                  placeholder={"Тема 1\nТема 2\nТема 3"}
+                  autoFocus
+                />
+                <div className="flex flex-col gap-1">
+                  <button onClick={handleBulkCreate} className="bg-purple-600 text-white px-3 py-2 rounded text-sm hover:bg-purple-700 whitespace-nowrap">Добавить</button>
+                  <button onClick={() => { setShowBulk(false); setBulkTitles(''); }} className="text-gray-500 dark:text-slate-400 px-3 py-2 rounded text-sm hover:bg-gray-100 dark:hover:bg-slate-700">Отмена</button>
+                </div>
+              </div>
+            </div>
+          )}
+          <button
+            onClick={() => { setShowBulk(b => !b); setBulkTitles(''); }}
+            className={`px-3 py-2 rounded text-sm ${showBulk ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-300'}`}
+          >
+            Пакетно
+          </button>
           <label className="bg-green-600 text-white px-3 py-2 rounded text-sm cursor-pointer hover:bg-green-700">
             Импорт
             <input type="file" accept=".csv,.xlsx" className="hidden" onChange={e => { setImportFile(e.target.files?.[0] || null); }} />
@@ -402,15 +468,6 @@ export default function KTPDetailPage() {
               <button onClick={() => handleBulkDelete()} className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm">Удалить ({selected.size})</button>
             </>
           )}
-        </div>
-      )}
-
-      {/* Bulk create */}
-      {showBulk && canEdit && (
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow mb-4">
-          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Каждая строка — отдельная тема</label>
-          <textarea value={bulkTitles} onChange={e => setBulkTitles(e.target.value)} rows={6} className="w-full border rounded px-3 py-2 text-sm mb-2" placeholder={"Тема 1\nТема 2\nТема 3"} />
-          <button onClick={handleBulkCreate} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">Добавить все</button>
         </div>
       )}
 
@@ -447,8 +504,8 @@ export default function KTPDetailPage() {
       )}
 
       {/* Topics table */}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-x-auto">
+        <table className="w-full text-sm min-w-[900px]">
           <thead className="bg-gray-50 dark:bg-slate-900">
             <tr>
               {canEdit && (
@@ -456,11 +513,17 @@ export default function KTPDetailPage() {
                   <input type="checkbox" checked={ctp.topics.length > 0 && selected.size === ctp.topics.length} onChange={toggleSelectAll} />
                 </th>
               )}
-              <th className="px-3 py-3 text-left font-medium text-gray-600 dark:text-slate-400 w-12">#</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400">Тема</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400 w-28">Дата</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400 w-10">ДЗ</th>
-              <th className="w-10"></th>
+              <th className="px-3 py-3 text-left font-medium text-gray-600 dark:text-slate-400 w-10">#</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400 min-w-[200px]">Тема</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400 w-24">Дата</th>
+              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10" title="Домашнее задание">ДЗ</th>
+              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10" title="Комментарии">💬</th>
+              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10" title="Ссылки на самообучение">📚</th>
+              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10" title="Дополнительные ресурсы">🔗</th>
+              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10" title="Индивид. папка ученика">📁</th>
+              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10" title="КСП">📋</th>
+              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10" title="Ссылка на презентацию">🖥️</th>
+              <th className="w-8"></th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -476,7 +539,7 @@ export default function KTPDetailPage() {
                 onDragEnd={handleDragEnd}
                 onContextMenu={e => { e.preventDefault(); openContextMenu(topic, e.clientX, e.clientY); }}
                 className={`hover:bg-gray-50 dark:hover:bg-slate-800 transition ${
-                  selected.has(topic.id) ? 'bg-purple-50' : ''
+                  selected.has(topic.id) ? 'bg-purple-50 dark:bg-purple-900/10' : ''
                 } ${dragOverIdx === idx && dragIdx !== idx ? 'border-t-2 border-purple-400' : ''} ${
                   dragIdx === idx ? 'opacity-30' : ''
                 } ${canEdit ? 'cursor-grab active:cursor-grabbing' : ''}`}
@@ -492,14 +555,42 @@ export default function KTPDetailPage() {
                     {topic.title}
                   </button>
                   {topic.lesson_title && (
-                    <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 rounded px-1.5 py-0.5 mt-0.5">
+                    <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 dark:bg-purple-900/20 rounded px-1.5 py-0.5 mt-0.5">
                       📖 {topic.lesson_title}
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-2 text-gray-500 dark:text-slate-400">{topic.date || '—'}</td>
-                <td className="px-4 py-2">
-                  {topic.homework ? <span className="text-green-600">+</span> : <span className="text-gray-300 dark:text-slate-600">—</span>}
+                <td className="px-4 py-2 text-gray-500 dark:text-slate-400 whitespace-nowrap">{topic.date || '—'}</td>
+                <td className="px-2 py-2 text-center">
+                  {topic.homework ? <span className="text-green-600">✓</span> : <span className="text-gray-300 dark:text-slate-600">—</span>}
+                </td>
+                <td className="px-2 py-2 text-center">
+                  {topic.comments ? <span className="text-blue-500">✓</span> : <span className="text-gray-300 dark:text-slate-600">—</span>}
+                </td>
+                <td className="px-2 py-2 text-center">
+                  {topic.self_study_links ? (
+                    <a href={topic.self_study_links} target="_blank" rel="noopener noreferrer" className="text-purple-500 hover:text-purple-700" onClick={e => e.stopPropagation()}>↗</a>
+                  ) : <span className="text-gray-300 dark:text-slate-600">—</span>}
+                </td>
+                <td className="px-2 py-2 text-center">
+                  {topic.additional_resources ? (
+                    <a href={topic.additional_resources} target="_blank" rel="noopener noreferrer" className="text-purple-500 hover:text-purple-700" onClick={e => e.stopPropagation()}>↗</a>
+                  ) : <span className="text-gray-300 dark:text-slate-600">—</span>}
+                </td>
+                <td className="px-2 py-2 text-center">
+                  {topic.individual_folder ? (
+                    <a href={topic.individual_folder} target="_blank" rel="noopener noreferrer" className="text-purple-500 hover:text-purple-700" onClick={e => e.stopPropagation()}>↗</a>
+                  ) : <span className="text-gray-300 dark:text-slate-600">—</span>}
+                </td>
+                <td className="px-2 py-2 text-center">
+                  {topic.ksp ? (
+                    <a href={topic.ksp} target="_blank" rel="noopener noreferrer" className="text-purple-500 hover:text-purple-700" onClick={e => e.stopPropagation()}>↗</a>
+                  ) : <span className="text-gray-300 dark:text-slate-600">—</span>}
+                </td>
+                <td className="px-2 py-2 text-center">
+                  {topic.presentation_link ? (
+                    <a href={topic.presentation_link} target="_blank" rel="noopener noreferrer" className="text-purple-500 hover:text-purple-700" onClick={e => e.stopPropagation()}>↗</a>
+                  ) : <span className="text-gray-300 dark:text-slate-600">—</span>}
                 </td>
                 <td className="px-2 py-2 text-center">
                   <button
@@ -515,6 +606,54 @@ export default function KTPDetailPage() {
           <p className="text-center text-gray-400 dark:text-slate-500 py-8">Темы не добавлены</p>
         )}
       </div>
+
+      {/* Edit CTP meta modal */}
+      {showEditMeta && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowEditMeta(false)}>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">Настройки КТП</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Класс</label>
+                <select
+                  value={metaForm.school_class}
+                  onChange={async e => {
+                    const classId = parseInt(e.target.value);
+                    setMetaForm(f => ({ ...f, school_class: classId, subject: 0 }));
+                    try {
+                      const r = await api.get(`/school/classes/${classId}/schedule-subjects/`);
+                      setMetaSubjects(r.data.length > 0 ? r.data : (await api.get('/school/subjects/')).data);
+                    } catch { setMetaSubjects([]); }
+                  }}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                >
+                  {classes.length === 0 && <option value={metaForm.school_class}>{ctp.class_name}</option>}
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.display_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Предмет</label>
+                <select
+                  value={metaForm.subject}
+                  onChange={e => setMetaForm(f => ({ ...f, subject: parseInt(e.target.value) }))}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                >
+                  {metaSubjects.length === 0 && <option value={metaForm.subject}>{ctp.subject_name}</option>}
+                  {metaSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={metaForm.is_public} onChange={e => setMetaForm(f => ({ ...f, is_public: e.target.checked }))} />
+                Публичный
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button onClick={() => setShowEditMeta(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded">Отмена</button>
+              <button onClick={handleUpdateMeta} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">Сохранить</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Context menu */}
       {ctxMenu && (
@@ -577,7 +716,7 @@ export default function KTPDetailPage() {
       {/* Edit topic modal */}
       {editTopic && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setEditTopic(null)}>
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg max-w-lg w-full max-h-[90vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
             {canEdit ? (
               <>
                 <h3 className="text-lg font-semibold mb-4">Редактирование темы</h3>
@@ -591,8 +730,32 @@ export default function KTPDetailPage() {
                     <input type="date" value={editTopic.date || ''} onChange={e => setEditTopic({ ...editTopic, date: e.target.value || null })} className="border rounded px-3 py-2 text-sm" />
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Комментарии</label>
+                    <textarea value={editTopic.comments} onChange={e => setEditTopic({ ...editTopic, comments: e.target.value })} rows={3} className="w-full border rounded px-3 py-2 text-sm" />
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Домашнее задание</label>
                     <textarea value={editTopic.homework} onChange={e => setEditTopic({ ...editTopic, homework: e.target.value })} rows={3} className="w-full border rounded px-3 py-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Ссылки на самообучение</label>
+                    <input value={editTopic.self_study_links} onChange={e => setEditTopic({ ...editTopic, self_study_links: e.target.value })} className="w-full border rounded px-3 py-2 text-sm" placeholder="https://..." />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Дополнительные ресурсы</label>
+                    <input value={editTopic.additional_resources} onChange={e => setEditTopic({ ...editTopic, additional_resources: e.target.value })} className="w-full border rounded px-3 py-2 text-sm" placeholder="https://..." />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Индивид. папка ученика</label>
+                    <input value={editTopic.individual_folder} onChange={e => setEditTopic({ ...editTopic, individual_folder: e.target.value })} className="w-full border rounded px-3 py-2 text-sm" placeholder="https://..." />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">КСП</label>
+                    <input value={editTopic.ksp} onChange={e => setEditTopic({ ...editTopic, ksp: e.target.value })} className="w-full border rounded px-3 py-2 text-sm" placeholder="https://..." />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Ссылка на презентацию</label>
+                    <input value={editTopic.presentation_link} onChange={e => setEditTopic({ ...editTopic, presentation_link: e.target.value })} className="w-full border rounded px-3 py-2 text-sm" placeholder="https://..." />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Прикреплённый урок</label>

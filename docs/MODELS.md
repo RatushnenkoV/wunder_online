@@ -168,6 +168,12 @@ Unique together: (school_class, name)
 | `homework` | TextField |
 | `resources` | JSONField (список ресурсов) |
 | `lesson` | FK → Lesson nullable |
+| `comments` | TextField (Комментарии) |
+| `self_study_links` | TextField (Ссылки на самообучение) |
+| `additional_resources` | TextField (Дополнительные ресурсы) |
+| `individual_folder` | TextField (Индивид. папка ученика) |
+| `ksp` | TextField (КСП) |
+| `presentation_link` | TextField (Ссылка на презентацию) |
 | `created_at` | DateTimeField |
 
 ### TopicFile
@@ -183,6 +189,14 @@ Unique together: (school_class, name)
 |------|-----|
 | `date` | DateField unique |
 | `description` | CharField |
+
+### SchoolBreak
+Периоды каникул (диапазоны дат). Пропускаются при распределении дат КТП.
+| Поле | Тип |
+|------|-----|
+| `name` | CharField — например "Осенние каникулы" |
+| `start_date` | DateField |
+| `end_date` | DateField |
 
 ---
 

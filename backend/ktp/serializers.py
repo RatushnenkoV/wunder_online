@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CTP, Topic, TopicFile, Holiday
+from .models import CTP, Topic, TopicFile, Holiday, SchoolBreak
 
 
 class TopicFileSerializer(serializers.ModelSerializer):
@@ -15,7 +15,13 @@ class TopicSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Topic
-        fields = ['id', 'ctp', 'order', 'title', 'date', 'homework', 'resources', 'files', 'lesson', 'lesson_title', 'created_at']
+        fields = [
+            'id', 'ctp', 'order', 'title', 'date', 'homework', 'resources', 'files',
+            'lesson', 'lesson_title',
+            'comments', 'self_study_links', 'additional_resources',
+            'individual_folder', 'ksp', 'presentation_link',
+            'created_at',
+        ]
         read_only_fields = ['id', 'ctp', 'created_at']
 
 
@@ -106,3 +112,9 @@ class HolidaySerializer(serializers.ModelSerializer):
     class Meta:
         model = Holiday
         fields = ['id', 'date', 'description']
+
+
+class SchoolBreakSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchoolBreak
+        fields = ['id', 'name', 'start_date', 'end_date']
