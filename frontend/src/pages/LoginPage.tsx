@@ -32,7 +32,7 @@ export default function LoginPage() {
         {/* Логотип */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-extrabold text-white tracking-tight">
-            Wunder<span className="text-brand-400">Online</span>
+            Wunder<span className="text-brand-400">OS</span>
           </h1>
           <p className="text-white/50 text-sm mt-2">Система управления школой</p>
         </div>
