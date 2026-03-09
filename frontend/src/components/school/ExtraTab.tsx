@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import api from '../../api/client';
-import type { Holiday, Room, LessonTimeSlot } from '../../types';
+import type { Holiday, SchoolBreak, Room, LessonTimeSlot } from '../../types';
 
-type Section = 'rooms' | 'lesson_times' | 'holidays' | 'curator_hints';
+type Section = 'rooms' | 'lesson_times' | 'holidays' | 'school_breaks' | 'curator_hints';
 
 const SECTIONS: { key: Section; label: string }[] = [
   { key: 'rooms', label: 'Кабинеты' },
   { key: 'lesson_times', label: 'Расписание звонков' },
-  { key: 'holidays', label: 'Выходные' },
+  { key: 'holidays', label: 'Выходные дни' },
+  { key: 'school_breaks', label: 'Каникулы' },
   { key: 'curator_hints', label: 'Подсказки куратора' },
 ];
 
@@ -36,6 +37,7 @@ export default function ExtraTab() {
         {section === 'rooms' && <RoomsSection />}
         {section === 'lesson_times' && <LessonTimesSection />}
         {section === 'holidays' && <HolidaysSection />}
+        {section === 'school_breaks' && <SchoolBreaksSection />}
         {section === 'curator_hints' && <CuratorHintsSection />}
       </div>
     </div>
@@ -227,6 +229,132 @@ function HolidaysSection() {
     </div>
   );
 }
+
+function SchoolBreaksSection() {
+  const [breaks, setBreaks] = useState<SchoolBreak[]>([]);
+  const [form, setForm] = useState({ name: '', start_date: '', end_date: '' });
+  const [editing, setEditing] = useState<SchoolBreak | null>(null);
+
+  const load = async () => { setBreaks((await api.get('/ktp/breaks/')).data); };
+  useEffect(() => { load(); }, []);
+
+  const handleAdd = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!form.name || !form.start_date || !form.end_date) return;
+    await api.post('/ktp/breaks/', form);
+    setForm({ name: '', start_date: '', end_date: '' });
+    load();
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editing) return;
+    await api.put(`/ktp/breaks/${editing.id}/`, editing);
+    setEditing(null);
+    load();
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Удалить каникулы?')) return;
+    await api.delete(`/ktp/breaks/${id}/`);
+    load();
+  };
+
+  const durationDays = (start: string, end: string) => {
+    if (!start || !end) return 0;
+    const diff = new Date(end).getTime() - new Date(start).getTime();
+    return Math.round(diff / 86400000) + 1;
+  };
+
+  return (
+    <div className="max-w-lg">
+      <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
+        Периоды каникул пропускаются при автоматическом распределении дат в КТП.
+      </p>
+
+      <div className="space-y-2 mb-4">
+        {breaks.map(b => (
+          <div key={b.id} className="bg-white dark:bg-slate-800 px-4 py-3 rounded-lg shadow-sm">
+            {editing?.id === b.id ? (
+              <div className="space-y-2">
+                <input
+                  value={editing.name}
+                  onChange={e => setEditing({ ...editing, name: e.target.value })}
+                  className="w-full border rounded px-3 py-1.5 text-sm"
+                  placeholder="Название"
+                />
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="date"
+                    value={editing.start_date}
+                    onChange={e => setEditing({ ...editing, start_date: e.target.value })}
+                    className="border rounded px-3 py-1.5 text-sm"
+                  />
+                  <span className="text-gray-400 dark:text-slate-500">—</span>
+                  <input
+                    type="date"
+                    value={editing.end_date}
+                    onChange={e => setEditing({ ...editing, end_date: e.target.value })}
+                    className="border rounded px-3 py-1.5 text-sm"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleSaveEdit} className="text-purple-600 text-sm hover:text-purple-800">Сохранить</button>
+                  <button onClick={() => setEditing(null)} className="text-gray-400 dark:text-slate-500 text-sm hover:text-gray-600">Отмена</button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium">{b.name}</span>
+                  <span className="text-sm text-gray-500 dark:text-slate-400 ml-2">
+                    {b.start_date} — {b.end_date}
+                  </span>
+                  <span className="text-xs text-gray-400 dark:text-slate-500 ml-2">
+                    ({durationDays(b.start_date, b.end_date)} дн.)
+                  </span>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setEditing({ ...b })} className="text-purple-400 hover:text-purple-600 text-sm">Изменить</button>
+                  <button onClick={() => handleDelete(b.id)} className="text-red-400 hover:text-red-600 text-sm">Удалить</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+        {breaks.length === 0 && <p className="text-gray-400 dark:text-slate-500 text-sm py-4">Каникулы не добавлены</p>}
+      </div>
+
+      <form onSubmit={handleAdd} className="space-y-2">
+        <input
+          placeholder="Название (например: Осенние каникулы)"
+          value={form.name}
+          onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+          className="w-full border rounded px-3 py-2 text-sm"
+          required
+        />
+        <div className="flex gap-2 items-center flex-wrap">
+          <input
+            type="date"
+            value={form.start_date}
+            onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
+            className="border rounded px-3 py-2 text-sm"
+            required
+          />
+          <span className="text-gray-400 dark:text-slate-500">—</span>
+          <input
+            type="date"
+            value={form.end_date}
+            onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
+            className="border rounded px-3 py-2 text-sm"
+            required
+          />
+          <button type="submit" className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">Добавить</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 
 // ─── Curator Hints Section ────────────────────────────────────────────────────
 

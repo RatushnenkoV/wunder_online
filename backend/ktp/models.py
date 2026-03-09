@@ -16,6 +16,20 @@ class Holiday(models.Model):
         return f'{self.date} — {self.description}' if self.description else str(self.date)
 
 
+class SchoolBreak(models.Model):
+    name = models.CharField('Название', max_length=200)
+    start_date = models.DateField('Начало')
+    end_date = models.DateField('Конец')
+
+    class Meta:
+        verbose_name = 'Каникулы'
+        verbose_name_plural = 'Каникулы'
+        ordering = ['start_date']
+
+    def __str__(self):
+        return f'{self.name}: {self.start_date} — {self.end_date}'
+
+
 class CTP(models.Model):
     teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ctps')
     school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='ctps')
@@ -47,6 +61,12 @@ class Topic(models.Model):
         related_name='ktp_topics',
         verbose_name='Урок',
     )
+    comments = models.TextField('Комментарии', blank=True, default='')
+    self_study_links = models.TextField('Ссылки на самообучение', blank=True, default='')
+    additional_resources = models.TextField('Дополнительные ресурсы', blank=True, default='')
+    individual_folder = models.TextField('Индивид. папка ученика', blank=True, default='')
+    ksp = models.TextField('КСП', blank=True, default='')
+    presentation_link = models.TextField('Ссылка на презентацию', blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -6,14 +6,14 @@ from rest_framework.response import Response
 
 from accounts.permissions import IsAdmin, IsAdminOrTeacher, PasswordChanged
 from school.models import StudentProfile, ParentProfile
-from .models import CTP, Topic, TopicFile, Holiday
+from .models import CTP, Topic, TopicFile, Holiday, SchoolBreak
 from .serializers import (
     CTPListSerializer, CTPDetailSerializer, CTPCreateSerializer,
     TopicSerializer, TopicCreateSerializer, TopicBulkCreateSerializer,
-    AutofillDatesSerializer, HolidaySerializer,
+    AutofillDatesSerializer, HolidaySerializer, SchoolBreakSerializer,
     TopicFileSerializer, TopicByDateSerializer,
 )
-from .services import autofill_dates, import_topics, get_schedule_info, get_required_lessons_count
+from .services import autofill_dates, import_topics, get_schedule_info, get_required_lessons_count, preview_ktp_import, import_ktp_from_sheet
 from core.validators import validate_file_mime, ALLOWED_EXCEL, ALLOWED_IMAGES, ALLOWED_PDF
 from django.core.exceptions import ValidationError
 
@@ -100,6 +100,10 @@ def ctp_detail(request, pk):
 
     if request.method == 'PUT':
         ctp.is_public = request.data.get('is_public', ctp.is_public)
+        if 'school_class' in request.data and request.data['school_class']:
+            ctp.school_class_id = request.data['school_class']
+        if 'subject' in request.data and request.data['subject']:
+            ctp.subject_id = request.data['subject']
         ctp.save()
         return Response(CTPDetailSerializer(ctp).data)
 
@@ -211,9 +215,17 @@ def topic_detail(request, pk):
 
     if request.method == 'PUT':
         topic.title = request.data.get('title', topic.title)
-        topic.date = request.data.get('date', topic.date)
+        topic.date = request.data.get('date', topic.date) or None
         topic.homework = request.data.get('homework', topic.homework)
         topic.resources = request.data.get('resources', topic.resources)
+        if 'lesson' in request.data:
+            topic.lesson_id = request.data['lesson'] or None
+        topic.comments = request.data.get('comments', topic.comments)
+        topic.self_study_links = request.data.get('self_study_links', topic.self_study_links)
+        topic.additional_resources = request.data.get('additional_resources', topic.additional_resources)
+        topic.individual_folder = request.data.get('individual_folder', topic.individual_folder)
+        topic.ksp = request.data.get('ksp', topic.ksp)
+        topic.presentation_link = request.data.get('presentation_link', topic.presentation_link)
         topic.save()
         return Response(TopicSerializer(topic).data)
 
@@ -504,3 +516,109 @@ def holiday_delete(request, pk):
     except Holiday.DoesNotExist:
         return Response({'detail': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# --- School breaks (каникулы) ---
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAdmin, PasswordChanged])
+def school_break_list_create(request):
+    if request.method == 'GET':
+        breaks = SchoolBreak.objects.all()
+        return Response(SchoolBreakSerializer(breaks, many=True).data)
+
+    serializer = SchoolBreakSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['PUT', 'DELETE'])
+@permission_classes([IsAdmin, PasswordChanged])
+def school_break_detail(request, pk):
+    try:
+        sb = SchoolBreak.objects.get(pk=pk)
+    except SchoolBreak.DoesNotExist:
+        return Response({'detail': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        sb.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    serializer = SchoolBreakSerializer(sb, data=request.data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data)
+
+
+# ── Bulk import ───────────────────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+@parser_classes([MultiPartParser])
+def ktp_import_preview(request):
+    """Analyze xlsx file: detect class from filename, list sheets with subject matches."""
+    if not (request.user.is_teacher or request.user.is_admin):
+        return Response({'detail': 'Нет доступа'}, status=status.HTTP_403_FORBIDDEN)
+
+    file = request.FILES.get('file')
+    if not file:
+        return Response({'detail': 'Файл не загружен'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        validate_file_mime(file, ALLOWED_EXCEL, label='файл импорта')
+    except ValidationError as e:
+        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        result = preview_ktp_import(file)
+    except Exception as e:
+        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(result)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+@parser_classes([MultiPartParser])
+def ktp_import_one_sheet(request):
+    """Create one CTP from a specific sheet of an xlsx file."""
+    if not (request.user.is_teacher or request.user.is_admin):
+        return Response({'detail': 'Нет доступа'}, status=status.HTTP_403_FORBIDDEN)
+
+    file = request.FILES.get('file')
+    sheet_name = request.data.get('sheet_name', '')
+    class_id = request.data.get('class_id')
+    subject_id = request.data.get('subject_id')
+    teacher_id = request.data.get('teacher_id')
+
+    if not all([file, sheet_name, class_id, subject_id]):
+        return Response({'detail': 'Не все параметры указаны'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Resolve teacher
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    teacher = request.user
+    if teacher_id and request.user.is_admin:
+        try:
+            teacher = User.objects.get(pk=int(teacher_id))
+        except (User.DoesNotExist, ValueError):
+            pass
+
+    try:
+        validate_file_mime(file, ALLOWED_EXCEL, label='файл импорта')
+    except ValidationError as e:
+        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        ctp, created_count, errors = import_ktp_from_sheet(
+            file, sheet_name, int(class_id), int(subject_id), teacher
+        )
+    except ValueError as e:
+        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({
+        'ctp_id': ctp.id,
+        'created_count': created_count,
+        'errors': errors,
+    }, status=status.HTTP_201_CREATED)

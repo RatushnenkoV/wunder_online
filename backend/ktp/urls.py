@@ -24,4 +24,10 @@ urlpatterns = [
     # Holidays
     path('holidays/', views.holiday_list_create),
     path('holidays/<int:pk>/', views.holiday_delete),
+    # School breaks (каникулы)
+    path('breaks/', views.school_break_list_create),
+    path('breaks/<int:pk>/', views.school_break_detail),
+    # Bulk import
+    path('import-preview/', views.ktp_import_preview),
+    path('import-one-sheet/', views.ktp_import_one_sheet),
 ]

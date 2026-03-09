@@ -1,12 +1,8 @@
 @echo off
 title WunderOnline
+setlocal enabledelayedexpansion
 
-echo ========================================
-echo        WunderOnline - Start
-echo ========================================
-echo.
-
-:: Find working Python
+:: ── Find Python ──────────────────────────────────────────────────────────────
 set PYTHON=
 for %%p in (
     "%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
@@ -17,7 +13,7 @@ for %%p in (
 )
 if "%PYTHON%"=="" set PYTHON=python
 
-:: Get local IP
+:: ── Get local IP ─────────────────────────────────────────────────────────────
 set LOCAL_IP=localhost
 for /f "usebackq tokens=2 delims=:" %%a in (`ipconfig ^| findstr /R "IPv4"`) do (
     for /f "tokens=1" %%b in ("%%a") do (
@@ -25,11 +21,8 @@ for /f "usebackq tokens=2 delims=:" %%a in (`ipconfig ^| findstr /R "IPv4"`) do 
     )
 )
 
-:: ── Redis ───────────────────────────────────────────────────────────────────
-echo [0/3] Starting Redis...
+:: ── Redis (only once) ────────────────────────────────────────────────────────
 set REDIS_STARTED=0
-
-:: 1. Попытка — redis-server.exe в PATH или стандартных местах
 set REDIS_EXE=
 for %%r in (
     "D:\Redis\redis-server.exe"
@@ -41,51 +34,47 @@ for %%r in (
     if exist %%r set REDIS_EXE=%%~r
 )
 
-if not "%REDIS_EXE%"=="" (
-    start "WunderRedis" /min cmd /c ""%REDIS_EXE%""
-    set REDIS_STARTED=1
-    echo   Redis запущен: %REDIS_EXE%
-    goto redis_done
-)
-
-:: 2. Попытка — redis-server в PATH (WSL/Chocolatey/Scoop)
-where redis-server >nul 2>&1
-if %ERRORLEVEL%==0 (
-    start "WunderRedis" /min cmd /c "redis-server"
-    set REDIS_STARTED=1
-    echo   Redis запущен из PATH.
-    goto redis_done
-)
-
-:: 3. Попытка — Docker
-where docker >nul 2>&1
-if %ERRORLEVEL%==0 (
-    echo   redis-server не найден, пробую Docker...
-    docker start wunder-redis >nul 2>&1
-    if %ERRORLEVEL% neq 0 (
-        docker run -d --name wunder-redis -p 6379:6379 redis:alpine >nul 2>&1
-    )
-    if %ERRORLEVEL%==0 (
+tasklist /FI "WINDOWTITLE eq WunderRedis" 2>nul | findstr /I "cmd.exe" >nul
+if %ERRORLEVEL% neq 0 (
+    if not "%REDIS_EXE%"=="" (
+        start "WunderRedis" /min cmd /c ""%REDIS_EXE%""
         set REDIS_STARTED=1
-        echo   Redis запущен через Docker.
-        goto redis_done
+    ) else (
+        where redis-server >nul 2>&1
+        if !ERRORLEVEL!==0 (
+            start "WunderRedis" /min cmd /c "redis-server"
+            set REDIS_STARTED=1
+        ) else (
+            where docker >nul 2>&1
+            if !ERRORLEVEL!==0 (
+                docker start wunder-redis >nul 2>&1
+                if !ERRORLEVEL! neq 0 docker run -d --name wunder-redis -p 6379:6379 redis:alpine >nul 2>&1
+                set REDIS_STARTED=1
+            )
+        )
     )
 )
 
-:: Ничего не найдено
-echo   [ВНИМАНИЕ] Redis не найден! Группы (WebSocket) не будут работать.
-echo   Установи Redis: docker run -p 6379:6379 redis
+:: ════════════════════════════════════════════════════════════════════════════
+:restart_servers
+cls
+echo ========================================
+echo        WunderOnline
+echo ========================================
 echo.
 
-:redis_done
+:: Kill running servers (in case of restart)
+taskkill /F /FI "WINDOWTITLE eq WunderBackend"  >nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq WunderFrontend" >nul 2>&1
+timeout /t 1 /nobreak >nul
 
 :: ── Backend ──────────────────────────────────────────────────────────────────
-echo [1/3] Starting backend (Django + Daphne ASGI)...
+echo [1/2] Starting backend (Django + Daphne)...
 cd /d "%~dp0backend"
 start "WunderBackend" /min cmd /c ""%PYTHON%" -m daphne -b 0.0.0.0 -p 8000 config.asgi:application"
 
 :: ── Frontend ─────────────────────────────────────────────────────────────────
-echo [2/3] Starting frontend (Vite)...
+echo [2/2] Starting frontend (Vite)...
 cd /d "%~dp0frontend"
 start "WunderFrontend" /min cmd /c "npm run dev -- --host 0.0.0.0"
 
@@ -105,13 +94,19 @@ echo.
 echo  Local:     http://localhost:5173
 echo.
 echo ========================================
-echo  Press any key to stop servers...
+echo   ENTER = Restart   |   Q+ENTER = Quit
 echo ========================================
-pause >nul
 
-taskkill /F /FI "WINDOWTITLE eq WunderBackend" >nul 2>&1
+set /p "KEY=  > "
+if /i "%KEY%"=="q" goto :stop_all
+goto :restart_servers
+
+:: ════════════════════════════════════════════════════════════════════════════
+:stop_all
+taskkill /F /FI "WINDOWTITLE eq WunderBackend"  >nul 2>&1
 taskkill /F /FI "WINDOWTITLE eq WunderFrontend" >nul 2>&1
 if %REDIS_STARTED%==1 taskkill /F /FI "WINDOWTITLE eq WunderRedis" >nul 2>&1
 if %REDIS_STARTED%==1 docker stop wunder-redis >nul 2>&1
+echo.
 echo Servers stopped.
-timeout /t 2 >nul
+timeout /t 2 /nobreak >nul
