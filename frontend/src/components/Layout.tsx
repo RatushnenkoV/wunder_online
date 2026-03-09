@@ -361,7 +361,7 @@ export default function Layout() {
       >
         {/* Логотип */}
         <div className="px-6 py-5 border-b border-white/10">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-0">
             <img src="/icon.png" alt="" className="w-7 h-7 object-contain" />
             <span className="text-xl font-bold text-white tracking-tight">under<span className="text-brand-400">OS</span></span>
           </Link>
