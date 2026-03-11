@@ -185,6 +185,11 @@ CORS_ALLOW_ALL_ORIGINS=False
 CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
 
 REDIS_URL=redis://127.0.0.1:6379
+
+# Security (обязательно в продакшене)
+SESSION_COOKIE_SECURE=True
+CSRF_COOKIE_SECURE=True
+SECURE_CONTENT_TYPE_NOSNIFF=True
 ```
 
 > **Важно:** в `ALLOWED_HOSTS` — только имена хостов, **без** `https://`. Протокол только в `CORS_ALLOWED_ORIGINS`.
