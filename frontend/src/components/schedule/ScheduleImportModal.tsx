@@ -311,7 +311,7 @@ export default function ScheduleImportModal({ onClose, onImported }: {
   const [teacherMappings, setTeacherMappings] = useState<TeacherMappings>({});
   const [roomMappings, setRoomMappings] = useState<RoomMappings>({});
   const [replaceExisting, setReplaceExisting] = useState(false);
-  const [result, setResult] = useState<{ created: number; skipped: number; errors: string[] } | null>(null);
+  const [result, setResult] = useState<{ created: number; skipped: number; errors: string[]; relinked?: number } | null>(null);
 
   function getActiveSteps(p: PreviewData | null): Step[] {
     return ALL_STEPS.filter((s) => {
@@ -513,6 +513,9 @@ export default function ScheduleImportModal({ onClose, onImported }: {
               <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-4 space-y-2 text-sm text-left max-w-xs mx-auto">
                 <div className="flex justify-between py-1 border-b"><span className="text-gray-600 dark:text-slate-400">Создано уроков:</span><span className="font-semibold text-green-700">{result.created}</span></div>
                 <div className="flex justify-between py-1 border-b"><span className="text-gray-600 dark:text-slate-400">Пропущено:</span><span className="font-semibold text-gray-700 dark:text-slate-300">{result.skipped}</span></div>
+                {result.relinked !== undefined && result.relinked > 0 && (
+                  <div className="flex justify-between py-1 border-b"><span className="text-gray-600 dark:text-slate-400">Замены перепривязаны:</span><span className="font-semibold text-blue-600">{result.relinked}</span></div>
+                )}
                 {result.errors.length > 0 && (
                   <div className="py-1">
                     <div className="flex justify-between"><span className="text-gray-600 dark:text-slate-400">Ошибок:</span><span className="font-semibold text-red-600">{result.errors.length}</span></div>

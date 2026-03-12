@@ -123,8 +123,10 @@ def parse_classes_file(file_bytes):
             subj2_str = str(subj2).strip() if subj2 else None
             room_str = str(room).strip() if room else None
 
-            # If group subjects are the same — treat as single lesson
-            if subj2_str == subj_str:
+            # If group subjects are the same AND room is not split (no comma) — treat as single lesson.
+            # Same subject but different rooms (e.g. '301, 101') means a real group split
+            # with different teachers/rooms for the same subject.
+            if subj2_str == subj_str and (not room_str or ',' not in room_str):
                 subj2_str = None
 
             # For group lessons split comma-separated rooms: "303, 103" → room1=303, room2=103
@@ -585,8 +587,54 @@ def execute_import(class_lessons, class_mappings, teacher_mappings, room_mapping
                 continue
             ensure_class_subject(class_id, subject2_name)
 
+    relinked = _relink_substitutions()
+
     return {
         'created': created,
         'skipped': skipped,
         'errors': errors[:20],  # limit to first 20 errors
+        'relinked': relinked,
     }
+
+
+def _relink_substitutions():
+    """Re-link substitutions whose original_lesson became NULL (e.g. after schedule re-import).
+
+    Matching key: school_class + lesson_number + weekday(from date) + group (if set).
+    If there is exactly one candidate ScheduleLesson — link it.
+    If there are multiple candidates (ambiguous) — skip.
+    """
+    from .models import Substitution
+
+    subs = Substitution.objects.filter(
+        original_lesson__isnull=True
+    ).select_related('school_class', 'group')
+
+    updated = 0
+    to_update = []
+
+    for sub in subs:
+        weekday = sub.date.isoweekday()  # 1=Mon … 7=Sun
+        if weekday > 5:
+            continue  # no school on weekends
+
+        qs = ScheduleLesson.objects.filter(
+            school_class=sub.school_class,
+            lesson_number=sub.lesson_number,
+            weekday=weekday,
+        )
+
+        if sub.group_id:
+            qs = qs.filter(group_id=sub.group_id)
+
+        candidates = list(qs)
+        if len(candidates) == 1:
+            sub.original_lesson = candidates[0]
+            to_update.append(sub)
+            updated += 1
+        # len == 0 → no match; len > 1 → ambiguous, skip both cases
+
+    if to_update:
+        Substitution.objects.bulk_update(to_update, ['original_lesson'])
+
+    return updated
