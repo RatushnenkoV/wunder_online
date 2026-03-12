@@ -6,6 +6,7 @@ import type { MenuItem } from '../ContextMenu';
 
 interface Props {
   classId: number;
+  readOnly?: boolean;
 }
 
 interface StudentRow {
@@ -36,7 +37,7 @@ const emptyRow = (): StudentRow => ({
   first_name: '', last_name: '', email: '', phone: '',
 });
 
-export default function ClassStudents({ classId }: Props) {
+export default function ClassStudents({ classId, readOnly = false }: Props) {
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ student: StudentProfile; x: number; y: number } | null>(null);
@@ -284,11 +285,13 @@ export default function ClassStudents({ classId }: Props) {
         </div>
       )}
 
-      <div className="flex justify-end mb-4">
-        <button onClick={openCreateModal} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm">
-          + Добавить
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="flex justify-end mb-4">
+          <button onClick={openCreateModal} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm">
+            + Добавить
+          </button>
+        </div>
+      )}
 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
         <table className="w-full text-sm">
@@ -298,17 +301,17 @@ export default function ClassStudents({ classId }: Props) {
               <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-400">Имя</th>
               <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-400">Email</th>
               <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-400">Телефон</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-400">Врем. пароль</th>
-              <th className="w-10"></th>
+              {!readOnly && <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-slate-400">Врем. пароль</th>}
+              {!readOnly && <th className="w-10"></th>}
             </tr>
           </thead>
           <tbody className="divide-y">
             {students.map(sp => (
               <tr
                 key={sp.id}
-                className="hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer"
-                onClick={() => openEdit(sp)}
-                onContextMenu={e => { e.preventDefault(); setCtxMenu({ student: sp, x: e.clientX, y: e.clientY }); }}
+                className={`hover:bg-gray-50 dark:hover:bg-slate-800 ${!readOnly ? 'cursor-pointer' : ''}`}
+                onClick={() => !readOnly && openEdit(sp)}
+                onContextMenu={e => { e.preventDefault(); if (!readOnly) setCtxMenu({ student: sp, x: e.clientX, y: e.clientY }); }}
               >
                 <td className="px-4 py-2">{sp.user.last_name}</td>
                 <td className="px-4 py-2">{sp.user.first_name}</td>
@@ -326,23 +329,27 @@ export default function ClassStudents({ classId }: Props) {
                     </button>
                   ) : '—'}
                 </td>
-                <td className="px-4 py-2" onClick={e => e.stopPropagation()}>
-                  {sp.user.must_change_password && sp.user.temp_password ? (
+                {!readOnly && (
+                  <td className="px-4 py-2" onClick={e => e.stopPropagation()}>
+                    {sp.user.must_change_password && sp.user.temp_password ? (
+                      <button
+                        onClick={() => copyToClipboard(sp.user.temp_password!, `temp_${sp.id}`)}
+                        className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs font-mono hover:bg-yellow-100 transition-colors cursor-copy"
+                        title="Нажмите, чтобы скопировать"
+                      >
+                        {copiedField === `temp_${sp.id}` ? '✓ Скопировано' : sp.user.temp_password}
+                      </button>
+                    ) : '—'}
+                  </td>
+                )}
+                {!readOnly && (
+                  <td className="px-2 py-2 text-center">
                     <button
-                      onClick={() => copyToClipboard(sp.user.temp_password!, `temp_${sp.id}`)}
-                      className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs font-mono hover:bg-yellow-100 transition-colors cursor-copy"
-                      title="Нажмите, чтобы скопировать"
-                    >
-                      {copiedField === `temp_${sp.id}` ? '✓ Скопировано' : sp.user.temp_password}
-                    </button>
-                  ) : '—'}
-                </td>
-                <td className="px-2 py-2 text-center">
-                  <button
-                    onClick={e => { e.stopPropagation(); setCtxMenu({ student: sp, x: e.clientX, y: e.clientY }); }}
-                    className="text-gray-400 dark:text-slate-500 hover:text-gray-600 p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
-                  >&#8942;</button>
-                </td>
+                      onClick={e => { e.stopPropagation(); setCtxMenu({ student: sp, x: e.clientX, y: e.clientY }); }}
+                      className="text-gray-400 dark:text-slate-500 hover:text-gray-600 p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
+                    >&#8942;</button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

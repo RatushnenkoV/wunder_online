@@ -168,7 +168,7 @@ def grade_subject_delete(request, pk):
 # --- Students in class ---
 
 @api_view(['GET'])
-@permission_classes([IsAdmin, PasswordChanged])
+@permission_classes([IsAdminOrTeacher, PasswordChanged])
 def class_students(request, class_id):
     students = StudentProfile.objects.filter(school_class_id=class_id).select_related('user')
     return Response(StudentProfileSerializer(students, many=True).data)
@@ -176,13 +176,25 @@ def class_students(request, class_id):
 
 # --- Parents of student ---
 
+def _is_curator_of_student_profile(curator_user, student_profile):
+    return (
+        student_profile.school_class is not None
+        and student_profile.school_class.curator_id == curator_user.id
+    )
+
+
 @api_view(['GET', 'POST'])
-@permission_classes([IsAdmin, PasswordChanged])
+@permission_classes([IsAdminOrTeacher, PasswordChanged])
 def student_parents(request, student_id):
     try:
-        sp = StudentProfile.objects.get(pk=student_id)
+        sp = StudentProfile.objects.select_related('school_class').get(pk=student_id)
     except StudentProfile.DoesNotExist:
         return Response({'detail': 'Ученик не найден'}, status=status.HTTP_404_NOT_FOUND)
+
+    # POST разрешён только админу или куратору класса
+    if request.method == 'POST' and not request.user.is_admin:
+        if not _is_curator_of_student_profile(request.user, sp):
+            return Response({'detail': 'Недостаточно прав.'}, status=status.HTTP_403_FORBIDDEN)
 
     if request.method == 'GET':
         from accounts.serializers import ParentSerializer

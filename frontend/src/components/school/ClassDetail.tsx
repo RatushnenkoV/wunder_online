@@ -4,6 +4,7 @@ import ClassStudents from './ClassStudents';
 import ClassGroups from './ClassGroups';
 import ClassSubjects from './ClassSubjects';
 import api from '../../api/client';
+import { useAuth } from '../../contexts/AuthContext';
 
 type SubTab = 'students' | 'groups' | 'subjects';
 
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export default function ClassDetail({ schoolClass, onBack, onClassUpdated }: Props) {
+  const { user } = useAuth();
   const [subTab, setSubTab] = useState<SubTab>('students');
   const [currentClass, setCurrentClass] = useState<SchoolClass>(schoolClass);
   const [showCuratorPicker, setShowCuratorPicker] = useState(false);
@@ -81,6 +83,7 @@ export default function ClassDetail({ schoolClass, onBack, onClassUpdated }: Pro
         ) : (
           <span className="text-gray-400 dark:text-slate-500 italic">не назначен</span>
         )}
+        {user?.is_admin && (
         <div className="relative" ref={pickerRef}>
           <button
             onClick={() => { setShowCuratorPicker(v => !v); setCuratorSearch(''); }}
@@ -122,6 +125,7 @@ export default function ClassDetail({ schoolClass, onBack, onClassUpdated }: Pro
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* Sub-tabs */}
@@ -142,7 +146,12 @@ export default function ClassDetail({ schoolClass, onBack, onClassUpdated }: Pro
       </div>
 
       {/* Content */}
-      {subTab === 'students' && <ClassStudents classId={currentClass.id} />}
+      {subTab === 'students' && (
+        <ClassStudents
+          classId={currentClass.id}
+          readOnly={!user?.is_admin && user?.id !== currentClass.curator_id}
+        />
+      )}
       {subTab === 'groups' && <ClassGroups classId={currentClass.id} />}
       {subTab === 'subjects' && <ClassSubjects classId={currentClass.id} />}
     </div>

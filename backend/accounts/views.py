@@ -351,8 +351,17 @@ def user_list_create_view(request):
     return Response(UserListSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
+def _is_curator_of_student(curator_user, student_user):
+    """Проверяет, является ли curator_user куратором класса student_user."""
+    try:
+        sp = StudentProfile.objects.select_related('school_class').get(user=student_user)
+        return sp.school_class is not None and sp.school_class.curator_id == curator_user.id
+    except StudentProfile.DoesNotExist:
+        return False
+
+
 @api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsAdmin, PasswordChanged])
+@permission_classes([IsAdminOrTeacher, PasswordChanged])
 def user_detail_view(request, pk):
     try:
         user = User.objects.get(pk=pk)
@@ -362,7 +371,18 @@ def user_detail_view(request, pk):
     if request.method == 'GET':
         return Response(UserListSerializer(user).data)
 
+    if request.method == 'DELETE':
+        if not request.user.is_admin:
+            return Response({'detail': 'Недостаточно прав.'}, status=status.HTTP_403_FORBIDDEN)
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     if request.method == 'PUT':
+        if not request.user.is_admin:
+            # Учитель может редактировать только ученика своего класса (куратор)
+            if not (user.is_student and _is_curator_of_student(request.user, user)):
+                return Response({'detail': 'Недостаточно прав.'}, status=status.HTTP_403_FORBIDDEN)
+
         data = request.data
         user.first_name = data.get('first_name', user.first_name)
         user.last_name = data.get('last_name', user.last_name)
@@ -372,19 +392,20 @@ def user_detail_view(request, pk):
         if 'birth_date' in data:
             user.birth_date = data['birth_date'] or None
 
-        roles = data.get('roles')
-        if roles is not None:
-            user.is_admin = 'admin' in roles
-            user.is_teacher = 'teacher' in roles
-            user.is_parent = 'parent' in roles
-            user.is_student = 'student' in roles
-            user.is_spps = 'spps' in roles
-            user.is_staff = user.is_admin
+        if request.user.is_admin:
+            roles = data.get('roles')
+            if roles is not None:
+                user.is_admin = 'admin' in roles
+                user.is_teacher = 'teacher' in roles
+                user.is_parent = 'parent' in roles
+                user.is_student = 'student' in roles
+                user.is_spps = 'spps' in roles
+                user.is_staff = user.is_admin
 
         user.save()
 
-        # Update student profile if provided
-        if user.is_student:
+        # Обновление профиля ученика (только для админа)
+        if request.user.is_admin and user.is_student:
             school_class_id = data.get('school_class')
             personal_file_number = data.get('personal_file_number')
             if school_class_id is not None or personal_file_number is not None:
@@ -401,18 +422,18 @@ def user_detail_view(request, pk):
 
         return Response(UserListSerializer(user).data)
 
-    if request.method == 'DELETE':
-        user.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
 
 @api_view(['POST'])
-@permission_classes([IsAdmin, PasswordChanged])
+@permission_classes([IsAdminOrTeacher, PasswordChanged])
 def reset_password_view(request, pk):
     try:
         user = User.objects.get(pk=pk)
     except User.DoesNotExist:
         return Response({'detail': 'Пользователь не найден'}, status=status.HTTP_404_NOT_FOUND)
+
+    if not request.user.is_admin:
+        if not (user.is_student and _is_curator_of_student(request.user, user)):
+            return Response({'detail': 'Недостаточно прав.'}, status=status.HTTP_403_FORBIDDEN)
 
     new_password = reset_user_password(user)
     return Response({'temp_password': new_password})
