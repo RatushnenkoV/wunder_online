@@ -172,7 +172,7 @@ nano backend/.env
 ```env
 SECRET_KEY=сгенерируй_командой_ниже
 DEBUG=False
-ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
+ALLOWED_HOSTS=localhost,127.0.0.1,yourdomain.com,www.yourdomain.com
 
 DB_ENGINE=django.db.backends.postgresql
 DB_NAME=wunder_db
@@ -185,7 +185,14 @@ CORS_ALLOW_ALL_ORIGINS=False
 CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
 
 REDIS_URL=redis://127.0.0.1:6379
+
+# Security (обязательно в продакшене)
+SESSION_COOKIE_SECURE=True
+CSRF_COOKIE_SECURE=True
+SECURE_CONTENT_TYPE_NOSNIFF=True
 ```
+
+> **Важно:** в `ALLOWED_HOSTS` — только имена хостов, **без** `https://`. Протокол только в `CORS_ALLOWED_ORIGINS`.
 
 Сгенерируй SECRET_KEY:
 ```bash
@@ -277,9 +284,29 @@ sudo nano /etc/nginx/sites-available/wunder
 server {
     listen 80;
     server_name yourdomain.com www.yourdomain.com;
+    return 301 https://$host$request_uri;
+}
 
-    # Максимальный размер загружаемых файлов (учебники могут быть до 500 MB)
-    client_max_body_size 500M;
+server {
+    listen 443 ssl;
+    server_name yourdomain.com www.yourdomain.com;
+
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+
+    # Только современные TLS-версии
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    # Максимальный размер загружаемых файлов
+    client_max_body_size 100M;
+
+    # Security headers
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 
     # Фронтенд (React SPA)
     root /var/www/wunder/frontend/dist;

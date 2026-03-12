@@ -18,19 +18,30 @@
 - [x] Вручную доустановлены `channels`, `channels-redis`, `daphne` (не попали в requirements.txt на сервере)
 - [x] Создан и заполнен `.env`
 - [x] Выполнен `python manage.py migrate`
-- [x] Создан суперпользователь (admin/admin)
-- [ ] `collectstatic` — в процессе (правим STATIC_ROOT в settings.py вручную)
+- [x] Создан суперпользователь
+- [x] `python manage.py collectstatic --noinput`
+- [x] Сборка фронтенда (`npm install && npm run build`)
+- [x] Systemd-сервис для Daphne (порт 8001)
+- [x] Настройка Nginx (конфиг сайта, HTTP→HTTPS редирект)
+- [x] SSL-сертификат Let's Encrypt (certbot --nginx)
+- [x] Финальная проверка — сайт доступен по https://wunderos.kz
 
-## Осталось ⬜
+## Что нужно исправить в коде локально
 
-- [ ] `python manage.py collectstatic --noinput` (после правки settings.py)
-- [ ] Сборка фронтенда (`npm install && npm run build`)
-- [ ] Systemd-сервис для Daphne
-- [ ] Настройка Nginx (конфиг сайта)
-- [ ] SSL-сертификат Let's Encrypt (если есть домен)
-- [ ] Финальная проверка в браузере
+- [x] `channels==4.2.0`, `channels-redis==4.2.1`, `daphne==4.1.2` — уже есть в `backend/requirements.txt`
 
-## Что нужно исправить в коде локально (после деплоя)
+## Безопасность (настроено 2026-03-11)
 
-- [ ] Добавить в `backend/config/settings.py` строки `STATIC_ROOT` и `STATICFILES_STORAGE` и запушить в GitHub
-- [ ] Убедиться что `channels==4.2.0`, `channels-redis==4.2.1`, `daphne==4.1.2` есть в `backend/requirements.txt` и запушить
+- [x] Swap 2 GB (`/swapfile`) — защита от OOM при пиках памяти
+- [x] Ежедневные бэкапы БД в `/var/backups/wunder/` + отправка в Telegram (3:00 UTC)
+- [x] Nginx security headers: HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
+- [x] TLS 1.2/1.3 only в Nginx
+- [x] `client_max_body_size` снижен с 500M до 100M
+- [x] Django: `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`, `SECURE_CONTENT_TYPE_NOSNIFF`
+- [x] fail2ban: добавлены jail-ы `django-login` (20 попыток / 5 мин → бан 30 мин) и `nginx-4xx` (30 запросов / 1 мин → бан 10 мин)
+
+## Замеченные подводные камни
+
+- `ALLOWED_HOSTS` — только имена хостов, **без** `https://`. Пример: `wunderos.kz,www.wunderos.kz`
+- Daphne-сервис по умолчанию поднялся на порту **8000**, а Nginx ждёт **8001** — нужно явно прописать `-p 8001` в `ExecStart`
+- Certbot не находит `server_name` если Nginx-конфиг ещё не создан — сначала создать конфиг, потом запускать certbot

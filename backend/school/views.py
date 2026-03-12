@@ -800,17 +800,28 @@ def substitution_export(request):
             if sub.original_lesson and sub.original_lesson.teacher:
                 t = sub.original_lesson.teacher
                 orig_teacher = f'{t.last_name} {t.first_name}'
-            orig_subject = sub.original_lesson.subject.name if sub.original_lesson else ''
+            if sub.original_lesson:
+                orig_subject = sub.original_lesson.subject.name
+                if sub.original_lesson.room:
+                    orig_subject += f'\n{sub.original_lesson.room.name}'
+            else:
+                orig_subject = ''
             new_teacher = f'{sub.teacher.last_name} {sub.teacher.first_name}' if sub.teacher else ''
+            new_subject = sub.subject.name
+            if sub.room:
+                new_subject += f'\n{sub.room.name}'
 
-            ws.append([
+            row = [
                 sub.lesson_number,
                 time_slots.get(sub.lesson_number, ''),
                 orig_teacher,
                 orig_subject,
                 new_teacher,
-                sub.subject.name,
-            ])
+                new_subject,
+            ]
+            ws.append(row)
+            for cell in ws[ws.max_row]:
+                cell.alignment = Alignment(wrap_text=True, vertical='top')
 
         for col in ws.columns:
             max_len = max(len(str(cell.value or '')) for cell in col)
