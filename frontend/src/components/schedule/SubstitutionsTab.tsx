@@ -36,7 +36,10 @@ function getWeekDates(monday: Date): Date[] {
 }
 
 function toISODate(d: Date): string {
-  return d.toISOString().split('T')[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
 }
 
 function todayISO(): string {
@@ -359,20 +362,37 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
     original_lesson: number | null;
   }) => {
     if (!editCell) return;
-    await api.post('/school/substitutions/', {
-      date: editCell.date,
-      lesson_number: editCell.lessonNumber,
-      ...data,
-    });
-    setEditCell(null);
-    loadSubstitutions();
+    try {
+      if (editCell.sub) {
+        await api.put(`/school/substitutions/${editCell.sub.id}/`, {
+          date: editCell.date,
+          lesson_number: editCell.lessonNumber,
+          ...data,
+        });
+      } else {
+        await api.post('/school/substitutions/', {
+          date: editCell.date,
+          lesson_number: editCell.lessonNumber,
+          ...data,
+        });
+      }
+      setEditCell(null);
+      await loadSubstitutions();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      alert(msg || 'Не удалось сохранить замену. Проверьте консоль.');
+    }
   };
 
   const handleDelete = async () => {
     if (!editCell?.sub) return;
-    await api.delete(`/school/substitutions/${editCell.sub.id}/`);
-    setEditCell(null);
-    loadSubstitutions();
+    try {
+      await api.delete(`/school/substitutions/${editCell.sub.id}/`);
+      setEditCell(null);
+      await loadSubstitutions();
+    } catch {
+      alert('Не удалось удалить замену. Проверьте консоль.');
+    }
   };
 
   /** Print the schedule for a single day column, filtered by the current view mode and selection. */
