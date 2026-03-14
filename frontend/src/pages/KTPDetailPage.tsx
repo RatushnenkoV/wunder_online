@@ -278,21 +278,23 @@ export default function KTPDetailPage() {
     }
   };
 
-  const addResource = () => {
+  type LinkField = 'self_study_links' | 'additional_resources' | 'individual_folder';
+
+  const addLink = (field: LinkField) => {
     if (!editTopic) return;
-    setEditTopic({ ...editTopic, resources: [...editTopic.resources, { title: '', url: '' }] });
+    setEditTopic({ ...editTopic, [field]: [...editTopic[field], { title: '', url: '' }] });
   };
 
-  const updateResource = (idx: number, field: 'title' | 'url', value: string) => {
+  const updateLink = (field: LinkField, idx: number, key: 'title' | 'url', value: string) => {
     if (!editTopic) return;
-    const resources = [...editTopic.resources];
-    resources[idx] = { ...resources[idx], [field]: value };
-    setEditTopic({ ...editTopic, resources });
+    const arr = [...editTopic[field]];
+    arr[idx] = { ...arr[idx], [key]: value };
+    setEditTopic({ ...editTopic, [field]: arr });
   };
 
-  const removeResource = (idx: number) => {
+  const removeLink = (field: LinkField, idx: number) => {
     if (!editTopic) return;
-    setEditTopic({ ...editTopic, resources: editTopic.resources.filter((_, i) => i !== idx) });
+    setEditTopic({ ...editTopic, [field]: editTopic[field].filter((_, i) => i !== idx) });
   };
 
   type LinkField = 'self_study_links' | 'additional_resources' | 'individual_folder';
