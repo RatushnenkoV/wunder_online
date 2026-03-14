@@ -439,6 +439,18 @@ export default function ClassStudents({ classId, readOnly = false }: Props) {
                 <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Дата рождения</label>
                 <input type="date" value={editForm.birth_date} onChange={e => setEditForm(f => ({ ...f, birth_date: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
               </div>
+              {editStudent.user.must_change_password && editStudent.user.temp_password && (
+                <div>
+                  <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Временный пароль</label>
+                  <button
+                    onClick={() => copyToClipboard(editStudent.user.temp_password!, 'edit_temp')}
+                    className="w-full text-left bg-yellow-50 text-yellow-700 px-3 py-2 rounded text-sm font-mono hover:bg-yellow-100 transition-colors cursor-copy border border-yellow-200"
+                    title="Нажмите, чтобы скопировать"
+                  >
+                    {copiedField === 'edit_temp' ? '✓ Скопировано' : editStudent.user.temp_password}
+                  </button>
+                </div>
+              )}
 
               {/* Родители */}
               <div className="border-t pt-3 mt-2">

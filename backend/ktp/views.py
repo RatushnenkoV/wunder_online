@@ -13,8 +13,8 @@ from .serializers import (
     AutofillDatesSerializer, HolidaySerializer, SchoolBreakSerializer,
     TopicFileSerializer, TopicByDateSerializer,
 )
-from .services import autofill_dates, import_topics, get_schedule_info, get_required_lessons_count, preview_ktp_import, import_ktp_from_sheet
-from core.validators import validate_file_mime, ALLOWED_EXCEL, ALLOWED_IMAGES, ALLOWED_PDF
+from .services import autofill_dates, import_topics, import_topics_simple, get_schedule_info, get_required_lessons_count, preview_ktp_import, import_ktp_from_sheet
+from core.validators import validate_file_mime, ALLOWED_EXCEL, ALLOWED_EXCEL_CSV, ALLOWED_IMAGES, ALLOWED_PDF
 from django.core.exceptions import ValidationError
 
 ALLOWED_TOPIC_FILES = ALLOWED_IMAGES + ALLOWED_PDF + ALLOWED_EXCEL
@@ -332,19 +332,18 @@ def topic_import(request, ctp_id):
         return Response({'detail': 'Файл не загружен'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        validate_file_mime(file, ALLOWED_EXCEL, label='файл импорта тем')
+        validate_file_mime(file, ALLOWED_EXCEL_CSV, label='файл импорта тем')
     except ValidationError as e:
         return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        created, errors = import_topics(ctp, file)
+        created = import_topics_simple(ctp, file)
     except ValueError as e:
         return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     return Response({
         'created_count': len(created),
         'created': TopicSerializer(created, many=True).data,
-        'errors': errors,
     })
 
 

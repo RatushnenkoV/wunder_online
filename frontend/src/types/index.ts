@@ -118,9 +118,9 @@ export interface Topic {
   lesson: number | null;
   lesson_title: string | null;
   comments: string;
-  self_study_links: string;
-  additional_resources: string;
-  individual_folder: string;
+  self_study_links: Resource[];
+  additional_resources: Resource[];
+  individual_folder: Resource[];
   ksp: string;
   presentation_link: string;
   created_at: string;

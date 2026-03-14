@@ -20,6 +20,42 @@ interface NewsPost {
   for_staff: boolean;
   for_parents: boolean; // DB field; UI label = «Ученики и родители»
   is_read: boolean;
+  reactions: Record<string, number>;
+  my_reaction: string | null;
+}
+
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '👏'];
+
+function ReactionsBar({
+  post,
+  onReact,
+}: {
+  post: NewsPost;
+  onReact: (postId: number, emoji: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1 flex-wrap mt-3">
+      {REACTION_EMOJIS.map(emoji => {
+        const count = post.reactions[emoji] ?? 0;
+        const isMyReaction = post.my_reaction === emoji;
+        return (
+          <button
+            key={emoji}
+            type="button"
+            onClick={() => onReact(post.id, emoji)}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-sm border transition-colors ${
+              isMyReaction
+                ? 'bg-purple-100 dark:bg-purple-900/40 border-purple-300 dark:border-purple-600 text-purple-700 dark:text-purple-300'
+                : 'bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-600'
+            }`}
+          >
+            <span>{emoji}</span>
+            {count > 0 && <span className="text-xs font-medium">{count}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 // Custom Image extension with style attribute (for float + width)
@@ -598,6 +634,17 @@ export default function NewsPage() {
     }
   };
 
+  const handleReact = async (postId: number, emoji: string) => {
+    try {
+      const res = await api.post(`/news/${postId}/react/`, { emoji });
+      setPosts(prev => prev.map(p =>
+        p.id === postId ? { ...p, reactions: res.data.reactions, my_reaction: res.data.my_reaction } : p
+      ));
+    } catch {
+      // ignore
+    }
+  };
+
   const handleDelete = async (post: NewsPost) => {
     if (!confirm(`Удалить новость «${post.title}»?`)) return;
     try {
@@ -678,6 +725,11 @@ export default function NewsPage() {
                     />
                     {/* Clearfix for floated images */}
                     <div style={{ clear: 'both' }} />
+
+                    {/* Reactions */}
+                    {post.is_published && (
+                      <ReactionsBar post={post} onReact={handleReact} />
+                    )}
 
                     {/* Admin controls */}
                     {isAdmin && (

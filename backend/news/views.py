@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.permissions import IsAdmin, PasswordChanged
-from .models import NewsPost, NewsImage, NewsRead
+from .models import NewsPost, NewsImage, NewsRead, NewsReaction
 from .serializers import NewsPostSerializer
 
 
@@ -24,7 +24,7 @@ def _visible_qs(user):
 @permission_classes([IsAuthenticated, PasswordChanged])
 def post_list_create(request):
     if request.method == 'GET':
-        qs = _visible_qs(request.user).prefetch_related('reads').select_related('author')
+        qs = _visible_qs(request.user).prefetch_related('reads', 'reactions').select_related('author')
         try:
             limit = min(int(request.query_params.get('limit', 10)), 100)
             offset = int(request.query_params.get('offset', 0))
@@ -62,7 +62,7 @@ def post_detail(request, pk):
         qs = _visible_qs(request.user)
 
     try:
-        post = qs.prefetch_related('reads').select_related('author').get(pk=pk)
+        post = qs.prefetch_related('reads', 'reactions').select_related('author').get(pk=pk)
     except NewsPost.DoesNotExist:
         return Response({'detail': 'Не найдено.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -136,6 +136,47 @@ def mark_read(request, pk):
 
     NewsRead.objects.get_or_create(post=post, user=request.user)
     return Response({'ok': True})
+
+
+ALLOWED_REACTION_EMOJIS = {'👍', '❤️', '😂', '😮', '😢', '👏'}
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def react(request, pk):
+    qs = _visible_qs(request.user).filter(is_published=True)
+    if request.user.is_admin:
+        qs = NewsPost.objects.filter(is_published=True)
+    try:
+        post = qs.get(pk=pk)
+    except NewsPost.DoesNotExist:
+        return Response({'detail': 'Не найдено.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        NewsReaction.objects.filter(post=post, user=request.user).delete()
+        return Response({'ok': True})
+
+    # POST — set or replace reaction
+    emoji = request.data.get('emoji', '')
+    if emoji not in ALLOWED_REACTION_EMOJIS:
+        return Response({'detail': 'Недопустимая реакция.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    reaction, created = NewsReaction.objects.get_or_create(
+        post=post, user=request.user,
+        defaults={'emoji': emoji},
+    )
+    if not created:
+        if reaction.emoji == emoji:
+            # Toggle off — remove
+            reaction.delete()
+        else:
+            reaction.emoji = emoji
+            reaction.save(update_fields=['emoji'])
+
+    # Always return updated counts + user's reaction
+    post_fresh = NewsPost.objects.prefetch_related('reactions').get(pk=pk)
+    data = NewsPostSerializer(post_fresh, context={'request': request}).data
+    return Response({'reactions': data['reactions'], 'my_reaction': data['my_reaction']})
 
 
 @api_view(['GET'])

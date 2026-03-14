@@ -22,6 +22,10 @@ const WEEKDAY_LABELS: Record<number, string> = {
   1: 'Понедельник', 2: 'Вторник', 3: 'Среда', 4: 'Четверг', 5: 'Пятница',
 };
 
+const WEEKDAY_SHORT: Record<number, string> = {
+  1: 'ПН', 2: 'ВТ', 3: 'СР', 4: 'ЧТ', 5: 'ПТ',
+};
+
 function getCurrentWeekday(): number {
   const day = new Date().getDay();
   return day >= 1 && day <= 5 ? day : 1;
@@ -283,49 +287,13 @@ export default function SchedulePage() {
       )}
 
       {mainTab === 'schedule' && <div>
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <div />
-        <div className="flex items-center gap-2">
-          {!isMobile && (
-            <div className="flex rounded-lg overflow-hidden border">
-              <button
-                onClick={() => setDisplayMode('week')}
-                className={`px-3 py-1.5 text-sm ${displayMode === 'week' ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
-              >Неделя</button>
-              <button
-                onClick={() => setDisplayMode('day')}
-                className={`px-3 py-1.5 text-sm ${displayMode === 'day' ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
-              >День</button>
-            </div>
-          )}
-          {user?.is_admin && (
-            <button
-              onClick={() => setShowImport(true)}
-              className="px-4 py-2 rounded text-sm bg-purple-600 text-white hover:bg-purple-700"
-            >
-              Импорт из Excel
-            </button>
-          )}
-          {user?.is_admin && selectedId && (
-            <button
-              onClick={() => setEditing(!editing)}
-              className={`px-4 py-2 rounded text-sm ${
-                editing ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-300'
-              }`}
-            >
-              {editing ? 'Готово' : 'Редактировать'}
-            </button>
-          )}
-        </div>
-      </div>
-
       {isStudent ? (
         <div className="mb-4 text-sm text-gray-600 dark:text-slate-400">
           Расписание класса: <strong>{user?.school_class_name ?? '—'}</strong>
         </div>
       ) : (
-        <div className="flex gap-4 mb-6 flex-wrap">
-          <div className="flex rounded-lg overflow-hidden border">
+        <div className="flex gap-2 mb-6 flex-wrap items-center">
+          <div className="flex rounded-lg overflow-hidden border shrink-0">
             {VIEW_MODES.map(m => (
               <button
                 key={m.key}
@@ -342,13 +310,65 @@ export default function SchedulePage() {
           <select
             value={selectedId ?? ''}
             onChange={e => { setSelectedId(e.target.value ? Number(e.target.value) : null); setEditing(false); }}
-            className="border rounded px-3 py-2 text-sm min-w-[200px]"
+            className="border rounded px-3 py-2 text-sm min-w-[160px] flex-1 max-w-xs"
           >
             <option value="">-- Выберите --</option>
             {currentOptions.map(o => (
               <option key={o.id} value={o.id}>{o.label}</option>
             ))}
           </select>
+
+          <div className="flex items-center gap-2 ml-auto shrink-0">
+            {!isMobile && (
+              <div className="flex rounded-lg overflow-hidden border">
+                <button
+                  onClick={() => setDisplayMode('week')}
+                  className={`px-3 py-1.5 text-sm ${displayMode === 'week' ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
+                >Неделя</button>
+                <button
+                  onClick={() => setDisplayMode('day')}
+                  className={`px-3 py-1.5 text-sm ${displayMode === 'day' ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
+                >День</button>
+              </div>
+            )}
+            {user?.is_admin && (
+              <button
+                onClick={() => setShowImport(true)}
+                title="Импорт из Excel"
+                className="flex items-center gap-1.5 px-3 py-2 rounded text-sm bg-purple-600 text-white hover:bg-purple-700"
+              >
+                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span className="hidden sm:inline">Импорт</span>
+              </button>
+            )}
+            {user?.is_admin && selectedId && (
+              <button
+                onClick={() => setEditing(!editing)}
+                title={editing ? 'Готово' : 'Редактировать'}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded text-sm ${
+                  editing ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-300'
+                }`}
+              >
+                {editing ? (
+                  <>
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="hidden sm:inline">Готово</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    <span className="hidden sm:inline">Редактировать</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -362,7 +382,7 @@ export default function SchedulePage() {
                 selectedDay === d ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border hover:bg-gray-50 dark:hover:bg-slate-800'
               }`}
             >
-              {WEEKDAY_LABELS[d].slice(0, 2)}
+              {WEEKDAY_SHORT[d]}
             </button>
           ))}
         </div>

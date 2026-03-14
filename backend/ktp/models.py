@@ -62,9 +62,9 @@ class Topic(models.Model):
         verbose_name='Урок',
     )
     comments = models.TextField('Комментарии', blank=True, default='')
-    self_study_links = models.TextField('Ссылки на самообучение', blank=True, default='')
-    additional_resources = models.TextField('Дополнительные ресурсы', blank=True, default='')
-    individual_folder = models.TextField('Индивид. папка ученика', blank=True, default='')
+    self_study_links = models.JSONField('Ссылки на самообучение', default=list, blank=True)
+    additional_resources = models.JSONField('Дополнительные ресурсы', default=list, blank=True)
+    individual_folder = models.JSONField('Индивид. папка ученика', default=list, blank=True)
     ksp = models.TextField('КСП', blank=True, default='')
     presentation_link = models.TextField('Ссылка на презентацию', blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)

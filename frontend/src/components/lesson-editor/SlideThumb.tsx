@@ -12,13 +12,14 @@ export interface SlideThumbProps {
   onClick: () => void; onDelete: () => void;
   onDragStart: (e: React.DragEvent) => void; onDragOver: (e: React.DragEvent) => void;
   onDragLeave: () => void; onDrop: (e: React.DragEvent) => void;
+  compact?: boolean;
 }
 
 const SLIDE_TYPE_ICONS: Partial<Record<Slide['slide_type'], string>> = {
   content: '📄', form: '📋', video: '📹', discussion: '💬', quiz: '🏆', vocab: '📚', textbook: '📖',
 };
 
-export default function SlideThumb({ slide, index, isSelected, isDragOver, onClick, onDelete, onDragStart, onDragOver, onDragLeave, onDrop }: SlideThumbProps) {
+export default function SlideThumb({ slide, index, isSelected, isDragOver, onClick, onDelete, onDragStart, onDragOver, onDragLeave, onDrop, compact }: SlideThumbProps) {
   const icon = SLIDE_TYPE_ICONS[slide.slide_type] ?? '📄';
 
   let label: string;
@@ -44,6 +45,24 @@ export default function SlideThumb({ slide, index, isSelected, isDragOver, onCli
     label = firstText?.html
       ? firstText.html.replace(/<[^>]+>/g, '').slice(0, 30) || `Слайд ${index + 1}`
       : `Слайд ${index + 1}`;
+  }
+
+  if (compact) {
+    return (
+      <div
+        onClick={onClick}
+        className={`group flex-shrink-0 flex flex-col items-center justify-center gap-1 px-2 py-2 cursor-pointer transition-colors border-r border-gray-100 dark:border-slate-700 w-14 relative ${isSelected ? 'bg-purple-50 dark:bg-purple-900/20' : 'hover:bg-gray-50 dark:hover:bg-slate-700'}`}
+      >
+        <span className="text-xs text-gray-400 dark:text-slate-500 font-medium leading-none">{index + 1}</span>
+        <span className="text-xl leading-none">{icon}</span>
+        <button
+          onClick={e => { e.stopPropagation(); onDelete(); }}
+          className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-red-500 transition-all rounded"
+        >
+          <IconTrash />
+        </button>
+      </div>
+    );
   }
 
   return (

@@ -350,6 +350,31 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
     document.addEventListener('mouseup', onUp);
   }, [scale, updateBlock]);
 
+  const handleRotateTouchStart = useCallback((e: React.TouchEvent, block: SlideBlock) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const inner = innerCanvasRef.current;
+    if (!inner || e.touches.length === 0) return;
+    const cx = block.x + block.w / 2;
+    const cy = block.y + block.h / 2;
+
+    const onMove = (me: TouchEvent) => {
+      if (me.touches.length === 0) return;
+      me.preventDefault();
+      const rect = inner.getBoundingClientRect();
+      const mx = (me.touches[0].clientX - rect.left) / scale;
+      const my = (me.touches[0].clientY - rect.top)  / scale;
+      const angle = Math.round(Math.atan2(my - cy, mx - cx) * (180 / Math.PI) + 90);
+      updateBlock(block.id, { rotation: angle });
+    };
+    const onEnd = () => {
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+    };
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+  }, [scale, updateBlock]);
+
   // ── Добавление / удаление ───────────────────────────────────────────────────
 
   const addBlock = (type: 'text' | 'image' | 'shape', shape?: ShapeType) => {
@@ -448,6 +473,81 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
     document.addEventListener('mouseup', onUp);
   }, [blocks, scale, updateBlock]);
 
+  // Pointer Events-версия resize для тача: setPointerCapture гарантирует получение
+  // pointermove/pointerup на самом элементе, даже если палец уходит за его пределы.
+  const handleCustomResizePointer = useCallback((
+    e: React.PointerEvent,
+    blockId: string,
+    corner: 'tl' | 'tr' | 'bl' | 'br',
+  ) => {
+    if (e.pointerType === 'mouse') return; // мышь обрабатывается через onMouseDown
+    e.stopPropagation();
+    e.preventDefault();
+    isDraggingRef.current = true;
+
+    const block = blocks.find(b => b.id === blockId);
+    if (!block) return;
+
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
+
+    const startClient = { x: e.clientX, y: e.clientY };
+    const startW = block.w;
+    const startH = block.h;
+    const angle = (block.rotation ?? 0) * Math.PI / 180;
+    const cosA  = Math.cos(angle);
+    const sinA  = Math.sin(angle);
+
+    const cx = block.x + block.w / 2;
+    const cy = block.y + block.h / 2;
+
+    const fixedLocalMap: { [k: string]: { lx: number; ly: number } } = {
+      br: { lx: -startW / 2, ly: -startH / 2 },
+      bl: { lx:  startW / 2, ly: -startH / 2 },
+      tr: { lx: -startW / 2, ly:  startH / 2 },
+      tl: { lx:  startW / 2, ly:  startH / 2 },
+    };
+    const fl = fixedLocalMap[corner];
+    const fixedWorld = {
+      x: cx + fl.lx * cosA - fl.ly * sinA,
+      y: cy + fl.lx * sinA + fl.ly * cosA,
+    };
+
+    const onMove = (me: PointerEvent) => {
+      const dx = (me.clientX - startClient.x) / scale;
+      const dy = (me.clientY - startClient.y) / scale;
+
+      const localDx =  dx * cosA + dy * sinA;
+      const localDy = -dx * sinA + dy * cosA;
+
+      let newW: number, newH: number;
+      if      (corner === 'br') { newW = Math.max(MIN_W, startW + localDx); newH = Math.max(MIN_H, startH + localDy); }
+      else if (corner === 'bl') { newW = Math.max(MIN_W, startW - localDx); newH = Math.max(MIN_H, startH + localDy); }
+      else if (corner === 'tr') { newW = Math.max(MIN_W, startW + localDx); newH = Math.max(MIN_H, startH - localDy); }
+      else                       { newW = Math.max(MIN_W, startW - localDx); newH = Math.max(MIN_H, startH - localDy); }
+
+      const halfLocalMap: { [k: string]: { lx: number; ly: number } } = {
+        br: { lx:  newW / 2, ly:  newH / 2 },
+        bl: { lx: -newW / 2, ly:  newH / 2 },
+        tr: { lx:  newW / 2, ly: -newH / 2 },
+        tl: { lx: -newW / 2, ly: -newH / 2 },
+      };
+      const hl = halfLocalMap[corner];
+      const newCx = fixedWorld.x + hl.lx * cosA - hl.ly * sinA;
+      const newCy = fixedWorld.y + hl.lx * sinA + hl.ly * cosA;
+
+      updateBlock(blockId, { x: newCx - newW / 2, y: newCy - newH / 2, w: newW, h: newH });
+    };
+
+    const onUp = () => {
+      setTimeout(() => { isDraggingRef.current = false; }, 100);
+      target.removeEventListener('pointermove', onMove);
+      target.removeEventListener('pointerup', onUp);
+    };
+    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointerup', onUp);
+  }, [blocks, scale, updateBlock]);
+
   // ── Контекстный тулбар ──────────────────────────────────────────────────────
   let toolbarInner: React.ReactNode;
   if (editingId && activeEditor)              toolbarInner = <TiptapToolbar editor={activeEditor} />;
@@ -504,6 +604,7 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
                   scale={scale}
                   disableDragging={editingId === block.id}
                   enableResizing={false}
+                  cancel=".resize-handle"
                   style={{ zIndex: block.zIndex }}
                   onMouseDown={e => {
                     e.stopPropagation();
@@ -620,17 +721,23 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
                       (['tl', 'tr', 'bl', 'br'] as const).map(corner => {
                         const s: React.CSSProperties = {
                           position: 'absolute',
-                          width: 10, height: 10,
+                          width: 28, height: 28,
                           backgroundColor: 'white',
                           border: `2px solid ${coverColor}`,
-                          borderRadius: 2,
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+                          borderRadius: 4,
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
                           zIndex: 10000,
                           cursor: corner === 'tl' ? 'nw-resize' : corner === 'tr' ? 'ne-resize' : corner === 'bl' ? 'sw-resize' : 'se-resize',
+                          touchAction: 'none',
                         };
-                        if (corner[0] === 't') s.top = -5; else s.bottom = -5;
-                        if (corner[1] === 'l') s.left = -5; else s.right = -5;
-                        return <div key={corner} style={s} onMouseDown={e => handleCustomResize(e, block.id, corner)} />;
+                        if (corner[0] === 't') s.top = -14; else s.bottom = -14;
+                        if (corner[1] === 'l') s.left = -14; else s.right = -14;
+                        return <div
+                          key={corner} style={s}
+                          className="resize-handle"
+                          onMouseDown={e => handleCustomResize(e, block.id, corner)}
+                          onPointerDown={e => handleCustomResizePointer(e, block.id, corner)}
+                        />;
                       })
                     )}
                   </div>
@@ -653,6 +760,7 @@ export default function SlideCanvas({ slide, lessonId, coverColor, onSaved }: { 
                     <div
                       className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 cursor-grab text-base leading-none"
                       onMouseDown={e => handleRotateStart(e, b)}
+                      onTouchStart={e => handleRotateTouchStart(e, b)}
                       title="Повернуть (Shift = привязка к 15°)"
                     >↻</div>
                     {(b.rotation ?? 0) !== 0 && (

@@ -207,11 +207,54 @@ interface Props {
   rooms: Room[];
 }
 
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < breakpoint);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
+function getWorkday(d: Date): Date {
+  const r = new Date(d);
+  r.setHours(0, 0, 0, 0);
+  const day = r.getDay();
+  if (day === 6) r.setDate(r.getDate() + 2);
+  else if (day === 0) r.setDate(r.getDate() + 1);
+  return r;
+}
+
 export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<ViewMode>(user?.is_teacher ? 'teacher' : 'class');
   const [selectedId, setSelectedId] = useState<number | null>(user?.is_teacher ? user.id : null);
   const [monday, setMonday] = useState<Date>(() => getMonday(new Date()));
+
+  // Mobile: single-day navigation
+  const [mobileDate, setMobileDate] = useState<Date>(() => getWorkday(new Date()));
+
+  const prevMobileDay = () => {
+    const d = new Date(mobileDate);
+    d.setDate(d.getDate() - 1);
+    if (d.getDay() === 0) d.setDate(d.getDate() - 2);
+    else if (d.getDay() === 6) d.setDate(d.getDate() - 1);
+    setMobileDate(d);
+    const m = getMonday(d);
+    if (m.getTime() !== monday.getTime()) setMonday(m);
+  };
+
+  const nextMobileDay = () => {
+    const d = new Date(mobileDate);
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() === 6) d.setDate(d.getDate() + 2);
+    else if (d.getDay() === 0) d.setDate(d.getDate() + 1);
+    setMobileDate(d);
+    const m = getMonday(d);
+    if (m.getTime() !== monday.getTime()) setMonday(m);
+  };
 
   const [allLessons, setAllLessons] = useState<ScheduleLesson[]>([]);
   const [allSubstitutions, setAllSubstitutions] = useState<Substitution[]>([]);
@@ -241,6 +284,10 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
   const [exportDateFrom, setExportDateFrom] = useState(todayISO);
   const [exportDateTo, setExportDateTo] = useState(todayISO);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Combined mobile menu state
+  const [showCombinedMenu, setShowCombinedMenu] = useState(false);
+  const combinedMenuRef = useRef<HTMLDivElement>(null);
 
   const weekDates = getWeekDates(monday);
   const dateFrom = toISODate(weekDates[0]);
@@ -292,6 +339,16 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
     return () => document.removeEventListener('mousedown', handler);
   }, [showExportMenu]);
 
+  useEffect(() => {
+    if (!showCombinedMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (combinedMenuRef.current && !combinedMenuRef.current.contains(e.target as Node))
+        setShowCombinedMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showCombinedMenu]);
+
   // Load class subjects + groups when class changes
   useEffect(() => {
     if (viewMode === 'class' && selectedId) {
@@ -330,7 +387,9 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
 
   const handleDateJump = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.value) {
-      setMonday(getMonday(new Date(e.target.value + 'T00:00:00')));
+      const d = new Date(e.target.value + 'T00:00:00');
+      setMonday(getMonday(d));
+      setMobileDate(getWorkday(d));
     }
   };
 
@@ -671,7 +730,7 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
     <div>
       {/* Week navigation */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <div className="flex items-center gap-1">
+        <div className="hidden sm:flex items-center gap-1">
           <button
             onClick={prevWeek}
             className="px-3 py-1.5 rounded border bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm"
@@ -691,16 +750,112 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
             →
           </button>
         </div>
-        <span className="text-sm font-medium text-gray-700 dark:text-slate-300">{formatWeekRange(monday)}</span>
+        <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-slate-300">{formatWeekRange(monday)}</span>
         <input
           type="date"
+          value={toISODate(mobileDate)}
           onChange={handleDateJump}
           className="border rounded px-2 py-1 text-sm text-gray-600 dark:text-slate-400"
           title="Перейти к дате"
         />
 
         {user?.is_admin && (
-          <div className="ml-auto flex items-center gap-2 flex-wrap">
+          <div className="ml-auto flex items-center gap-2">
+
+            {/* Mobile: combined print & export dropdown */}
+            <div className="sm:hidden relative" ref={combinedMenuRef}>
+              <button
+                onClick={() => setShowCombinedMenu(v => !v)}
+                className="px-3 py-1.5 rounded border bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm flex items-center gap-1.5"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9"/>
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                  <rect x="6" y="14" width="12" height="8"/>
+                </svg>
+                <span>Печать и экспорт</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+
+              {showCombinedMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-white dark:bg-slate-800 border rounded-lg shadow-lg p-3 z-20 min-w-[230px]">
+                  {/* Print by classes */}
+                  <div className="mb-3 pb-3 border-b border-gray-100 dark:border-slate-700">
+                    <div className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-2">Печать по классам</div>
+                    <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1">Дата</label>
+                    <input
+                      type="date"
+                      value={printAllDate}
+                      onChange={e => setPrintAllDate(e.target.value)}
+                      className="border rounded px-2 py-1.5 text-sm w-full mb-2"
+                    />
+                    <button
+                      onClick={() => { setShowCombinedMenu(false); handlePrintAll(); }}
+                      className="w-full px-3 py-1.5 rounded bg-gray-800 dark:bg-slate-700 text-white text-sm hover:bg-gray-900 flex items-center justify-center gap-1.5"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="6 9 6 2 18 2 18 9"/>
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                        <rect x="6" y="14" width="12" height="8"/>
+                      </svg>
+                      Распечатать
+                    </button>
+                  </div>
+                  {/* Print by teachers */}
+                  <div className="mb-3 pb-3 border-b border-gray-100 dark:border-slate-700">
+                    <div className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-2">Печать по учителям</div>
+                    <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1">Дата</label>
+                    <input
+                      type="date"
+                      value={printTeachersDate}
+                      onChange={e => setPrintTeachersDate(e.target.value)}
+                      className="border rounded px-2 py-1.5 text-sm w-full mb-2"
+                    />
+                    <button
+                      onClick={() => { setShowCombinedMenu(false); handlePrintAllTeachers(); }}
+                      className="w-full px-3 py-1.5 rounded bg-gray-800 dark:bg-slate-700 text-white text-sm hover:bg-gray-900 flex items-center justify-center gap-1.5"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="6 9 6 2 18 2 18 9"/>
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                        <rect x="6" y="14" width="12" height="8"/>
+                      </svg>
+                      Распечатать
+                    </button>
+                  </div>
+                  {/* Export Excel */}
+                  <div>
+                    <div className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-2">Экспорт Excel</div>
+                    <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1">С даты</label>
+                    <input
+                      type="date"
+                      value={exportDateFrom}
+                      onChange={e => setExportDateFrom(e.target.value)}
+                      className="border rounded px-2 py-1.5 text-sm w-full mb-2"
+                    />
+                    <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1">По дату</label>
+                    <input
+                      type="date"
+                      value={exportDateTo}
+                      min={exportDateFrom}
+                      onChange={e => setExportDateTo(e.target.value)}
+                      className="border rounded px-2 py-1.5 text-sm w-full mb-2"
+                    />
+                    <button
+                      onClick={() => { setShowCombinedMenu(false); handleExport(); }}
+                      className="w-full px-3 py-1.5 rounded bg-green-700 text-white text-sm hover:bg-green-800 flex items-center justify-center gap-1.5"
+                    >
+                      Скачать
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop: 3 separate dropdowns */}
+            <div className="hidden sm:flex items-center gap-2">
 
             {/* Print all classes by date */}
             <div className="relative" ref={printAllMenuRef}>
@@ -823,6 +978,7 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
               )}
             </div>
 
+            </div>{/* end desktop flex */}
           </div>
         )}
       </div>
@@ -856,14 +1012,25 @@ export default function SubstitutionsTab({ classes, teachers, rooms }: Props) {
         <p className="text-gray-400 dark:text-slate-500 text-sm">Выберите элемент для отображения замен</p>
       ) : (
         <>
+          {/* Mobile: single-day navigation */}
+          {isMobile && (
+            <div className="flex items-center justify-between mb-3">
+              <button onClick={prevMobileDay} className="px-3 py-1.5 rounded border bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 text-sm">←</button>
+              <span className="text-sm font-medium text-gray-700 dark:text-slate-300 capitalize">
+                {mobileDate.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })}
+                {toISODate(mobileDate) === todayISO() && <span className="ml-2 text-xs text-purple-500">Сегодня</span>}
+              </span>
+              <button onClick={nextMobileDay} className="px-3 py-1.5 rounded border bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 text-sm">→</button>
+            </div>
+          )}
           <SubstitutionsGrid
-            weekDates={weekDates}
+            weekDates={isMobile ? [mobileDate] : weekDates}
             allLessons={allLessons}
             allSubstitutions={filteredSubs}
             viewMode={viewMode}
             selectedId={selectedId}
             onCellClick={handleCellClick}
-            onPrintDay={handlePrintDay}
+            onPrintDay={isMobile ? undefined : handlePrintDay}
           />
 
           {/* Substitutions summary for the week */}

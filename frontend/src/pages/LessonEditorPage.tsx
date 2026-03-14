@@ -65,6 +65,13 @@ export default function LessonEditorPage() {
   const dragCounter = useRef(0);
   const settingsRef = useRef<HTMLDivElement>(null);
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -175,7 +182,7 @@ export default function LessonEditorPage() {
             <IconSettings />
           </button>
           {showLessonSettings && (
-            <div className="absolute top-full left-0 mt-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-xl p-4 z-50 w-72">
+            <div className="absolute top-full right-0 mt-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-xl p-4 z-50 w-72">
               <div className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3">Настройки урока</div>
               <div className="mb-3">
                 <div className="text-xs text-gray-500 dark:text-slate-400 mb-1.5">Цвет обложки</div>
@@ -235,35 +242,66 @@ export default function LessonEditorPage() {
         />
       )}
 
-      <div className="flex flex-1 min-h-0">
-        <aside className="w-48 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 flex flex-col flex-shrink-0">
-          <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100 dark:border-slate-700">
-            <span className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Слайды</span>
-            <button onClick={openTypePicker} title="Добавить слайд" className="p-1 rounded-md text-gray-400 dark:text-slate-500 hover:text-purple-600 hover:bg-purple-50 transition-colors"><IconPlus /></button>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {slides.length === 0
-              ? <div className="p-4 text-center text-xs text-gray-400 dark:text-slate-500">Нет слайдов</div>
-              : slides.map((slide, idx) => (
-                <SlideThumb
-                  key={slide.id} slide={slide} index={idx}
-                  isSelected={slide.id === selectedId}
-                  isDragOver={dragOverIdx === idx && dragIdx !== idx}
-                  onClick={() => setSelectedId(slide.id)}
-                  onDelete={() => deleteSlide(slide)}
-                  onDragStart={e => handleDragStart(e, idx)}
-                  onDragOver={e => handleDragOver(e, idx)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={e => handleDrop(e, idx)}
-                />
-              ))
-            }
-          </div>
-          <div className="border-t border-gray-100 dark:border-slate-700 p-2">
-            <button onClick={openTypePicker} className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-gray-500 dark:text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors">
-              <IconPlus />Добавить слайд
-            </button>
-          </div>
+      <div className="flex flex-col-reverse sm:flex-row flex-1 min-h-0">
+        <aside className={`bg-white dark:bg-slate-800 flex-shrink-0 ${isMobile ? 'h-20 border-t border-gray-200 dark:border-slate-700 flex flex-row items-stretch overflow-x-auto' : 'w-48 border-r border-gray-200 dark:border-slate-700 flex flex-col'}`}>
+          {isMobile ? (
+            <>
+              {slides.length === 0
+                ? <div className="flex items-center px-4 text-xs text-gray-400 dark:text-slate-500">Нет слайдов</div>
+                : slides.map((slide, idx) => (
+                  <SlideThumb
+                    key={slide.id} slide={slide} index={idx}
+                    isSelected={slide.id === selectedId}
+                    isDragOver={false}
+                    compact
+                    onClick={() => setSelectedId(slide.id)}
+                    onDelete={() => deleteSlide(slide)}
+                    onDragStart={e => handleDragStart(e, idx)}
+                    onDragOver={e => handleDragOver(e, idx)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={e => handleDrop(e, idx)}
+                  />
+                ))
+              }
+              <button
+                onClick={openTypePicker}
+                className="flex-shrink-0 flex flex-col items-center justify-center gap-0.5 px-3 text-gray-400 dark:text-slate-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 min-w-[48px] border-l border-gray-100 dark:border-slate-700 transition-colors"
+                title="Добавить слайд"
+              >
+                <IconPlus />
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100 dark:border-slate-700">
+                <span className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Слайды</span>
+                <button onClick={openTypePicker} title="Добавить слайд" className="p-1 rounded-md text-gray-400 dark:text-slate-500 hover:text-purple-600 hover:bg-purple-50 transition-colors"><IconPlus /></button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {slides.length === 0
+                  ? <div className="p-4 text-center text-xs text-gray-400 dark:text-slate-500">Нет слайдов</div>
+                  : slides.map((slide, idx) => (
+                    <SlideThumb
+                      key={slide.id} slide={slide} index={idx}
+                      isSelected={slide.id === selectedId}
+                      isDragOver={dragOverIdx === idx && dragIdx !== idx}
+                      onClick={() => setSelectedId(slide.id)}
+                      onDelete={() => deleteSlide(slide)}
+                      onDragStart={e => handleDragStart(e, idx)}
+                      onDragOver={e => handleDragOver(e, idx)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={e => handleDrop(e, idx)}
+                    />
+                  ))
+                }
+              </div>
+              <div className="border-t border-gray-100 dark:border-slate-700 p-2">
+                <button onClick={openTypePicker} className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-gray-500 dark:text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors">
+                  <IconPlus />Добавить слайд
+                </button>
+              </div>
+            </>
+          )}
         </aside>
 
         <main className="flex-1 flex flex-col min-w-0 min-h-0">

@@ -209,15 +209,32 @@ export default function KTPListPage() {
 
   return (
     <div onClick={() => setCtxMenu(null)}>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Календарно-тематические планы</h1>
-        {canCreate && (
-          <div className="flex gap-2">
+      <h1 className="text-2xl font-bold mb-3">Календарно-тематические планы</h1>
+
+      {/* Tabs + buttons row */}
+      {canCreate && (
+        <div className="flex items-center gap-2 mb-4">
+          <div className="flex gap-1 bg-gray-100 dark:bg-slate-800 rounded-lg p-1 flex-1 w-fit max-w-fit">
+            <button
+              onClick={() => setTab('mine')}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${tab === 'mine' ? 'bg-white dark:bg-slate-700 shadow text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'}`}
+            >
+              Мои
+            </button>
+            <button
+              onClick={() => setTab('all')}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${tab === 'all' ? 'bg-white dark:bg-slate-700 shadow text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'}`}
+            >
+              Все
+            </button>
+          </div>
+          <div className="flex gap-2 ml-auto">
             <label
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm cursor-pointer"
+              className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 text-sm cursor-pointer flex items-center gap-1.5"
               onClick={e => { e.stopPropagation(); openImportModal(); setTimeout(() => importFileRef.current?.click(), 50); }}
             >
-              Импортировать
+              <span>📥</span>
+              <span className="hidden sm:inline">Импортировать</span>
             </label>
             <input
               ref={importFileRef}
@@ -230,28 +247,11 @@ export default function KTPListPage() {
                 e.target.value = '';
               }}
             />
-            <button onClick={() => setShowCreate(!showCreate)} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm">
-              + Создать КТП
+            <button onClick={() => setShowCreate(!showCreate)} className="bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 text-sm flex items-center gap-1.5">
+              <span>+</span>
+              <span className="hidden sm:inline">Создать КТП</span>
             </button>
           </div>
-        )}
-      </div>
-
-      {/* Tabs */}
-      {canCreate && (
-        <div className="flex gap-1 mb-4 bg-gray-100 dark:bg-slate-800 rounded-lg p-1 w-fit">
-          <button
-            onClick={() => setTab('mine')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${tab === 'mine' ? 'bg-white dark:bg-slate-800 shadow text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'}`}
-          >
-            Мои
-          </button>
-          <button
-            onClick={() => setTab('all')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${tab === 'all' ? 'bg-white dark:bg-slate-800 shadow text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'}`}
-          >
-            Все
-          </button>
         </div>
       )}
 
