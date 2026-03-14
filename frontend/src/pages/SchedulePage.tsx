@@ -18,10 +18,6 @@ const VIEW_MODES: { key: ViewMode; label: string }[] = [
   { key: 'room', label: 'По кабинету' },
 ];
 
-const WEEKDAY_LABELS: Record<number, string> = {
-  1: 'Понедельник', 2: 'Вторник', 3: 'Среда', 4: 'Четверг', 5: 'Пятница',
-};
-
 const WEEKDAY_SHORT: Record<number, string> = {
   1: 'ПН', 2: 'ВТ', 3: 'СР', 4: 'ЧТ', 5: 'ПТ',
 };

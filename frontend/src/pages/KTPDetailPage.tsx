@@ -278,23 +278,6 @@ export default function KTPDetailPage() {
     }
   };
 
-  const addResource = () => {
-    if (!editTopic) return;
-    setEditTopic({ ...editTopic, resources: [...editTopic.resources, { title: '', url: '' }] });
-  };
-
-  const updateResource = (idx: number, field: 'title' | 'url', value: string) => {
-    if (!editTopic) return;
-    const resources = [...editTopic.resources];
-    resources[idx] = { ...resources[idx], [field]: value };
-    setEditTopic({ ...editTopic, resources });
-  };
-
-  const removeResource = (idx: number) => {
-    if (!editTopic) return;
-    setEditTopic({ ...editTopic, resources: editTopic.resources.filter((_, i) => i !== idx) });
-  };
-
   type LinkField = 'self_study_links' | 'additional_resources' | 'individual_folder';
 
   const addLink = (field: LinkField) => {
