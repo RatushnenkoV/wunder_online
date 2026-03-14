@@ -673,6 +673,174 @@ function ParentDashboard() {
   );
 }
 
+// ── Admin quick-access dashboard ──────────────────────────────────────────────
+
+const ALL_QUICK_ACCESS_OPTIONS = [
+  { to: '/news', label: 'Новости', description: 'Лента новостей' },
+  { to: '/schedule', label: 'Расписание', description: 'Расписание уроков' },
+  { to: '/tasks', label: 'Задачи', description: 'Менеджер задач' },
+  { to: '/chats', label: 'Чаты', description: 'Мессенджер' },
+  { to: '/projects', label: 'Проекты', description: 'Проекты класса' },
+  { to: '/requests', label: 'Заявки', description: 'АХО / ИТ заявки' },
+  { to: '/ktp', label: 'КТП', description: 'Тематическое планирование' },
+  { to: '/lessons', label: 'Уроки', description: 'Библиотека уроков' },
+  { to: '/yellow-list', label: 'Жёлтый список', description: 'Отчёты СППС' },
+  { to: '/school', label: 'Ученики', description: 'Управление учениками' },
+  { to: '/people', label: 'Сотрудники', description: 'Управление сотрудниками' },
+  { to: '/settings', label: 'Настройки', description: 'Параметры системы' },
+];
+
+interface QuickItem { to: string; label: string }
+
+function AdminDashboard() {
+  const { user } = useAuth();
+  const storageKey = `quickaccess:${user?.id}`;
+
+  const [items, setItems] = useState<QuickItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [showManage, setShowManage] = useState(false);
+
+  const save = (next: QuickItem[]) => {
+    setItems(next);
+    localStorage.setItem(storageKey, JSON.stringify(next));
+  };
+
+  const addItem = (item: QuickItem) => {
+    if (items.length >= 5 || items.some(i => i.to === item.to)) return;
+    save([...items, item]);
+  };
+
+  const removeItem = (to: string) => save(items.filter(i => i.to !== to));
+
+  const moveItem = (from: number, direction: -1 | 1) => {
+    const to = from + direction;
+    if (to < 0 || to >= items.length) return;
+    const next = [...items];
+    [next[from], next[to]] = [next[to], next[from]];
+    save(next);
+  };
+
+  const available = ALL_QUICK_ACCESS_OPTIONS.filter(o => !items.some(i => i.to === o.to));
+
+  return (
+    <div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+        {items.map(item => (
+          <Link
+            key={item.to}
+            to={item.to}
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-purple-300 dark:hover:border-purple-600 transition"
+          >
+            <h2 className="text-lg font-semibold text-purple-600 dark:text-purple-400">{item.label}</h2>
+          </Link>
+        ))}
+        {items.length < 5 && (
+          <button
+            onClick={() => setShowManage(true)}
+            className="bg-white dark:bg-slate-800 p-6 rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-600 hover:border-purple-400 dark:hover:border-purple-500 transition flex flex-col items-center justify-center gap-2 text-gray-400 dark:text-slate-500 hover:text-purple-500 dark:hover:text-purple-400 min-h-[96px]"
+          >
+            <span className="text-3xl font-light leading-none">+</span>
+            <span className="text-sm">Добавить пункт быстрого доступа</span>
+          </button>
+        )}
+      </div>
+
+      <div className="flex justify-end mt-2">
+        <button
+          onClick={() => setShowManage(true)}
+          className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Настроить
+        </button>
+      </div>
+
+      {showManage && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowManage(false)}>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-slate-700">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100">Быстрый доступ</h3>
+              <button onClick={() => setShowManage(false)} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Current items */}
+              <div>
+                <p className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-2">
+                  Текущие пункты ({items.length}/5)
+                </p>
+                {items.length === 0 ? (
+                  <p className="text-sm text-gray-400 dark:text-slate-500 italic">Список пуст</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {items.map((item, idx) => (
+                      <div key={item.to} className="flex items-center gap-2 bg-gray-50 dark:bg-slate-700 rounded-lg px-3 py-2">
+                        <div className="flex flex-col gap-0">
+                          <button
+                            onClick={() => moveItem(idx, -1)}
+                            disabled={idx === 0}
+                            className="text-gray-400 dark:text-slate-500 hover:text-gray-600 disabled:opacity-25 text-[10px] leading-none px-0.5"
+                            title="Вверх"
+                          >▲</button>
+                          <button
+                            onClick={() => moveItem(idx, 1)}
+                            disabled={idx === items.length - 1}
+                            className="text-gray-400 dark:text-slate-500 hover:text-gray-600 disabled:opacity-25 text-[10px] leading-none px-0.5"
+                            title="Вниз"
+                          >▼</button>
+                        </div>
+                        <span className="flex-1 text-sm font-medium text-gray-800 dark:text-slate-200">{item.label}</span>
+                        <button
+                          onClick={() => removeItem(item.to)}
+                          className="text-sm text-red-400 hover:text-red-600 transition-colors"
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add items */}
+              {items.length < 5 && available.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-2">
+                    Добавить
+                  </p>
+                  <div className="space-y-0.5">
+                    {available.map(opt => (
+                      <button
+                        key={opt.to}
+                        onClick={() => addItem(opt)}
+                        className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-purple-50 dark:hover:bg-purple-900/20 text-gray-700 dark:text-slate-300 hover:text-purple-700 dark:hover:text-purple-400 flex items-center justify-between transition-colors"
+                      >
+                        <span className="font-medium">{opt.label}</span>
+                        <span className="text-xs text-gray-400 dark:text-slate-500">{opt.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -707,24 +875,11 @@ export default function DashboardPage() {
     );
   }
 
-  // Admin-only view
+  // Admin (non-teacher) view — configurable quick access
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Добро пожаловать, {user.first_name}!</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Link to="/ktp" className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow hover:shadow-md transition">
-          <h2 className="text-lg font-semibold text-purple-600 mb-2">КТП</h2>
-          <p className="text-gray-500 dark:text-slate-400 text-sm">Календарно-тематическое планирование</p>
-        </Link>
-        <Link to="/admin/people" className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow hover:shadow-md transition">
-          <h2 className="text-lg font-semibold text-purple-600 mb-2">Люди</h2>
-          <p className="text-gray-500 dark:text-slate-400 text-sm">Сотрудники и ученики</p>
-        </Link>
-        <Link to="/admin/school" className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow hover:shadow-md transition">
-          <h2 className="text-lg font-semibold text-purple-600 mb-2">Школа</h2>
-          <p className="text-gray-500 dark:text-slate-400 text-sm">Классы, предметы, параллели, выходные</p>
-        </Link>
-      </div>
+      <AdminDashboard />
     </div>
   );
 }

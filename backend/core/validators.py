@@ -46,3 +46,4 @@ ALLOWED_EXCEL = [
     'application/vnd.ms-excel',  # .xls
     'application/octet-stream',  # некоторые браузеры отправляют xlsx так
 ]
+ALLOWED_EXCEL_CSV = ALLOWED_EXCEL + ['text/csv', 'text/plain']  # + csv

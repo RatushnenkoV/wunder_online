@@ -8,4 +8,5 @@ urlpatterns = [
     path('<int:pk>/', views.post_detail),
     path('<int:pk>/publish/', views.publish_toggle),
     path('<int:pk>/read/', views.mark_read),
+    path('<int:pk>/react/', views.react),
 ]

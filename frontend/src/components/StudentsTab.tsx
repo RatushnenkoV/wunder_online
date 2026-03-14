@@ -656,6 +656,18 @@ export default function StudentsTab({ readOnly = false }: { readOnly?: boolean }
                 <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Номер личного дела</label>
                 <input value={editForm.personal_file_number} onChange={e => setEditForm(f => ({ ...f, personal_file_number: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm font-mono" placeholder="Б-31" />
               </div>
+              {editUser.must_change_password && editUser.temp_password && (
+                <div>
+                  <label className="block text-sm text-gray-600 dark:text-slate-400 mb-1">Временный пароль</label>
+                  <button
+                    onClick={() => copyToClipboard(editUser.temp_password!, 'edit_temp')}
+                    className="w-full text-left bg-yellow-50 text-yellow-700 px-3 py-2 rounded text-sm font-mono hover:bg-yellow-100 transition-colors cursor-copy border border-yellow-200"
+                    title="Нажмите, чтобы скопировать"
+                  >
+                    {copiedField === 'edit_temp' ? '✓ Скопировано' : editUser.temp_password}
+                  </button>
+                </div>
+              )}
 
               {/* Родители */}
               {studentProfileId !== null && (

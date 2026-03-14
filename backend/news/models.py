@@ -70,3 +70,29 @@ class NewsRead(models.Model):
 
     def __str__(self):
         return f'{self.user} прочитал {self.post_id}'
+
+
+class NewsReaction(models.Model):
+    """One emoji reaction per user per post."""
+    post = models.ForeignKey(
+        NewsPost,
+        on_delete=models.CASCADE,
+        related_name='reactions',
+        verbose_name='Новость',
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='news_reactions',
+        verbose_name='Пользователь',
+    )
+    emoji = models.CharField('Эмодзи', max_length=10)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [['post', 'user']]
+        verbose_name = 'Реакция'
+        verbose_name_plural = 'Реакции'
+
+    def __str__(self):
+        return f'{self.user} {self.emoji} на {self.post_id}'

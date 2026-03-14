@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import type { FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,14 +26,16 @@ export default function KTPDetailPage() {
   const [ctp, setCtp] = useState<CTPDetail | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [editTopic, setEditTopic] = useState<Topic | null>(null);
-  const [newTitle, setNewTitle] = useState('');
-  const [bulkTitles, setBulkTitles] = useState('');
-  const [showBulk, setShowBulk] = useState(false);
   const [showCopy, setShowCopy] = useState(false);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [copyClassId, setCopyClassId] = useState(0);
-  const [importFile, setImportFile] = useState<File | null>(null);
   const [message, setMessage] = useState('');
+
+  // Add topics modal
+  const [showAddTopics, setShowAddTopics] = useState(false);
+  const [addTopicsText, setAddTopicsText] = useState('');
+  const [importingFile, setImportingFile] = useState(false);
+  const addTopicsFileRef = useRef<HTMLInputElement>(null);
   const [ctxMenu, setCtxMenu] = useState<{ topic: Topic; x: number; y: number } | null>(null);
 
   const [pickerLessons, setPickerLessons] = useState<Lesson[]>([]);
@@ -84,21 +85,36 @@ export default function KTPDetailPage() {
   const canEdit = isOwner;
   const canClone = user?.is_teacher || user?.is_admin;
 
-  const handleAddTopic = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-    await api.post(`/ktp/${id}/topics/`, { title: newTitle.trim() });
-    setNewTitle('');
+  const handleAddTopicsSubmit = async () => {
+    const titles = addTopicsText.split('\n').map(t => t.trim()).filter(Boolean);
+    if (!titles.length) return;
+    await api.post(`/ktp/${id}/topics/bulk-create/`, { titles });
+    setAddTopicsText('');
+    setShowAddTopics(false);
     load();
   };
 
-  const handleBulkCreate = async () => {
-    const titles = bulkTitles.split('\n').map(t => t.trim()).filter(Boolean);
-    if (titles.length === 0) return;
-    await api.post(`/ktp/${id}/topics/bulk-create/`, { titles });
-    setBulkTitles('');
-    setShowBulk(false);
-    load();
+  const handleAddTopicsFile = async (file: File) => {
+    setImportingFile(true);
+    try {
+      if (file.name.toLowerCase().endsWith('.txt')) {
+        const text = await file.text();
+        const titles = text.split('\n').map(t => t.trim()).filter(Boolean);
+        await api.post(`/ktp/${id}/topics/bulk-create/`, { titles });
+        setMessage(`Импортировано тем: ${titles.length}`);
+      } else {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await api.post(`/ktp/${id}/topics/import/`, fd);
+        setMessage(`Импортировано тем: ${res.data.created_count}`);
+      }
+      setShowAddTopics(false);
+      load();
+    } catch (err: any) {
+      setMessage(err.response?.data?.detail || 'Ошибка импорта');
+    } finally {
+      setImportingFile(false);
+    }
   };
 
   const handleBulkDelete = async (topicIds?: number[]) => {
@@ -240,20 +256,6 @@ export default function KTPDetailPage() {
     navigate(`/ktp/${res.data.id}`);
   };
 
-  const handleImportTopics = async () => {
-    if (!importFile) return;
-    const fd = new FormData();
-    fd.append('file', importFile);
-    try {
-      const res = await api.post(`/ktp/${id}/topics/import/`, fd);
-      setMessage(`Импортировано тем: ${res.data.created_count}`);
-      setImportFile(null);
-      load();
-    } catch (err: any) {
-      setMessage(err.response?.data?.detail || 'Ошибка импорта');
-    }
-  };
-
   const handleDeleteCtp = async () => {
     if (!confirm('Удалить КТП?')) return;
     await api.delete(`/ktp/${id}/`);
@@ -291,6 +293,25 @@ export default function KTPDetailPage() {
   const removeResource = (idx: number) => {
     if (!editTopic) return;
     setEditTopic({ ...editTopic, resources: editTopic.resources.filter((_, i) => i !== idx) });
+  };
+
+  type LinkField = 'self_study_links' | 'additional_resources' | 'individual_folder';
+
+  const addLink = (field: LinkField) => {
+    if (!editTopic) return;
+    setEditTopic({ ...editTopic, [field]: [...editTopic[field], { title: '', url: '' }] });
+  };
+
+  const updateLink = (field: LinkField, idx: number, key: 'title' | 'url', value: string) => {
+    if (!editTopic) return;
+    const arr = [...editTopic[field]];
+    arr[idx] = { ...arr[idx], [key]: value };
+    setEditTopic({ ...editTopic, [field]: arr });
+  };
+
+  const removeLink = (field: LinkField, idx: number) => {
+    if (!editTopic) return;
+    setEditTopic({ ...editTopic, [field]: editTopic[field].filter((_, i) => i !== idx) });
   };
 
   // --- Drag and drop reorder ---
@@ -374,30 +395,31 @@ export default function KTPDetailPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">{ctp.subject_name}</h1>
-            {canEdit && (
-              <button onClick={openEditMeta} className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700" title="Редактировать">✏️</button>
-            )}
-          </div>
-          <p className="text-gray-500 dark:text-slate-400">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-1">{ctp.subject_name}</h1>
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-gray-500 dark:text-slate-400 text-sm flex-1 min-w-0">
             {ctp.class_name} | Учитель: {ctp.teacher_name}
             {!ctp.is_public && <span className="ml-2 bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded">Скрытый</span>}
           </p>
-        </div>
-        <div className="flex gap-2">
-          {canClone && (
-            <button onClick={() => { setShowCopy(true); api.get('/school/classes/').then(r => setClasses(r.data)); }} className="bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 px-3 py-2 rounded text-sm hover:bg-gray-300">
-              Клонировать
-            </button>
-          )}
-          {canEdit && (
-            <button onClick={handleDeleteCtp} className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm hover:bg-red-200">
-              Удалить КТП
-            </button>
-          )}
+          <div className="flex gap-1.5 items-center shrink-0">
+            {canEdit && (
+              <button onClick={openEditMeta} className="flex items-center gap-1 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 px-2 py-1.5 rounded text-sm hover:bg-gray-200 dark:hover:bg-slate-600" title="Редактировать">
+                <span>✏️</span><span className="hidden sm:inline">Редактировать</span>
+              </button>
+            )}
+            {canClone && (
+              <button onClick={() => { setShowCopy(true); api.get('/school/classes/').then(r => setClasses(r.data)); }} className="flex items-center gap-1 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 px-2 py-1.5 rounded text-sm hover:bg-gray-200 dark:hover:bg-slate-600">
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="currentColor"><rect x="5" y="5" width="8" height="9" rx="1" opacity="0.5"/><rect x="3" y="2" width="8" height="9" rx="1" stroke="currentColor" strokeWidth="1.2" fill="none"/></svg>
+                <span className="hidden sm:inline">Клонировать</span>
+              </button>
+            )}
+            {canEdit && (
+              <button onClick={() => setShowAddTopics(true)} className="flex items-center gap-1.5 bg-purple-600 text-white px-4 py-1.5 rounded text-sm hover:bg-purple-700">
+                <span>+</span><span className="hidden sm:inline">Добавить тему</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -408,66 +430,30 @@ export default function KTPDetailPage() {
         </div>
       )}
 
-      {/* Copy dialog */}
+      {/* Copy modal */}
       {showCopy && (
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow mb-4 flex gap-4 items-end">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Клонировать в класс</label>
-            <select value={copyClassId} onChange={e => setCopyClassId(parseInt(e.target.value))} className="border rounded px-3 py-2 text-sm">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowCopy(false)}>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-1">Клонировать КТП</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">{ctp.subject_name} — {ctp.class_name}</p>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Целевой класс</label>
+            <select value={copyClassId} onChange={e => setCopyClassId(parseInt(e.target.value))} className="border rounded px-3 py-2 text-sm w-full mb-4">
               <option value={0}>Выберите класс</option>
               {classes.map(c => <option key={c.id} value={c.id}>{c.display_name}</option>)}
             </select>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowCopy(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded">Отмена</button>
+              <button onClick={handleCopy} disabled={!copyClassId} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700 disabled:opacity-50">Клонировать</button>
+            </div>
           </div>
-          <button onClick={handleCopy} disabled={!copyClassId} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700 disabled:opacity-50">Клонировать</button>
-          <button onClick={() => setShowCopy(false)} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 text-sm">Отмена</button>
         </div>
       )}
 
-      {/* Toolbar */}
-      {canEdit && (
-        <div className="flex gap-2 mb-4 flex-wrap items-start">
-          {!showBulk ? (
-            <form onSubmit={handleAddTopic} className="flex gap-2 flex-1">
-              <input placeholder="Новая тема..." value={newTitle} onChange={e => setNewTitle(e.target.value)} className="border rounded px-3 py-2 text-sm flex-1" />
-              <button type="submit" className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">+</button>
-            </form>
-          ) : (
-            <div className="flex-1">
-              <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1">Каждая строка — отдельная тема</label>
-              <div className="flex gap-2">
-                <textarea
-                  value={bulkTitles}
-                  onChange={e => setBulkTitles(e.target.value)}
-                  rows={4}
-                  className="border rounded px-3 py-2 text-sm flex-1 resize-none"
-                  placeholder={"Тема 1\nТема 2\nТема 3"}
-                  autoFocus
-                />
-                <div className="flex flex-col gap-1">
-                  <button onClick={handleBulkCreate} className="bg-purple-600 text-white px-3 py-2 rounded text-sm hover:bg-purple-700 whitespace-nowrap">Добавить</button>
-                  <button onClick={() => { setShowBulk(false); setBulkTitles(''); }} className="text-gray-500 dark:text-slate-400 px-3 py-2 rounded text-sm hover:bg-gray-100 dark:hover:bg-slate-700">Отмена</button>
-                </div>
-              </div>
-            </div>
-          )}
-          <button
-            onClick={() => { setShowBulk(b => !b); setBulkTitles(''); }}
-            className={`px-3 py-2 rounded text-sm ${showBulk ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-300'}`}
-          >
-            Пакетно
-          </button>
-          <label className="bg-green-600 text-white px-3 py-2 rounded text-sm cursor-pointer hover:bg-green-700">
-            Импорт
-            <input type="file" accept=".csv,.xlsx" className="hidden" onChange={e => { setImportFile(e.target.files?.[0] || null); }} />
-          </label>
-          {importFile && <button onClick={handleImportTopics} className="bg-green-700 text-white px-3 py-2 rounded text-sm">{importFile.name}</button>}
-          <button onClick={() => openAutofill()} className="bg-purple-600 text-white px-3 py-2 rounded text-sm hover:bg-purple-700">Распределить даты</button>
-          {selected.size > 0 && (
-            <>
-              <button onClick={() => handleDuplicate()} className="bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 px-3 py-2 rounded text-sm">Дублировать ({selected.size})</button>
-              <button onClick={() => handleBulkDelete()} className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm">Удалить ({selected.size})</button>
-            </>
-          )}
+      {/* Bulk actions (shown when topics are selected) */}
+      {canEdit && selected.size > 0 && (
+        <div className="flex gap-2 mb-3">
+          <button onClick={() => handleDuplicate()} className="bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 px-3 py-2 rounded text-sm hover:bg-gray-300">Дублировать ({selected.size})</button>
+          <button onClick={() => handleBulkDelete()} className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm hover:bg-red-200">Удалить ({selected.size})</button>
         </div>
       )}
 
@@ -505,7 +491,7 @@ export default function KTPDetailPage() {
 
       {/* Topics table */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-x-auto">
-        <table className="w-full text-sm min-w-[900px]">
+        <table className="w-full text-sm md:min-w-[900px]">
           <thead className="bg-gray-50 dark:bg-slate-900">
             <tr>
               {canEdit && (
@@ -514,15 +500,26 @@ export default function KTPDetailPage() {
                 </th>
               )}
               <th className="px-3 py-3 text-left font-medium text-gray-600 dark:text-slate-400 w-10">#</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400 min-w-[200px]">Тема</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400 w-24">Дата</th>
-              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10" title="Домашнее задание">ДЗ</th>
-              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10" title="Комментарии">💬</th>
-              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10" title="Ссылки на самообучение">📚</th>
-              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10" title="Дополнительные ресурсы">🔗</th>
-              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10" title="Индивид. папка ученика">📁</th>
-              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10" title="КСП">📋</th>
-              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10" title="Ссылка на презентацию">🖥️</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400 min-w-[160px]">Тема</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-slate-400 w-28">
+                <div className="flex items-center gap-1">
+                  <span>Дата</span>
+                  {canEdit && (
+                    <button
+                      onClick={() => openAutofill()}
+                      className="text-purple-500 hover:text-purple-700 text-xs rounded px-1 py-0.5 hover:bg-purple-50 dark:hover:bg-purple-900/20 leading-none"
+                      title="Распределить даты"
+                    >📅</button>
+                  )}
+                </div>
+              </th>
+              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10 hidden md:table-cell" title="Домашнее задание">ДЗ</th>
+              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10 hidden md:table-cell" title="Комментарии">💬</th>
+              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10 hidden md:table-cell" title="Ссылки на самообучение">📚</th>
+              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10 hidden md:table-cell" title="Дополнительные ресурсы">🔗</th>
+              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10 hidden md:table-cell" title="Индивид. папка ученика">📁</th>
+              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10 hidden md:table-cell" title="КСП">📋</th>
+              <th className="px-2 py-3 text-center font-medium text-gray-600 dark:text-slate-400 w-10 hidden md:table-cell" title="Ссылка на презентацию">🖥️</th>
               <th className="w-8"></th>
             </tr>
           </thead>
@@ -561,33 +558,33 @@ export default function KTPDetailPage() {
                   )}
                 </td>
                 <td className="px-4 py-2 text-gray-500 dark:text-slate-400 whitespace-nowrap">{topic.date || '—'}</td>
-                <td className="px-2 py-2 text-center">
+                <td className="px-2 py-2 text-center hidden md:table-cell">
                   {topic.homework ? <span className="text-green-600">✓</span> : <span className="text-gray-300 dark:text-slate-600">—</span>}
                 </td>
-                <td className="px-2 py-2 text-center">
+                <td className="px-2 py-2 text-center hidden md:table-cell">
                   {topic.comments ? <span className="text-blue-500">✓</span> : <span className="text-gray-300 dark:text-slate-600">—</span>}
                 </td>
-                <td className="px-2 py-2 text-center">
-                  {topic.self_study_links ? (
-                    <a href={topic.self_study_links} target="_blank" rel="noopener noreferrer" className="text-purple-500 hover:text-purple-700" onClick={e => e.stopPropagation()}>↗</a>
+                <td className="px-2 py-2 text-center hidden md:table-cell">
+                  {topic.self_study_links.length > 0 ? (
+                    <span className="text-purple-500 text-xs font-medium">{topic.self_study_links.length}</span>
                   ) : <span className="text-gray-300 dark:text-slate-600">—</span>}
                 </td>
-                <td className="px-2 py-2 text-center">
-                  {topic.additional_resources ? (
-                    <a href={topic.additional_resources} target="_blank" rel="noopener noreferrer" className="text-purple-500 hover:text-purple-700" onClick={e => e.stopPropagation()}>↗</a>
+                <td className="px-2 py-2 text-center hidden md:table-cell">
+                  {topic.additional_resources.length > 0 ? (
+                    <span className="text-purple-500 text-xs font-medium">{topic.additional_resources.length}</span>
                   ) : <span className="text-gray-300 dark:text-slate-600">—</span>}
                 </td>
-                <td className="px-2 py-2 text-center">
-                  {topic.individual_folder ? (
-                    <a href={topic.individual_folder} target="_blank" rel="noopener noreferrer" className="text-purple-500 hover:text-purple-700" onClick={e => e.stopPropagation()}>↗</a>
+                <td className="px-2 py-2 text-center hidden md:table-cell">
+                  {topic.individual_folder.length > 0 ? (
+                    <span className="text-purple-500 text-xs font-medium">{topic.individual_folder.length}</span>
                   ) : <span className="text-gray-300 dark:text-slate-600">—</span>}
                 </td>
-                <td className="px-2 py-2 text-center">
+                <td className="px-2 py-2 text-center hidden md:table-cell">
                   {topic.ksp ? (
                     <a href={topic.ksp} target="_blank" rel="noopener noreferrer" className="text-purple-500 hover:text-purple-700" onClick={e => e.stopPropagation()}>↗</a>
                   ) : <span className="text-gray-300 dark:text-slate-600">—</span>}
                 </td>
-                <td className="px-2 py-2 text-center">
+                <td className="px-2 py-2 text-center hidden md:table-cell">
                   {topic.presentation_link ? (
                     <a href={topic.presentation_link} target="_blank" rel="noopener noreferrer" className="text-purple-500 hover:text-purple-700" onClick={e => e.stopPropagation()}>↗</a>
                   ) : <span className="text-gray-300 dark:text-slate-600">—</span>}
@@ -606,6 +603,56 @@ export default function KTPDetailPage() {
           <p className="text-center text-gray-400 dark:text-slate-500 py-8">Темы не добавлены</p>
         )}
       </div>
+
+      {/* Delete button at bottom */}
+      {canEdit && (
+        <div className="mt-8 pt-4 border-t border-gray-100 dark:border-slate-700">
+          <button onClick={handleDeleteCtp} className="flex items-center gap-1.5 text-red-600 dark:text-red-400 text-sm hover:text-red-800 hover:underline">
+            <span>🗑️</span><span>Удалить КТП</span>
+          </button>
+        </div>
+      )}
+
+      {/* Add topics modal */}
+      {showAddTopics && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowAddTopics(false)}>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-3">Добавить темы</h3>
+            <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1">Каждая строка — отдельная тема</label>
+            <textarea
+              value={addTopicsText}
+              onChange={e => setAddTopicsText(e.target.value)}
+              rows={7}
+              className="w-full border rounded px-3 py-2 text-sm mb-4 resize-none dark:bg-slate-700 dark:border-slate-600"
+              placeholder={"Тема 1\nТема 2\nТема 3"}
+              autoFocus
+            />
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <label className={`bg-green-600 text-white px-3 py-2 rounded text-sm cursor-pointer hover:bg-green-700 flex items-center gap-1.5 ${importingFile ? 'opacity-60 pointer-events-none' : ''}`}>
+                <span>📥</span>
+                <span>{importingFile ? 'Импорт...' : 'Импорт из файла'}</span>
+                <input
+                  ref={addTopicsFileRef}
+                  type="file"
+                  accept=".txt,.csv,.xlsx"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleAddTopicsFile(f); e.target.value = ''; }}
+                />
+              </label>
+              <div className="flex gap-2">
+                <button onClick={() => { setShowAddTopics(false); setAddTopicsText(''); }} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded">Отмена</button>
+                <button
+                  onClick={handleAddTopicsSubmit}
+                  disabled={!addTopicsText.trim()}
+                  className="px-4 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 disabled:opacity-50"
+                >
+                  Добавить
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit CTP meta modal */}
       {showEditMeta && (
@@ -737,18 +784,26 @@ export default function KTPDetailPage() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Домашнее задание</label>
                     <textarea value={editTopic.homework} onChange={e => setEditTopic({ ...editTopic, homework: e.target.value })} rows={3} className="w-full border rounded px-3 py-2 text-sm" />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Ссылки на самообучение</label>
-                    <input value={editTopic.self_study_links} onChange={e => setEditTopic({ ...editTopic, self_study_links: e.target.value })} className="w-full border rounded px-3 py-2 text-sm" placeholder="https://..." />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Дополнительные ресурсы</label>
-                    <input value={editTopic.additional_resources} onChange={e => setEditTopic({ ...editTopic, additional_resources: e.target.value })} className="w-full border rounded px-3 py-2 text-sm" placeholder="https://..." />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Индивид. папка ученика</label>
-                    <input value={editTopic.individual_folder} onChange={e => setEditTopic({ ...editTopic, individual_folder: e.target.value })} className="w-full border rounded px-3 py-2 text-sm" placeholder="https://..." />
-                  </div>
+                  {(['self_study_links', 'additional_resources', 'individual_folder'] as const).map(field => {
+                    const labels: Record<string, string> = {
+                      self_study_links: 'Ссылки на самообучение',
+                      additional_resources: 'Дополнительные ресурсы',
+                      individual_folder: 'Индивид. папка ученика',
+                    };
+                    return (
+                      <div key={field}>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">{labels[field]}</label>
+                        {editTopic[field].map((r, i) => (
+                          <div key={i} className="flex gap-2 mb-2">
+                            <input placeholder="Название" value={r.title} onChange={e => updateLink(field, i, 'title', e.target.value)} className="border rounded px-3 py-2 text-sm flex-1" />
+                            <input placeholder="URL" value={r.url} onChange={e => updateLink(field, i, 'url', e.target.value)} className="border rounded px-3 py-2 text-sm flex-1" />
+                            <button onClick={() => removeLink(field, i)} className="text-red-400 hover:text-red-600">×</button>
+                          </div>
+                        ))}
+                        <button onClick={() => addLink(field)} className="text-purple-600 hover:text-purple-800 text-sm">+ Добавить ссылку</button>
+                      </div>
+                    );
+                  })}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">КСП</label>
                     <input value={editTopic.ksp} onChange={e => setEditTopic({ ...editTopic, ksp: e.target.value })} className="w-full border rounded px-3 py-2 text-sm" placeholder="https://..." />
@@ -765,19 +820,21 @@ export default function KTPDetailPage() {
                       className="w-full border rounded px-3 py-2 text-sm"
                     >
                       <option value="">— не привязан —</option>
-                      {pickerLessons.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
+                      {pickerLessons.filter(l => l.is_owner).length > 0 && (
+                        <optgroup label="Мои уроки">
+                          {pickerLessons.filter(l => l.is_owner).map(l => (
+                            <option key={l.id} value={l.id}>{l.folder_name ? `[${l.folder_name}] ` : ''}{l.title}</option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {pickerLessons.filter(l => !l.is_owner).length > 0 && (
+                        <optgroup label="Уроки школы">
+                          {pickerLessons.filter(l => !l.is_owner).map(l => (
+                            <option key={l.id} value={l.id}>{l.owner_name}: {l.title}</option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Ссылки на материалы</label>
-                    {editTopic.resources.map((r, i) => (
-                      <div key={i} className="flex gap-2 mb-2">
-                        <input placeholder="Название" value={r.title} onChange={e => updateResource(i, 'title', e.target.value)} className="border rounded px-3 py-2 text-sm flex-1" />
-                        <input placeholder="URL" value={r.url} onChange={e => updateResource(i, 'url', e.target.value)} className="border rounded px-3 py-2 text-sm flex-1" />
-                        <button onClick={() => removeResource(i)} className="text-red-400 hover:text-red-600">x</button>
-                      </div>
-                    ))}
-                    <button onClick={addResource} className="text-purple-600 hover:text-purple-800 text-sm">+ Добавить ссылку</button>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Файлы</label>
@@ -836,6 +893,29 @@ export default function KTPDetailPage() {
                       </a>
                     </div>
                   )}
+                  {(['self_study_links', 'additional_resources', 'individual_folder'] as const).map(field => {
+                    const labels: Record<string, string> = {
+                      self_study_links: 'Ссылки на самообучение',
+                      additional_resources: 'Дополнительные ресурсы',
+                      individual_folder: 'Индивид. папка ученика',
+                    };
+                    const links = editTopic[field];
+                    if (links.length === 0) return null;
+                    return (
+                      <div key={field}>
+                        <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1">{labels[field]}</label>
+                        <ul className="space-y-1">
+                          {links.map((r, i) => (
+                            <li key={i}>
+                              <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm text-purple-600 hover:text-purple-800 hover:underline">
+                                {r.title || r.url}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
                   {editTopic.files.length > 0 && (
                     <div>
                       <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1">Файлы</label>
@@ -850,7 +930,8 @@ export default function KTPDetailPage() {
                       </ul>
                     </div>
                   )}
-                  {!editTopic.homework && editTopic.resources.length === 0 && editTopic.files.length === 0 && (
+                  {!editTopic.homework && editTopic.resources.length === 0 && editTopic.files.length === 0 &&
+                   editTopic.self_study_links.length === 0 && editTopic.additional_resources.length === 0 && editTopic.individual_folder.length === 0 && (
                     <p className="text-sm text-gray-400 dark:text-slate-500">Нет дополнительной информации</p>
                   )}
                 </div>

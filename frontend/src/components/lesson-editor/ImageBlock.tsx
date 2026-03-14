@@ -9,8 +9,8 @@ function IconImage() {
 const ImageBlock = memo(function ImageBlock({ block, lessonId, onSave }: { block: SlideBlock; lessonId: number; onSave: (src: string) => void }) {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // Отслеживаем начало mousedown, чтобы не открывать диалог при перетаскивании блока
   const mouseDownPosRef = useRef<{ x: number; y: number } | null>(null);
+  const lastTapRef = useRef<number>(0);
 
   const upload = async (file: File) => {
     if (!file.type.startsWith('image/')) return;
@@ -27,12 +27,14 @@ const ImageBlock = memo(function ImageBlock({ block, lessonId, onSave }: { block
     return (
       <div className="w-full h-full relative group" onClick={e => e.stopPropagation()}>
         <img src={block.src} alt={block.alt ?? ''} className="w-full h-full object-contain" draggable={false} onDragStart={e => e.preventDefault()} />
-        <button
+        <label
           onMouseDown={e => e.stopPropagation()}
-          onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }}
-          className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-xs bg-black/50 text-white rounded"
-        >Заменить</button>
-        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); }} />
+          onClick={e => e.stopPropagation()}
+          className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-xs bg-black/50 text-white rounded cursor-pointer"
+        >
+          Заменить
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ''; }} />
+        </label>
       </div>
     );
   }
@@ -41,9 +43,19 @@ const ImageBlock = memo(function ImageBlock({ block, lessonId, onSave }: { block
     <div
       className="w-full h-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded bg-gray-50 dark:bg-slate-900 text-gray-400 dark:text-slate-500 cursor-pointer hover:border-purple-400 hover:text-purple-400 transition-colors"
       onMouseDown={e => { mouseDownPosRef.current = { x: e.clientX, y: e.clientY }; }}
+      onTouchEnd={e => {
+        // Двойной тап открывает файловый диалог (первый тап — выбор блока)
+        const now = Date.now();
+        if (now - lastTapRef.current < 350) {
+          lastTapRef.current = 0;
+          e.stopPropagation();
+          fileInputRef.current?.click();
+        } else {
+          lastTapRef.current = now;
+        }
+      }}
       onClick={e => {
         e.stopPropagation();
-        // Не открываем диалог если произошло перетаскивание (mousedown → mousemove > 5px)
         if (mouseDownPosRef.current) {
           const dx = e.clientX - mouseDownPosRef.current.x;
           const dy = e.clientY - mouseDownPosRef.current.y;
@@ -52,8 +64,8 @@ const ImageBlock = memo(function ImageBlock({ block, lessonId, onSave }: { block
         fileInputRef.current?.click();
       }}
     >
-      {uploading ? <span className="text-sm">Загрузка...</span> : <><IconImage /><span className="text-xs">Нажмите для загрузки</span></>}
-      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); }} />
+      {uploading ? <span className="text-sm">Загрузка...</span> : <><IconImage /><span className="text-xs">Дважды нажмите для загрузки</span></>}
+      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ''; }} />
     </div>
   );
 });

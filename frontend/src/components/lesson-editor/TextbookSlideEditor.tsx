@@ -28,6 +28,13 @@ export default function TextbookSlideEditor({ slide, lessonId, onSaved }: { slid
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const [pdfWidth, setPdfWidth] = useState(560);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   // Load grade levels once
   useEffect(() => {
@@ -112,179 +119,184 @@ export default function TextbookSlideEditor({ slide, lessonId, onSaved }: { slid
     ? textbooks.filter(t => t.subject_name === subjectFilter)
     : textbooks;
 
-  return (
-    <div className="flex h-full min-h-0">
-
-      {/* ── Левая панель: навигация ─────────────────────────────────── */}
-      <div className="w-72 flex-shrink-0 flex flex-col border-r border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 min-h-0">
-
-        {/* Заголовок панели */}
-        <div className="h-10 border-b bg-white dark:bg-slate-800 flex items-center gap-1.5 px-3 flex-shrink-0">
-          {selectedGL && gradeLevels.length > 1 && (
-            <button
-              onClick={() => { setSelectedGL(null); }}
-              className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-400 flex-shrink-0"
-              title="Назад"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-          )}
-          <span className="text-sm font-medium text-gray-700 dark:text-slate-300 truncate">
-            {selectedGL ? selectedGL.name : 'Параллели'}
-          </span>
-        </div>
-
-        {/* Список параллелей */}
-        {!selectedGL && (
-          <div className="flex-1 overflow-y-auto p-3">
-            {gradeLevels.length === 0 ? (
-              <div className="text-center text-gray-400 dark:text-slate-500 text-sm py-8">Нет параллелей</div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {gradeLevels.map(gl => (
-                  <button
-                    key={gl.id}
-                    onClick={() => setSelectedGL(gl)}
-                    className="flex flex-col items-center justify-center gap-1 p-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl hover:border-purple-400 hover:bg-purple-50 transition-all"
-                  >
-                    <span className="text-xl font-bold text-emerald-600">{gl.number}</span>
-                    <span className="text-xs text-gray-600 dark:text-slate-400">{gl.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+  // Общий блок выбора учебника (используется и в десктопной и мобильной версии)
+  const selectorPanel = (
+    <>
+      {/* Заголовок панели */}
+      <div className="h-10 border-b bg-white dark:bg-slate-800 flex items-center gap-1.5 px-3 flex-shrink-0">
+        {selectedGL && gradeLevels.length > 1 && (
+          <button
+            onClick={() => setSelectedGL(null)}
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-400 flex-shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
         )}
+        <span className="text-sm font-medium text-gray-700 dark:text-slate-300 truncate">
+          {selectedGL ? selectedGL.name : 'Параллели'}
+        </span>
+      </div>
 
-        {/* Список учебников */}
-        {selectedGL && (
-          <div className="flex-1 flex flex-col min-h-0">
-            {/* Фильтр по предмету */}
-            {subjects.length > 1 && (
-              <div className="px-3 py-2 flex flex-wrap gap-1 border-b border-gray-100 dark:border-slate-700 flex-shrink-0">
+      {/* Список параллелей */}
+      {!selectedGL && (
+        <div className="flex-1 overflow-y-auto p-3">
+          {gradeLevels.length === 0 ? (
+            <div className="text-center text-gray-400 dark:text-slate-500 text-sm py-8">Нет параллелей</div>
+          ) : (
+            <div className={`grid gap-2 ${isMobile ? 'grid-cols-4' : 'grid-cols-2'}`}>
+              {gradeLevels.map(gl => (
                 <button
-                  onClick={() => setSubjectFilter(null)}
-                  className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${!subjectFilter ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 border-gray-200 dark:border-slate-700 hover:border-purple-300'}`}
-                >Все</button>
-                {subjects.map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setSubjectFilter(s)}
-                    className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${subjectFilter === s ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 border-gray-200 dark:border-slate-700 hover:border-purple-300'}`}
-                  >{s}</button>
-                ))}
-              </div>
-            )}
-
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {loadingBooks ? (
-                <div className="text-center text-gray-400 dark:text-slate-500 text-sm py-8">Загрузка...</div>
-              ) : visibleBooks.length === 0 ? (
-                <div className="text-center text-gray-400 dark:text-slate-500 text-sm py-8">Нет учебников</div>
-              ) : visibleBooks.map(tb => (
-                <button
-                  key={tb.id}
-                  onClick={() => selectTextbook(tb)}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg border-2 transition-all ${
-                    activeTb?.id === tb.id
-                      ? 'border-purple-400 bg-purple-50'
-                      : 'border-transparent bg-white dark:bg-slate-800 hover:border-gray-200'
-                  }`}
+                  key={gl.id}
+                  onClick={() => setSelectedGL(gl)}
+                  className="flex flex-col items-center justify-center gap-1 p-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl hover:border-purple-400 hover:bg-purple-50 transition-all"
                 >
-                  <div className="text-sm font-medium text-gray-800 dark:text-slate-200 leading-tight">{tb.title}</div>
-                  {tb.subject_name && (
-                    <div className="text-xs text-purple-600 mt-0.5">{tb.subject_name}</div>
-                  )}
+                  <span className="text-xl font-bold text-emerald-600">{gl.number}</span>
+                  {!isMobile && <span className="text-xs text-gray-600 dark:text-slate-400">{gl.name}</span>}
                 </button>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Список учебников */}
+      {selectedGL && (
+        <div className="flex-1 flex flex-col min-h-0">
+          {subjects.length > 1 && (
+            <div className="px-3 py-2 flex flex-wrap gap-1 border-b border-gray-100 dark:border-slate-700 flex-shrink-0">
+              <button
+                onClick={() => setSubjectFilter(null)}
+                className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${!subjectFilter ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 border-gray-200 dark:border-slate-700 hover:border-purple-300'}`}
+              >Все</button>
+              {subjects.map(s => (
+                <button key={s} onClick={() => setSubjectFilter(s)}
+                  className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${subjectFilter === s ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 border-gray-200 dark:border-slate-700 hover:border-purple-300'}`}
+                >{s}</button>
+              ))}
+            </div>
+          )}
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {loadingBooks ? (
+              <div className="text-center text-gray-400 dark:text-slate-500 text-sm py-8">Загрузка...</div>
+            ) : visibleBooks.length === 0 ? (
+              <div className="text-center text-gray-400 dark:text-slate-500 text-sm py-8">Нет учебников</div>
+            ) : visibleBooks.map(tb => (
+              <button key={tb.id} onClick={() => selectTextbook(tb)}
+                className={`w-full text-left px-3 py-2 rounded-lg border-2 transition-all ${
+                  activeTb?.id === tb.id
+                    ? 'border-purple-400 bg-purple-50 dark:bg-purple-900/20'
+                    : 'border-transparent bg-white dark:bg-slate-800 hover:border-gray-200'
+                }`}
+              >
+                <div className="text-sm font-medium text-gray-800 dark:text-slate-200 leading-tight">{tb.title}</div>
+                {tb.subject_name && <div className="text-xs text-purple-600 mt-0.5">{tb.subject_name}</div>}
+              </button>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+    </>
+  );
 
-      {/* ── Правая панель: превью PDF ────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-h-0 min-w-0">
-        {!activeTb ? (
-          <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-slate-500 bg-gray-50 dark:bg-slate-900">
-            <div className="text-center">
-              <div className="text-5xl mb-3">📖</div>
-              <p className="text-sm">Выберите учебник из списка слева</p>
+  // Блок предпросмотра PDF
+  const previewPanel = (
+    <div className="flex-1 flex flex-col min-h-0 min-w-0">
+      {!activeTb ? (
+        <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-slate-500 bg-gray-50 dark:bg-slate-900">
+          <div className="text-center">
+            <div className="text-5xl mb-3">📖</div>
+            <p className="text-sm">{isMobile ? 'Выберите учебник выше' : 'Выберите учебник из списка слева'}</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Тулбар: название + диапазон страниц */}
+          <div className="h-11 border-b bg-white dark:bg-slate-800 flex items-center gap-2 px-3 flex-shrink-0">
+            <span className="text-sm font-medium text-gray-700 dark:text-slate-300 truncate flex-1 min-w-0">{activeTb.title}</span>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <span className="text-xs text-gray-500 dark:text-slate-400">Стр.</span>
+              <input
+                type="number" min={1} max={numPages || undefined} value={content.page_from}
+                onChange={e => setFrom(Number(e.target.value))}
+                className="w-12 text-center text-sm border border-gray-200 dark:border-slate-700 rounded-md px-1 py-1 focus:outline-none focus:border-purple-400"
+              />
+              <span className="text-xs text-gray-400 dark:text-slate-500">—</span>
+              <input
+                type="number" min={content.page_from} max={numPages || undefined} value={content.page_to}
+                onChange={e => setTo(Number(e.target.value))}
+                className="w-12 text-center text-sm border border-gray-200 dark:border-slate-700 rounded-md px-1 py-1 focus:outline-none focus:border-purple-400"
+              />
+              {numPages > 0 && <span className="text-xs text-gray-400 dark:text-slate-500">из {numPages}</span>}
             </div>
           </div>
-        ) : (
-          <>
-            {/* Тулбар: название + диапазон страниц */}
-            <div className="h-11 border-b bg-white dark:bg-slate-800 flex items-center gap-3 px-4 flex-shrink-0">
-              <span className="text-sm font-medium text-gray-700 dark:text-slate-300 truncate flex-1 min-w-0">{activeTb.title}</span>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <span className="text-xs text-gray-500 dark:text-slate-400">Стр.</span>
-                <input
-                  type="number" min={1} max={numPages || undefined} value={content.page_from}
-                  onChange={e => setFrom(Number(e.target.value))}
-                  className="w-14 text-center text-sm border border-gray-200 dark:border-slate-700 rounded-md px-1.5 py-1 focus:outline-none focus:border-purple-400"
-                  title="С страницы"
-                />
-                <span className="text-xs text-gray-400 dark:text-slate-500">—</span>
-                <input
-                  type="number" min={content.page_from} max={numPages || undefined} value={content.page_to}
-                  onChange={e => setTo(Number(e.target.value))}
-                  className="w-14 text-center text-sm border border-gray-200 dark:border-slate-700 rounded-md px-1.5 py-1 focus:outline-none focus:border-purple-400"
-                  title="По страницу"
-                />
-                {numPages > 0 && (
-                  <span className="text-xs text-gray-400 dark:text-slate-500">из {numPages}</span>
-                )}
-              </div>
+
+          <div ref={pdfContainerRef} className="flex-1 overflow-auto bg-gray-700 dark:bg-slate-600 flex flex-col items-center py-3 gap-3">
+            <div className="flex items-center gap-2 bg-gray-800 dark:bg-slate-700/90 rounded-lg px-3 py-1.5 flex-shrink-0 select-none">
+              <button
+                onClick={() => setPreviewPage(p => Math.max(content.page_from, p - 1))}
+                disabled={previewPage <= content.page_from}
+                className="w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:bg-gray-600 disabled:opacity-30 text-lg leading-none"
+              >‹</button>
+              <span className="text-xs text-gray-300 min-w-[90px] text-center">
+                стр. {previewPage}
+                {content.page_from !== content.page_to && ` (${content.page_from}–${content.page_to})`}
+              </span>
+              <button
+                onClick={() => setPreviewPage(p => Math.min(content.page_to, p + 1))}
+                disabled={previewPage >= content.page_to}
+                className="w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:bg-gray-600 disabled:opacity-30 text-lg leading-none"
+              >›</button>
             </div>
 
-            {/* PDF + навигация по диапазону */}
-            <div ref={pdfContainerRef} className="flex-1 overflow-auto bg-gray-700 dark:bg-slate-600 flex flex-col items-center py-4 gap-3">
-              {/* Навигация внутри диапазона */}
-              <div className="flex items-center gap-2 bg-gray-800 dark:bg-slate-700/90 rounded-lg px-3 py-1.5 flex-shrink-0 select-none">
-                <button
-                  onClick={() => setPreviewPage(p => Math.max(content.page_from, p - 1))}
-                  disabled={previewPage <= content.page_from}
-                  className="w-6 h-6 flex items-center justify-center rounded text-gray-300 dark:text-slate-600 hover:bg-gray-600 disabled:opacity-30 transition-colors text-lg leading-none"
-                >‹</button>
-                <span className="text-xs text-gray-300 dark:text-slate-600 min-w-[110px] text-center">
-                  стр. {previewPage}
-                  {content.page_from !== content.page_to && ` (диапазон: ${content.page_from}–${content.page_to})`}
-                </span>
-                <button
-                  onClick={() => setPreviewPage(p => Math.min(content.page_to, p + 1))}
-                  disabled={previewPage >= content.page_to}
-                  className="w-6 h-6 flex items-center justify-center rounded text-gray-300 dark:text-slate-600 hover:bg-gray-600 disabled:opacity-30 transition-colors text-lg leading-none"
-                >›</button>
-              </div>
+            {activeTb.file_url ? (
+              <Document
+                file={activeTb.file_url}
+                onLoadSuccess={({ numPages: n }) => { setNumPages(n); if (content.page_to > n) update({ page_to: n }); }}
+                loading={<div className="text-gray-400 text-sm py-16">Загрузка PDF…</div>}
+                error={<div className="text-red-400 text-sm py-16">Не удалось загрузить PDF</div>}
+              >
+                <Page
+                  pageNumber={previewPage}
+                  width={pdfWidth}
+                  renderTextLayer={false}
+                  renderAnnotationLayer={false}
+                  className="shadow-2xl"
+                />
+              </Document>
+            ) : (
+              <div className="text-gray-400 text-sm py-16">Файл недоступен</div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
 
-              {activeTb.file_url ? (
-                <Document
-                  file={activeTb.file_url}
-                  onLoadSuccess={({ numPages: n }) => {
-                    setNumPages(n);
-                    // Clamp page_to if PDF has fewer pages
-                    if (content.page_to > n) update({ page_to: n });
-                  }}
-                  loading={<div className="text-gray-400 dark:text-slate-500 text-sm py-16">Загрузка PDF…</div>}
-                  error={<div className="text-red-400 text-sm py-16">Не удалось загрузить PDF</div>}
-                >
-                  <Page
-                    pageNumber={previewPage}
-                    width={pdfWidth}
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
-                    className="shadow-2xl"
-                  />
-                </Document>
-              ) : (
-                <div className="text-gray-400 dark:text-slate-500 text-sm py-16">Файл недоступен</div>
-              )}
-            </div>
-          </>
-        )}
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-full min-h-0">
+        {/* Верхняя часть: выбор учебника — занимает ~40% */}
+        <div className="flex flex-col bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 flex-shrink-0"
+          style={{ height: '40%', minHeight: 140, maxHeight: 280 }}
+        >
+          {selectorPanel}
+        </div>
+        {/* Нижняя часть: предпросмотр — всё оставшееся пространство */}
+        {previewPanel}
       </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full min-h-0">
+      {/* Левая панель: навигация */}
+      <div className="w-72 flex-shrink-0 flex flex-col border-r border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 min-h-0">
+        {selectorPanel}
+      </div>
+      {/* Правая панель: превью PDF */}
+      {previewPanel}
     </div>
   );
 }

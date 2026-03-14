@@ -169,9 +169,9 @@ Unique together: (school_class, name)
 | `resources` | JSONField (список ресурсов) |
 | `lesson` | FK → Lesson nullable |
 | `comments` | TextField (Комментарии) |
-| `self_study_links` | TextField (Ссылки на самообучение) |
-| `additional_resources` | TextField (Дополнительные ресурсы) |
-| `individual_folder` | TextField (Индивид. папка ученика) |
+| `self_study_links` | JSONField `[{title, url}]` (Ссылки на самообучение) |
+| `additional_resources` | JSONField `[{title, url}]` (Дополнительные ресурсы) |
+| `individual_folder` | JSONField `[{title, url}]` (Индивид. папка ученика) |
 | `ksp` | TextField (КСП) |
 | `presentation_link` | TextField (Ссылка на презентацию) |
 | `created_at` | DateTimeField |
@@ -626,6 +626,15 @@ Unique together: (report, field)
 | `user` | FK → User |
 | `read_at` | DateTimeField |
 Unique together: (post, user)
+
+### NewsReaction (реакции на новости)
+| Поле | Тип |
+|------|-----|
+| `post` | FK → NewsPost |
+| `user` | FK → User |
+| `emoji` | CharField (одна из: 👍❤️😂😮😢👏) |
+| `created_at` | DateTimeField |
+Unique together: (post, user) — одна реакция на пользователя на пост.
 
 ---
 

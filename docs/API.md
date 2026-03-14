@@ -294,9 +294,14 @@ WS-события сессии: `quiz_start`, `quiz_answer`, `quiz_show_results`
 | PUT | `/api/news/<pk>/` | author/admin | Обновить новость |
 | DELETE | `/api/news/<pk>/` | author/admin | Удалить новость |
 | POST | `/api/news/<pk>/publish/` | author/admin | Опубликовать / снять с публикации |
+| POST | `/api/news/<pk>/read/` | all | Отметить новость прочитанной |
+| POST | `/api/news/<pk>/react/` | all | Поставить/сменить/убрать реакцию (body: `{emoji}`) |
+| GET | `/api/news/unread-count/` | all | Количество непрочитанных новостей |
 | POST | `/api/news/images/` | teacher/admin | Загрузить изображение (вернёт URL) |
 
 **Пагинация:** ответ `{results: [...], count: N}`. Каждый запрос GET отмечает непрочитанные как прочитанные.
+
+**Реакции:** `POST /react/` с `{emoji}` ставит реакцию (один из: 👍❤️😂😮😢👏). Повторный POST с тем же emoji убирает реакцию. Возвращает `{reactions: {emoji: count}, my_reaction: emoji|null}`.
 
 ---
 

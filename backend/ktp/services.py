@@ -156,6 +156,66 @@ def _parse_ktp_xlsx(file):
     return result
 
 
+def import_topics_simple(ctp, file):
+    """
+    Простой импорт тем — только названия.
+
+    xlsx: ищет строку-заголовок со столбцом 'тема', 'темы' или 'тема урока',
+          берёт данные из этого столбца. Если не найдено — самый левый столбец.
+    csv:  аналогично через parse_import_file.
+    """
+    name = getattr(file, 'name', '').lower()
+    titles = []
+    _TARGET = {'тема', 'темы', 'тема урока'}
+
+    if name.endswith('.xlsx'):
+        from openpyxl import load_workbook
+        wb = load_workbook(file, read_only=True)
+        ws = wb.active
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows:
+            return []
+        topic_col_idx = None
+        data_start = 0
+        for i, row in enumerate(rows):
+            for j, cell in enumerate(row):
+                if str(cell).strip().lower() in _TARGET:
+                    topic_col_idx = j
+                    data_start = i + 1
+                    break
+            if topic_col_idx is not None:
+                break
+        if topic_col_idx is None:
+            # Use leftmost, skip first row as header
+            topic_col_idx = 0
+            data_start = 1
+        for row in rows[data_start:]:
+            if len(row) > topic_col_idx and row[topic_col_idx] is not None:
+                t = str(row[topic_col_idx]).strip()
+                if t:
+                    titles.append(t)
+    else:
+        # csv
+        rows = parse_import_file(file)
+        if not rows:
+            return []
+        col_key = next((k for k in rows[0].keys() if k.strip().lower() in _TARGET), None)
+        if col_key is None:
+            col_key = next(iter(rows[0]))
+        for row in rows:
+            t = str(row.get(col_key, '')).strip()
+            if t:
+                titles.append(t)
+
+    last_order = ctp.topics.count()
+    created = []
+    for title in titles:
+        topic = Topic.objects.create(ctp=ctp, order=last_order, title=title)
+        created.append(topic)
+        last_order += 1
+    return created
+
+
 def import_topics(ctp, file):
     """
     Import topics from CSV/XLSX.

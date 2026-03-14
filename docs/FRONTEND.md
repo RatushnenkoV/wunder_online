@@ -61,9 +61,9 @@
 | `SelfPacedLessonPage.tsx` | 25KB | Самостоятельный режим урока |
 | `YellowListPage.tsx` | 23KB | Жёлтый список (двухпанельный layout) |
 | `ChatsPage.tsx` | 25KB | Мессенджер + WebSocket |
-| `DashboardPage.tsx` | 30KB | Дашборд (темы на день / ссылки учителя) |
-| `NewsPage.tsx` | 32KB | Лента новостей + Tiptap-редактор |
-| `KTPDetailPage.tsx` | 33KB | Редактор КТП (drag-drop тем, файлы) |
+| `DashboardPage.tsx` | 30KB | Дашборд; для не-учителей — конфигурируемый быстрый доступ (до 5 пунктов, localStorage per user) |
+| `NewsPage.tsx` | 32KB | Лента новостей + Tiptap-редактор + emoji-реакции (👍❤️😂😮😢👏) |
+| `KTPDetailPage.tsx` | 33KB | Редактор КТП; мобильная таблица (hidden md:table-cell), multi-link поля self_study_links/additional_resources/individual_folder, lesson picker с optgroup (Мои уроки / Уроки школы) |
 
 ### Большие страницы (ТРЕБУЮТ РЕФАКТОРИНГА)
 
