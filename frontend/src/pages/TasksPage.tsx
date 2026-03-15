@@ -9,12 +9,13 @@ import ReassignModal from '../components/tasks/ReassignModal';
 import GroupsTab from '../components/tasks/GroupsTab';
 import TaskCard from '../components/tasks/TaskCard';
 import DoneTable from '../components/tasks/DoneTable';
+import TasksReportTab from '../components/tasks/TasksReportTab';
 
 // ─── Главная страница ─────────────────────────────────────────────────────────
 
 export default function TasksPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'tasks' | 'done' | 'groups'>('tasks');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'done' | 'groups' | 'report'>('tasks');
   const [hiddenDoneIds, setHiddenDoneIds] = useState<Set<number>>(() => {
     try {
       const stored = localStorage.getItem('hiddenDoneTasks');
@@ -189,6 +190,14 @@ export default function TasksPage() {
               }`}>
               {`Группы${groups.length > 0 ? ` (${groups.length})` : ''}`}
             </button>
+            {user?.is_admin && (
+              <button onClick={() => setActiveTab('report')}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'report' ? 'bg-white dark:bg-slate-800 shadow text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'
+                }`}>
+                Отчёт
+              </button>
+            )}
           </div>
         </div>
         {activeTab === 'tasks' && isStaff && (
@@ -314,6 +323,11 @@ export default function TasksPage() {
           onDelete={handleDelete}
           onTaskUpdate={updateTask}
         />
+      )}
+
+      {/* Вкладка отчёта (только admin) */}
+      {activeTab === 'report' && user?.is_admin && (
+        <TasksReportTab staffList={staffList} />
       )}
 
       {/* Модалы */}

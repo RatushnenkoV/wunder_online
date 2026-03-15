@@ -74,7 +74,7 @@ class TaskSerializer(serializers.ModelSerializer):
             'assigned_to', 'assigned_to_name',
             'assigned_group', 'assigned_group_name',
             'taken_by', 'taken_by_name',
-            'status', 'due_date',
+            'status', 'priority', 'due_date',
             'is_assignee', 'can_reassign',
             'files',
             'review_comment',

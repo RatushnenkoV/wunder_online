@@ -42,6 +42,16 @@ class Task(models.Model):
         (STATUS_DONE, 'Выполнено'),
     ]
 
+    PRIORITY_LOW = 'low'
+    PRIORITY_MEDIUM = 'medium'
+    PRIORITY_HIGH = 'high'
+
+    PRIORITY_CHOICES = [
+        (PRIORITY_LOW, 'Не срочно'),
+        (PRIORITY_MEDIUM, 'Средний'),
+        (PRIORITY_HIGH, 'Срочный'),
+    ]
+
     title = models.CharField(max_length=500, verbose_name='Заголовок')
     description = models.TextField(blank=True, verbose_name='Описание')
     created_by = models.ForeignKey(
@@ -76,6 +86,12 @@ class Task(models.Model):
         choices=STATUS_CHOICES,
         default=STATUS_NEW,
         verbose_name='Статус',
+    )
+    priority = models.CharField(
+        max_length=10,
+        choices=PRIORITY_CHOICES,
+        default=PRIORITY_LOW,
+        verbose_name='Приоритет',
     )
     due_date = models.DateField(null=True, blank=True, verbose_name='Срок')
     completed_at = models.DateTimeField(null=True, blank=True, verbose_name='Дата выполнения')

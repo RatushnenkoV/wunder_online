@@ -1,5 +1,8 @@
+import io
+import openpyxl
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
@@ -58,13 +61,48 @@ def _serialize_groups(qs, request):
 @api_view(['GET'])
 @permission_classes([IsAdminOrTeacher, PasswordChanged])
 def staff_list(request):
-    users = User.objects.filter(
+    users = list(User.objects.filter(
         Q(is_admin=True) | Q(is_teacher=True)
-    ).order_by('last_name', 'first_name')
-    return Response([
-        {'id': u.id, 'first_name': u.first_name, 'last_name': u.last_name}
-        for u in users
-    ])
+    ).order_by('last_name', 'first_name'))
+
+    # Вычислить загруженность каждого сотрудника по активным задачам
+    active_tasks = list(
+        Task.objects.filter(
+            status__in=[Task.STATUS_NEW, Task.STATUS_IN_PROGRESS, Task.STATUS_REVIEW]
+        ).prefetch_related('assigned_group__members')
+    )
+
+    # user_id -> {'has_active': bool, 'has_urgent': bool}
+    workload_map: dict = {}
+    for task in active_tasks:
+        uid_set: set = set()
+        if task.assigned_to_id:
+            uid_set.add(task.assigned_to_id)
+        if task.assigned_group_id:
+            for m in task.assigned_group.members.all():
+                uid_set.add(m.id)
+        for uid in uid_set:
+            entry = workload_map.setdefault(uid, {'has_active': False, 'has_urgent': False})
+            entry['has_active'] = True
+            if task.priority == Task.PRIORITY_HIGH:
+                entry['has_urgent'] = True
+
+    result = []
+    for u in users:
+        w = workload_map.get(u.id, {})
+        if w.get('has_urgent'):
+            load = 'red'
+        elif w.get('has_active'):
+            load = 'yellow'
+        else:
+            load = 'green'
+        result.append({
+            'id': u.id,
+            'first_name': u.first_name,
+            'last_name': u.last_name,
+            'workload': load,
+        })
+    return Response(result)
 
 
 # ─── Группы ───────────────────────────────────────────────────────────────────
@@ -332,6 +370,112 @@ def task_file_delete(request, task_id, file_id):
 
 
 # ─── Счётчик ──────────────────────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def task_report(request):
+    """Отчёт по всем задачам — только для администраторов."""
+    if not request.user.is_admin:
+        return Response({'error': 'Только администраторы'}, status=403)
+
+    qs = (
+        Task.objects.all()
+        .select_related('created_by', 'assigned_to', 'assigned_group', 'taken_by')
+        .prefetch_related('files')
+        .order_by('-created_at')
+    )
+
+    # Фильтры
+    date_from = request.query_params.get('date_from')
+    date_to = request.query_params.get('date_to')
+    if date_from:
+        qs = qs.filter(created_at__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(created_at__date__lte=date_to)
+
+    status_filter = request.query_params.get('status')
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+
+    priority_filter = request.query_params.get('priority')
+    if priority_filter:
+        qs = qs.filter(priority=priority_filter)
+
+    assigned_to_filter = request.query_params.get('assigned_to')
+    if assigned_to_filter:
+        qs = qs.filter(assigned_to_id=assigned_to_filter)
+
+    created_by_filter = request.query_params.get('created_by')
+    if created_by_filter:
+        qs = qs.filter(created_by_id=created_by_filter)
+
+    search = request.query_params.get('search')
+    if search:
+        qs = qs.filter(Q(title__icontains=search) | Q(description__icontains=search))
+
+    # Выгрузка в Excel
+    if request.query_params.get('export') == 'excel':
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Задачи'
+
+        priority_labels = {
+            Task.PRIORITY_LOW: 'Не срочно',
+            Task.PRIORITY_MEDIUM: 'Средний',
+            Task.PRIORITY_HIGH: 'Срочный',
+        }
+        status_labels = {
+            Task.STATUS_NEW: 'Поставленная',
+            Task.STATUS_IN_PROGRESS: 'В работе',
+            Task.STATUS_REVIEW: 'На проверке',
+            Task.STATUS_DONE: 'Выполнено',
+        }
+
+        ws.append([
+            'ID', 'Заголовок', 'Описание', 'Приоритет', 'Статус',
+            'Постановщик', 'Исполнитель', 'Взял в работу',
+            'Срок', 'Дата создания', 'Дата выполнения',
+        ])
+
+        for task in qs:
+            if task.assigned_to:
+                assignee = f'{task.assigned_to.last_name} {task.assigned_to.first_name}'
+            elif task.assigned_group:
+                assignee = task.assigned_group.name
+            else:
+                assignee = ''
+
+            ws.append([
+                task.id,
+                task.title,
+                task.description,
+                priority_labels.get(task.priority, task.priority),
+                status_labels.get(task.status, task.status),
+                f'{task.created_by.last_name} {task.created_by.first_name}' if task.created_by else '',
+                assignee,
+                f'{task.taken_by.last_name} {task.taken_by.first_name}' if task.taken_by else '',
+                str(task.due_date) if task.due_date else '',
+                task.created_at.strftime('%d.%m.%Y %H:%M') if task.created_at else '',
+                task.completed_at.strftime('%d.%m.%Y %H:%M') if task.completed_at else '',
+            ])
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        response = HttpResponse(
+            buf.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = 'attachment; filename="tasks_report.xlsx"'
+        return response
+
+    # JSON с пагинацией
+    paginator = TaskPagination()
+    page = paginator.paginate_queryset(qs, request)
+    if page is not None:
+        return paginator.get_paginated_response(_serialize_tasks(page, request))
+    return Response(_serialize_tasks(qs, request))
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, PasswordChanged])

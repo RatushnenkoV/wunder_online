@@ -2,7 +2,76 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/client';
-import type { TopicByDate, ScheduleLesson, Substitution, ParentChild } from '../types';
+import type { TopicByDate, ScheduleLesson, Substitution, ParentChild, Task } from '../types';
+
+// ── Баннер срочных задач ──────────────────────────────────────────────────────
+
+function UrgentTasksBanner() {
+  const navigate = useNavigate();
+  const [urgentTasks, setUrgentTasks] = useState<Task[]>([]);
+
+  useEffect(() => {
+    api.get('/tasks/tasks/', { params: { page_size: 100 } })
+      .then(res => {
+        const all: Task[] = Array.isArray(res.data) ? res.data : (res.data.results ?? []);
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowISO = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+
+        const urgent = all.filter(t => {
+          if (t.status === 'done') return false;
+          if (t.priority === 'high') return true;
+          if (t.due_date && t.due_date <= tomorrowISO) return true;
+          return false;
+        });
+        setUrgentTasks(urgent);
+      })
+      .catch(() => {});
+  }, []);
+
+  if (urgentTasks.length === 0) return null;
+
+  const PRIORITY_CLS: Record<string, string> = {
+    high: 'border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-950/30 dark:text-red-300',
+    medium: 'border-yellow-300 bg-yellow-50 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-300',
+    low: 'border-gray-200 bg-gray-50 text-gray-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300',
+  };
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+        <span className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">
+          Требуют внимания
+        </span>
+      </div>
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {urgentTasks.map(task => (
+          <button
+            key={task.id}
+            onClick={() => navigate('/tasks')}
+            className={`flex-shrink-0 border rounded-xl px-4 py-2.5 text-left max-w-[240px] hover:shadow-md transition-shadow ${PRIORITY_CLS[task.priority] ?? PRIORITY_CLS.low}`}
+          >
+            <div className="flex items-center gap-1.5 mb-0.5">
+              {task.priority === 'high' && (
+                <span className="text-[10px] font-bold uppercase tracking-wide opacity-70">Срочно</span>
+              )}
+              {task.due_date && task.priority !== 'high' && (
+                <span className="text-[10px] font-bold uppercase tracking-wide opacity-70">Дедлайн</span>
+              )}
+            </div>
+            <div className="text-sm font-medium truncate">{task.title}</div>
+            {task.due_date && (
+              <div className="text-xs opacity-60 mt-0.5">
+                до {new Date(task.due_date + 'T00:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}
+              </div>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -870,6 +939,7 @@ export default function DashboardPage() {
     return (
       <div>
         <h1 className="text-2xl font-bold mb-6">Добро пожаловать, {user.first_name}!</h1>
+        <UrgentTasksBanner />
         <TeacherDashboard />
       </div>
     );
@@ -879,6 +949,7 @@ export default function DashboardPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Добро пожаловать, {user.first_name}!</h1>
+      <UrgentTasksBanner />
       <AdminDashboard />
     </div>
   );

@@ -142,10 +142,11 @@
 | POST | `/api/tasks/tasks/<pk>/files/` | all | Загрузить файл |
 | DELETE | `/api/tasks/tasks/<pk>/files/<fid>/` | all | Удалить файл |
 | GET | `/api/tasks/tasks/count/` | all | Счётчик задач (new, review) |
+| GET | `/api/tasks/tasks/report/` | admin | Отчёт по всем задачам (фильтры: date_from, date_to, status, priority, assigned_to, created_by, search; export=excel для xlsx) |
 | GET/POST | `/api/tasks/groups/` | all | Группы задач |
 | GET/PUT/DELETE | `/api/tasks/groups/<pk>/` | all | Группа задач |
 | POST | `/api/tasks/groups/<pk>/members/` | admin/teacher | Добавить/убрать участника |
-| GET | `/api/tasks/staff/` | admin/teacher | Список сотрудников для назначения |
+| GET | `/api/tasks/staff/` | admin/teacher | Список сотрудников + поле `workload` (green/yellow/red) |
 
 **Формат ответа GET `/api/tasks/tasks/`** (пагинация):
 ```json

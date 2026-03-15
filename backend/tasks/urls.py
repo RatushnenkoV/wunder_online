@@ -7,6 +7,7 @@ urlpatterns = [
     path('groups/<int:group_id>/', views.group_detail),
     path('groups/<int:group_id>/members/', views.group_members),
     path('tasks/count/', views.tasks_count),
+    path('tasks/report/', views.task_report),
     path('tasks/', views.task_list_create),
     path('tasks/<int:task_id>/', views.task_detail),
     path('tasks/<int:task_id>/status/', views.task_status_change),

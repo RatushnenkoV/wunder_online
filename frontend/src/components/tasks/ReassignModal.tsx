@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import api from '../../api/client';
 import type { Task, TaskGroup, StaffUser } from '../../types';
+import StaffPicker from './StaffPicker';
 
 interface ReassignModalProps {
   task: Task;
@@ -55,16 +56,17 @@ export default function ReassignModal({
             {(['person', 'group'] as const).map(t => (
               <button key={t} type="button" onClick={() => setAssignType(t)}
                 className={`flex-1 py-1.5 rounded-lg text-sm border transition-colors ${
-                  assignType === t ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-800'
+                  assignType === t ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'
                 }`}>{t === 'person' ? 'Человеку' : 'Группе'}</button>
             ))}
           </div>
           {assignType === 'person' ? (
-            <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} required
-              className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
-              <option value="">— выберите сотрудника —</option>
-              {staffList.map(u => <option key={u.id} value={u.id}>{u.last_name} {u.first_name}</option>)}
-            </select>
+            <StaffPicker
+              staffList={staffList}
+              value={assignedTo}
+              onChange={setAssignedTo}
+              required
+            />
           ) : (
             <select value={assignedGroup} onChange={e => setAssignedGroup(e.target.value)} required
               className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
@@ -74,7 +76,7 @@ export default function ReassignModal({
           )}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="flex-1 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800">Отмена</button>
+              className="flex-1 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700">Отмена</button>
             <button type="submit" disabled={loading}
               className="flex-1 py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50">
               {loading ? 'Сохранение...' : 'Переназначить'}

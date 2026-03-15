@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react';
 import type { FormEvent, ChangeEvent } from 'react';
 import api from '../../api/client';
-import type { Task, TaskGroup, TaskFile, StaffUser } from '../../types';
+import type { Task, TaskGroup, TaskFile, StaffUser, TaskPriority } from '../../types';
 import FileIcon from './FileIcon';
+import StaffPicker from './StaffPicker';
 
 interface CreateTaskModalProps {
   groups: TaskGroup[];
@@ -13,6 +14,12 @@ interface CreateTaskModalProps {
   initialDescription?: string;
 }
 
+const PRIORITY_OPTIONS: { value: TaskPriority; label: string; color: string }[] = [
+  { value: 'low', label: 'Не срочно', color: 'text-gray-500' },
+  { value: 'medium', label: 'Средний', color: 'text-yellow-600' },
+  { value: 'high', label: 'Срочный', color: 'text-red-600' },
+];
+
 export default function CreateTaskModal({
   groups, staffList, onClose, onCreated, initialTitle = '', initialDescription = '',
 }: CreateTaskModalProps) {
@@ -22,6 +29,7 @@ export default function CreateTaskModal({
   const [assignedTo, setAssignedTo] = useState('');
   const [assignedGroup, setAssignedGroup] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [priority, setPriority] = useState<TaskPriority>('low');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -32,7 +40,7 @@ export default function CreateTaskModal({
     setError('');
     setLoading(true);
     try {
-      const payload: Record<string, unknown> = { title, description };
+      const payload: Record<string, unknown> = { title, description, priority };
       if (dueDate) payload.due_date = dueDate;
       if (assignType === 'person') payload.assigned_to = Number(assignedTo);
       else payload.assigned_group = Number(assignedGroup);
@@ -40,7 +48,6 @@ export default function CreateTaskModal({
       const res = await api.post('/tasks/tasks/', payload);
       const task = res.data;
 
-      // Upload pending files
       const uploadedFiles: TaskFile[] = [];
       for (const file of pendingFiles) {
         const form = new FormData();
@@ -82,21 +89,45 @@ export default function CreateTaskModal({
               placeholder="Детали, ссылки..." />
           </div>
           <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Приоритет</label>
+            <div className="flex gap-2">
+              {PRIORITY_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setPriority(opt.value)}
+                  className={`flex-1 py-1.5 rounded-lg text-sm border transition-colors ${
+                    priority === opt.value
+                      ? opt.value === 'high'
+                        ? 'bg-red-600 text-white border-red-600'
+                        : opt.value === 'medium'
+                        ? 'bg-yellow-500 text-white border-yellow-500'
+                        : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-600'
+                      : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Назначить</label>
             <div className="flex gap-2 mb-3">
               {(['person', 'group'] as const).map(t => (
                 <button key={t} type="button" onClick={() => setAssignType(t)}
                   className={`flex-1 py-1.5 rounded-lg text-sm border transition-colors ${
-                    assignType === t ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-800'
+                    assignType === t ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-400 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'
                   }`}>{t === 'person' ? 'Человеку' : 'Группе'}</button>
               ))}
             </div>
             {assignType === 'person' ? (
-              <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} required
-                className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
-                <option value="">— выберите сотрудника —</option>
-                {staffList.map(u => <option key={u.id} value={u.id}>{u.last_name} {u.first_name}</option>)}
-              </select>
+              <StaffPicker
+                staffList={staffList}
+                value={assignedTo}
+                onChange={setAssignedTo}
+                required
+              />
             ) : (
               <select value={assignedGroup} onChange={e => setAssignedGroup(e.target.value)} required
                 className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
@@ -134,7 +165,7 @@ export default function CreateTaskModal({
             {pendingFiles.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {pendingFiles.map((f, i) => (
-                  <div key={i} className="flex items-center gap-1.5 bg-gray-100 dark:bg-slate-800 rounded-lg px-3 py-1.5 text-xs text-gray-700 dark:text-slate-300">
+                  <div key={i} className="flex items-center gap-1.5 bg-gray-100 dark:bg-slate-700 rounded-lg px-3 py-1.5 text-xs text-gray-700 dark:text-slate-300">
                     <FileIcon />
                     <span className="max-w-[160px] truncate">{f.name}</span>
                     <button
@@ -151,7 +182,7 @@ export default function CreateTaskModal({
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="flex-1 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800">Отмена</button>
+              className="flex-1 py-2 rounded-lg border border-gray-300 dark:border-slate-600 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700">Отмена</button>
             <button type="submit" disabled={loading}
               className="flex-1 py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50">
               {loading ? 'Создание...' : 'Создать'}

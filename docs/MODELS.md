@@ -224,6 +224,7 @@ Unique together: (school_class, name)
 | `assigned_group` | FK → TaskGroup nullable | Группа исполнителей |
 | `taken_by` | FK → User nullable | Кто взял задачу |
 | `status` | CharField | new / in_progress / review / done |
+| `priority` | CharField | low (не срочно) / medium (средний) / high (срочный). Default: low |
 | `due_date` | DateField nullable | |
 | `completed_at` | DateTimeField nullable | |
 | `review_comment` | TextField | |

@@ -219,6 +219,7 @@ export interface Substitution {
 // ─── Tasks ───────────────────────────────────────────────────────────────────
 
 export type TaskStatus = 'new' | 'in_progress' | 'review' | 'done';
+export type TaskPriority = 'low' | 'medium' | 'high';
 
 export interface TaskMember {
   id: number;
@@ -261,6 +262,7 @@ export interface Task {
   taken_by: number | null;
   taken_by_name: string | null;
   status: TaskStatus;
+  priority: TaskPriority;
   due_date: string | null;
   is_assignee: boolean;
   can_reassign: boolean;
@@ -276,7 +278,8 @@ export interface Task {
   completed_at: string | null;
 }
 
-export type StaffUser = { id: number; first_name: string; last_name: string };
+export type StaffWorkload = 'green' | 'yellow' | 'red';
+export type StaffUser = { id: number; first_name: string; last_name: string; workload: StaffWorkload };
 
 export interface TasksCount {
   new: number;

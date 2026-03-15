@@ -28,6 +28,12 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
     : null;
   const isPast = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
 
+  const priorityBadge = task.priority === 'high'
+    ? { label: 'Срочно', cls: 'bg-red-100 text-red-700' }
+    : task.priority === 'medium'
+    ? { label: 'Средний', cls: 'bg-yellow-100 text-yellow-700' }
+    : null;
+
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -69,6 +75,11 @@ export default function TaskCard({ task, onStatusChange, onDelete, onReassign, o
         <div className="flex items-start justify-between gap-2">
           <span className="text-sm font-medium text-gray-900 dark:text-slate-100 leading-snug">{task.title}</span>
           <div className="flex items-center gap-1 flex-shrink-0">
+            {priorityBadge && (
+              <span className={`text-xs whitespace-nowrap px-1.5 py-0.5 rounded-full font-medium ${priorityBadge.cls}`}>
+                {priorityBadge.label}
+              </span>
+            )}
             {dueDateLabel && (
               <span className={`text-xs whitespace-nowrap px-1.5 py-0.5 rounded-full ${
                 isPast ? 'bg-red-100 text-red-700' : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400'
