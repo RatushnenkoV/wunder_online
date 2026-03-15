@@ -14,7 +14,7 @@ export default function SchoolPage() {
   const { user } = useAuth();
   const location = useLocation();
   const isAdmin = user?.is_admin ?? false;
-  const isCurator = user?.is_teacher && (user?.curated_classes?.length ?? 0) > 0;
+  const isCurator = (user?.curated_classes?.length ?? 0) > 0;
 
   const TABS: { key: MainTab; label: string }[] = [
     { key: 'classes', label: 'Классы' },

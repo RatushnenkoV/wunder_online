@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/client';
-import type { YellowListEntry, YellowListStudentOption } from '../types';
+import type { YellowListEntry, YellowListStudentOption, TaskGroup, StaffUser } from '../types';
+import CreateTaskModal from '../components/tasks/CreateTaskModal';
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -233,80 +234,18 @@ function ParentsInfo({ studentUserId }: { studentUserId: number }) {
   );
 }
 
-// ── Create task modal ────────────────────────────────────────────────────────
-
-function CreateTaskModal({
-  entry,
-  onClose,
-  onCreated,
-}: {
-  entry: YellowListEntry;
-  onClose: () => void;
-  onCreated: () => void;
-}) {
-  const defaultTitle = `СППС: ${entry.student_name} (${entry.student_class}) — ${formatDate(entry.date)}`;
-  const [title, setTitle] = useState(defaultTitle);
-  const [dueDate, setDueDate] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const create = async () => {
-    setLoading(true);
-    try {
-      await api.post(`/yellow-list/${entry.id}/create-task/`, {
-        title,
-        due_date: dueDate || null,
-      });
-      onCreated();
-      onClose();
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
-        <h3 className="text-base font-semibold text-gray-800 dark:text-slate-200">Создать задачу</h3>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Название задачи</label>
-          <input
-            type="text"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Срок (необязательно)</label>
-          <input
-            type="date"
-            value={dueDate}
-            onChange={e => setDueDate(e.target.value)}
-            className="border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-          />
-        </div>
-        <div className="flex gap-2 justify-end">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
-            Отмена
-          </button>
-          <button
-            onClick={create}
-            disabled={loading || !title.trim()}
-            className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
-          >
-            {loading ? 'Создаю...' : 'Создать'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+// (CreateTaskModal используется из components/tasks/CreateTaskModal)
 
 // ── Single entry card ─────────────────────────────────────────────────────────
 
-function EntryCard({ entry, onUpdate }: { entry: YellowListEntry; onUpdate: () => void }) {
+function EntryCard({
+  entry, onUpdate, staffList, groups,
+}: {
+  entry: YellowListEntry;
+  onUpdate: () => void;
+  staffList: StaffUser[];
+  groups: TaskGroup[];
+}) {
   const [expanded, setExpanded] = useState(false);
   const [detail, setDetail] = useState<YellowListEntry | null>(null);
   const [commentText, setCommentText] = useState('');
@@ -418,9 +357,12 @@ function EntryCard({ entry, onUpdate }: { entry: YellowListEntry; onUpdate: () =
 
       {createTaskModal && (
         <CreateTaskModal
-          entry={current}
+          groups={groups}
+          staffList={staffList}
+          initialTitle={`СППС: ${current.student_name} (${current.student_class}) — ${formatDate(current.date)}`}
+          initialDescription={`Ученик: ${current.student_name} (${current.student_class})\nДата: ${current.date}${current.lesson ? `\nУрок: ${current.lesson}` : ''}\n\nФакт:\n${current.fact}`}
           onClose={() => setCreateTaskModal(false)}
-          onCreated={onUpdate}
+          onCreated={() => { setCreateTaskModal(false); onUpdate(); }}
         />
       )}
     </div>
@@ -435,6 +377,8 @@ function EntryList() {
   const [entries, setEntries] = useState<YellowListEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [staffList, setStaffList] = useState<StaffUser[]>([]);
+  const [groups, setGroups] = useState<TaskGroup[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -442,6 +386,11 @@ function EntryList() {
       setEntries(res.data);
     } catch { /* ignore */ }
     finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    api.get('/tasks/staff/').then(r => setStaffList(r.data)).catch(() => {});
+    api.get('/tasks/groups/').then(r => setGroups(r.data)).catch(() => {});
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -523,7 +472,7 @@ function EntryList() {
             {/* Entries */}
             <div className="space-y-3">
               {selectedEntries.map(e => (
-                <EntryCard key={e.id} entry={e} onUpdate={load} />
+                <EntryCard key={e.id} entry={e} onUpdate={load} staffList={staffList} groups={groups} />
               ))}
             </div>
           </div>
@@ -542,7 +491,7 @@ function EntryList() {
 export default function YellowListPage() {
   const { user } = useAuth();
   const canSeeList = user?.is_spps === true;  // only is_spps, not admin without spps
-  const [tab, setTab] = useState<'submit' | 'list'>('submit');
+  const [tab, setTab] = useState<'submit' | 'list'>(canSeeList ? 'list' : 'submit');
 
   return (
     <div>

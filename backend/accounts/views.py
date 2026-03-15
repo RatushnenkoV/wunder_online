@@ -85,7 +85,7 @@ def change_password_view(request):
 @permission_classes([IsAuthenticated])
 def me_view(request):
     if request.method == 'GET':
-        data = UserSerializer(request.user).data
+        data = UserSerializer(request.user, context={'request': request}).data
         if request.user.is_student:
             try:
                 sp = request.user.student_profile
@@ -108,7 +108,35 @@ def me_view(request):
     if 'phone' in request.data:
         user.phone = request.data['phone'].strip()
         user.save(update_fields=['phone'])
-    return Response(UserSerializer(user).data)
+    return Response(UserSerializer(user, context={'request': request}).data)
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+@parser_classes([MultiPartParser])
+def avatar_view(request):
+    """Загрузить или удалить аватар текущего пользователя."""
+    user = request.user
+    if request.method == 'DELETE':
+        if user.avatar:
+            user.avatar.delete(save=True)
+        else:
+            user.avatar = None
+            user.save(update_fields=['avatar'])
+        return Response({'avatar': None})
+
+    file = request.FILES.get('avatar')
+    if not file:
+        return Response({'detail': 'Файл не загружен'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Удаляем старый аватар перед сохранением нового
+    if user.avatar:
+        user.avatar.delete(save=False)
+
+    user.avatar = file
+    user.save(update_fields=['avatar'])
+    avatar_url = request.build_absolute_uri(user.avatar.url)
+    return Response({'avatar': avatar_url})
 
 
 def _paginate(queryset, request):

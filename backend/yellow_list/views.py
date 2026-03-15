@@ -16,6 +16,15 @@ from .serializers import (
 )
 
 
+def _is_curator_of_student(user, student_user_id):
+    """Проверяет, является ли user куратором класса ученика с данным user_id."""
+    try:
+        sp = StudentProfile.objects.select_related('school_class').get(user_id=student_user_id)
+        return sp.school_class is not None and sp.school_class.curator_id == user.id
+    except StudentProfile.DoesNotExist:
+        return False
+
+
 class IsSPPSOnly(BasePermission):
     """Only users with is_spps flag (admin without is_spps cannot access)."""
     def has_permission(self, request, view):
@@ -156,10 +165,36 @@ def create_task_from_entry(request, pk):
     title = request.data.get('title', '').strip() or default_title
     due_date = request.data.get('due_date') or None
 
+    assigned_to_id = request.data.get('assigned_to') or None
+    assigned_group_id = request.data.get('assigned_group') or None
+
     task = Task.objects.create(
         title=title,
         description=default_description,
         created_by=request.user,
         due_date=due_date,
+        assigned_to_id=int(assigned_to_id) if assigned_to_id else None,
+        assigned_group_id=int(assigned_group_id) if assigned_group_id else None,
     )
     return Response({'task_id': task.id, 'title': task.title}, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def student_entries(request, student_id):
+    """Записи жёлтого списка по конкретному ученику.
+    Доступно: СПСС-пользователи и куратор класса этого ученика.
+    """
+    u = request.user
+    if not u.is_spps:
+        if not _is_curator_of_student(u, student_id):
+            return Response({'detail': 'Нет доступа.'}, status=status.HTTP_403_FORBIDDEN)
+
+    qs = YellowListEntry.objects.filter(
+        student__user_id=student_id
+    ).select_related(
+        'student__user', 'student__school_class',
+        'submitted_by'
+    ).prefetch_related('comments').order_by('-date', '-created_at')
+
+    return Response(YellowListEntrySerializer(qs, many=True).data)

@@ -9,13 +9,15 @@ interface CreateTaskModalProps {
   staffList: StaffUser[];
   onClose: () => void;
   onCreated: (task: Task) => void;
+  initialTitle?: string;
+  initialDescription?: string;
 }
 
 export default function CreateTaskModal({
-  groups, staffList, onClose, onCreated,
+  groups, staffList, onClose, onCreated, initialTitle = '', initialDescription = '',
 }: CreateTaskModalProps) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [title, setTitle] = useState(initialTitle);
+  const [description, setDescription] = useState(initialDescription);
   const [assignType, setAssignType] = useState<'person' | 'group'>('person');
   const [assignedTo, setAssignedTo] = useState('');
   const [assignedGroup, setAssignedGroup] = useState('');

@@ -280,7 +280,8 @@ WS-события сессии: `quiz_start`, `quiz_answer`, `quiz_show_results`
 | POST | `/api/yellow-list/` | any staff | Создать запись |
 | GET | `/api/yellow-list/<pk>/comments/` | spps | Комментарии |
 | POST | `/api/yellow-list/<pk>/comments/` | spps | Добавить комментарий |
-| POST | `/api/yellow-list/<pk>/create-task/` | spps | Создать задачу из записи |
+| POST | `/api/yellow-list/<pk>/create-task/` | spps | Создать задачу из записи (title, due_date, assigned_to, assigned_group) |
+| GET | `/api/yellow-list/student/<student_id>/` | spps или куратор класса | Записи по конкретному ученику |
 
 ---
 

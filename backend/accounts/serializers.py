@@ -15,18 +15,27 @@ class ChangePasswordSerializer(serializers.Serializer):
 class UserSerializer(serializers.ModelSerializer):
     roles = serializers.ReadOnlyField()
     curated_classes = serializers.SerializerMethodField()
+    avatar = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'first_name', 'last_name', 'email', 'phone', 'birth_date',
             'is_admin', 'is_teacher', 'is_parent', 'is_student', 'is_spps',
-            'must_change_password', 'temp_password', 'roles', 'curated_classes',
+            'must_change_password', 'temp_password', 'roles', 'curated_classes', 'avatar',
         ]
         read_only_fields = ['id', 'must_change_password', 'temp_password']
 
     def get_curated_classes(self, obj):
         return [str(c) for c in obj.curated_classes.all()]
+
+    def get_avatar(self, obj):
+        if obj.avatar:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.avatar.url)
+            return obj.avatar.url
+        return None
 
 
 class UserCreateSerializer(serializers.Serializer):

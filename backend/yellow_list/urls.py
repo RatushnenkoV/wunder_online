@@ -8,4 +8,5 @@ urlpatterns = [
     path('<int:pk>/', views.entry_detail),
     path('<int:pk>/comments/', views.add_comment),
     path('<int:pk>/create-task/', views.create_task_from_entry),
+    path('student/<int:student_id>/', views.student_entries),
 ]

@@ -31,6 +31,7 @@ class User(AbstractUser):
     is_spps = models.BooleanField('СППС', default=False)
 
     birth_date = models.DateField('Дата рождения', null=True, blank=True)
+    avatar = models.ImageField('Аватар', upload_to='avatars/', blank=True, null=True)
 
     must_change_password = models.BooleanField(default=True)
     temp_password = models.CharField(max_length=50, blank=True, default='')

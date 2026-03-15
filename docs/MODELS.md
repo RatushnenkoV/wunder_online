@@ -23,6 +23,7 @@
 | `is_parent` | BooleanField | Роль родителя |
 | `is_student` | BooleanField | Роль ученика (несовместима с остальными) |
 | `is_spps` | BooleanField | Доп. роль СППС (teacher + spps) |
+| `avatar` | ImageField | Аватар пользователя (upload_to='avatars/', nullable) |
 | `must_change_password` | BooleanField | Принудительная смена при первом входе |
 | `temp_password` | CharField | Временный пароль (показывается при создании) |
 
