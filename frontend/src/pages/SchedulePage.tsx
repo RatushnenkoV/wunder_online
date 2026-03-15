@@ -23,10 +23,6 @@ const WEEKDAY_SHORT: Record<number, string> = {
   1: 'ПН', 2: 'ВТ', 3: 'СР', 4: 'ЧТ', 5: 'ПТ',
 };
 
-const WEEKDAY_SHORT: Record<number, string> = {
-  1: 'ПН', 2: 'ВТ', 3: 'СР', 4: 'ЧТ', 5: 'ПТ',
-};
-
 function getCurrentWeekday(): number {
   const day = new Date().getDay();
   return day >= 1 && day <= 5 ? day : 1;

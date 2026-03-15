@@ -297,25 +297,6 @@ export default function KTPDetailPage() {
     setEditTopic({ ...editTopic, [field]: editTopic[field].filter((_, i) => i !== idx) });
   };
 
-  type LinkField = 'self_study_links' | 'additional_resources' | 'individual_folder';
-
-  const addLink = (field: LinkField) => {
-    if (!editTopic) return;
-    setEditTopic({ ...editTopic, [field]: [...editTopic[field], { title: '', url: '' }] });
-  };
-
-  const updateLink = (field: LinkField, idx: number, key: 'title' | 'url', value: string) => {
-    if (!editTopic) return;
-    const arr = [...editTopic[field]];
-    arr[idx] = { ...arr[idx], [key]: value };
-    setEditTopic({ ...editTopic, [field]: arr });
-  };
-
-  const removeLink = (field: LinkField, idx: number) => {
-    if (!editTopic) return;
-    setEditTopic({ ...editTopic, [field]: editTopic[field].filter((_, i) => i !== idx) });
-  };
-
   // --- Drag and drop reorder ---
   const handleDragStart = (e: React.DragEvent, idx: number) => {
     setDragIdx(idx);

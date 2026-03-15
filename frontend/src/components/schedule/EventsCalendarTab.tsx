@@ -121,13 +121,13 @@ function MiniMonth({
 // ─── Month detail ────────────────────────────────────────────────────────────
 
 function MonthDetail({
-  year, month, label, events, typeFilter, canEdit, isAdmin,
+  year, month, label, events, typeFilter, canEdit,
   onBack, onPrev, onNext,
   onCreateWithDate, onEditEvent,
 }: {
   year: number; month: number; label: string;
   events: SchoolEvent[]; typeFilter: string;
-  canEdit: boolean; isAdmin: boolean;
+  canEdit: boolean;
   onBack: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -798,7 +798,6 @@ export default function EventsCalendarTab() {
           events={events}
           typeFilter={typeFilter}
           canEdit={canEdit}
-          isAdmin={isAdmin}
           onBack={() => setView('year')}
           onPrev={prevMonth}
           onNext={nextMonth}
