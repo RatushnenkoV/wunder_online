@@ -319,3 +319,20 @@ WS-события сессии: `quiz_start`, `quiz_answer`, `quiz_show_results`
 - `403` — нет прав (или `must_change_password`)
 - `404` — не найдено
 - `500` — ошибка сервера
+
+---
+
+## Мероприятия (`/api/events/`)
+
+| Метод | URL | Доступ | Описание |
+|-------|-----|--------|---------|
+| GET | `/api/events/` | admin/teacher/spps | Список (фильтры: date_after, date_before, event_type) |
+| POST | `/api/events/` | admin/teacher | Создать |
+| GET | `/api/events/<pk>/` | admin/teacher/spps | Деталь |
+| PUT/PATCH | `/api/events/<pk>/` | admin/teacher | Обновить |
+| DELETE | `/api/events/<pk>/` | admin | Удалить |
+| GET | `/api/events/import/` | admin | Получить кол-во мероприятий (для диалога импорта) |
+| POST | `/api/events/import/` | admin | Импорт из Excel (file, replace=true/false) |
+
+**Поля запроса импорта:** `file` (xlsx), `replace` (строка "true"/"false")
+**Ответ импорта:** `{ created, skipped, replaced }`

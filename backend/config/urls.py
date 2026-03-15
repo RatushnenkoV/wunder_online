@@ -15,6 +15,7 @@ urlpatterns = [
     path('api/curator/', include('curator.urls')),
     path('api/yellow-list/', include('yellow_list.urls')),
     path('api/news/', include('news.urls')),
+    path('api/events/', include('events.urls')),
 ]
 
 if settings.DEBUG:

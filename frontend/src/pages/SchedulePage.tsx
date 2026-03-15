@@ -6,8 +6,9 @@ import ScheduleGrid from '../components/schedule/ScheduleGrid';
 import LessonEditor from '../components/schedule/LessonEditor';
 import SubstitutionsTab from '../components/schedule/SubstitutionsTab';
 import ScheduleImportModal from '../components/schedule/ScheduleImportModal';
+import EventsCalendarTab from '../components/schedule/EventsCalendarTab';
 
-type MainTab = 'schedule' | 'substitutions';
+type MainTab = 'schedule' | 'substitutions' | 'events';
 
 type ViewMode = 'class' | 'teacher' | 'room';
 type DisplayMode = 'week' | 'day';
@@ -263,7 +264,11 @@ export default function SchedulePage() {
 
       {/* Main tabs */}
       <div className="flex gap-1 mb-6 border-b">
-        {([['schedule', 'Расписание'], ...(!isStudent ? [['substitutions', 'Замены']] : [])] as [MainTab, string][]).map(([key, label]) => (
+        {([
+          ['schedule', 'Расписание'],
+          ...(!isStudent ? [['substitutions', 'Замены']] : []),
+          ...(!isStudent ? [['events', 'Мероприятия']] : []),
+        ] as [MainTab, string][]).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setMainTab(key)}
@@ -281,6 +286,8 @@ export default function SchedulePage() {
       {mainTab === 'substitutions' && (
         <SubstitutionsTab classes={classes} teachers={teachers} rooms={rooms} />
       )}
+
+      {mainTab === 'events' && <EventsCalendarTab />}
 
       {mainTab === 'schedule' && <div>
       {isStudent ? (
