@@ -12,6 +12,7 @@ urlpatterns = [
 
     # Members
     path('<int:pk>/members/', views.ProjectMembersView.as_view()),
+    path('<int:pk>/members/bulk/', views.ProjectMembersBulkView.as_view()),
     path('<int:pk>/members/<int:uid>/', views.ProjectMemberDetailView.as_view()),
 
     # Posts (лента)

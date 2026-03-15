@@ -184,6 +184,24 @@ class ChatMembersView(APIView):
         ChatMember.objects.get_or_create(room=room, user=user)
         return Response(ChatRoomDetailSerializer(room, context={'request': request}).data)
 
+    def put(self, request, pk):
+        """Bulk-add участников (класс или подгруппа). Только для admin."""
+        if not request.user.is_admin:
+            return Response({'detail': 'Нет прав.'}, status=403)
+        room, err = self._get_room(pk, request.user)
+        if err:
+            return err
+        if room.room_type == ChatRoom.TYPE_DIRECT:
+            return Response({'detail': 'Нельзя добавлять участников в личный чат.'}, status=400)
+        user_ids = request.data.get('user_ids', [])
+        for uid in user_ids:
+            try:
+                user = User.objects.get(pk=uid)
+                ChatMember.objects.get_or_create(room=room, user=user)
+            except User.DoesNotExist:
+                pass
+        return Response(ChatRoomDetailSerializer(room, context={'request': request}).data)
+
     def delete(self, request, pk, user_pk=None):
         """Удалить участника. Admin — кого угодно. Остальные — только себя."""
         room, err = self._get_room(pk, request.user)

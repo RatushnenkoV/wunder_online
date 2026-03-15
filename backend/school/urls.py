@@ -51,4 +51,7 @@ urlpatterns = [
 
     # АХО
     path('aho/', views.aho_request_create),
+
+    # Поиск классов/подгрупп для добавления участников
+    path('class-group-search/', views.class_group_search),
 ]

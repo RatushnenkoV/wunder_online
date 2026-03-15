@@ -155,11 +155,19 @@ function RestrictionModal({ student, onClose }: { student: ChatUser; onClose: ()
   );
 }
 
+interface ClassGroupResult {
+  type: 'class' | 'group';
+  id: number;
+  label: string;
+  user_ids: number[];
+}
+
 // ─── Панель участников ────────────────────────────────────────────────────────
 export default function ChatMembersPanel({ room, onClose, onUpdated }: Props) {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [candidates, setCandidates] = useState<ChatUser[]>([]);
+  const [classGroupCandidates, setClassGroupCandidates] = useState<ClassGroupResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [restrictionTarget, setRestrictionTarget] = useState<ChatUser | null>(null);
 
@@ -171,6 +179,9 @@ export default function ChatMembersPanel({ room, onClose, onUpdated }: Props) {
     const timer = setTimeout(() => {
       api.get(`/chat/users/?q=${encodeURIComponent(search)}`)
         .then((res) => setCandidates(res.data))
+        .catch(() => {});
+      api.get(`/school/class-group-search/?q=${encodeURIComponent(search)}`)
+        .then((res) => setClassGroupCandidates(res.data))
         .catch(() => {});
     }, 300);
     return () => clearTimeout(timer);
@@ -188,6 +199,19 @@ export default function ChatMembersPanel({ room, onClose, onUpdated }: Props) {
       await refresh();
       setSearch('');
       setCandidates([]);
+      setClassGroupCandidates([]);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  };
+
+  const addClassGroup = async (cg: ClassGroupResult) => {
+    setLoading(true);
+    try {
+      await api.put(`/chat/rooms/${room.id}/members/`, { user_ids: cg.user_ids });
+      await refresh();
+      setSearch('');
+      setCandidates([]);
+      setClassGroupCandidates([]);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   };
@@ -234,11 +258,34 @@ export default function ChatMembersPanel({ room, onClose, onUpdated }: Props) {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Добавить участника..."
+                placeholder="Добавить участника или класс (5а)..."
                 className="w-full bg-gray-50 dark:bg-slate-900 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
               />
-              {candidates.length > 0 && (
-                <div className="mt-1 bg-gray-50 dark:bg-slate-900 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+              {(candidates.length > 0 || classGroupCandidates.length > 0) && (
+                <div className="mt-1 bg-gray-50 dark:bg-slate-900 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                  {/* Классы и группы */}
+                  {classGroupCandidates.length > 0 && (
+                    <>
+                      <div className="px-3 pt-1.5 pb-0.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-500">Классы и группы</span>
+                      </div>
+                      {classGroupCandidates.map((cg) => (
+                        <button
+                          key={`${cg.type}-${cg.id}`}
+                          onClick={() => addClassGroup(cg)}
+                          disabled={loading}
+                          className="w-full text-left px-3 py-1.5 hover:bg-blue-50 text-sm flex items-center gap-2"
+                        >
+                          <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
+                            {cg.type === 'class' ? 'К' : 'Г'}
+                          </div>
+                          <span className="flex-1">{cg.label}</span>
+                          <span className="text-xs text-gray-400">{cg.user_ids.length} уч.</span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  {/* Пользователи */}
                   {candidates.filter((c) => !existingIds.has(c.id)).map((c) => (
                     <button
                       key={c.id}

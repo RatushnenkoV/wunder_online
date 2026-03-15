@@ -20,6 +20,8 @@
 **Ответ `/auth/me/` включает:**
 - Основные поля User
 - `student_profile` (если is_student) — с классом
+- `school_class_id`, `school_class_name` (если is_student) — ID и имя класса
+- `class_group_ids` (если is_student) — список ID подгрупп, в которых состоит ученик
 - `teacher_profile` (если is_teacher)
 - `parent_profile` (если is_parent) — с детьми
 - `children` (если is_parent) — список детей с профилями
@@ -87,6 +89,7 @@
 | GET/POST | `/api/school/classes/<pk>/subjects/` | admin | Предметы класса |
 | PUT/DELETE | `/api/school/subjects/<pk>/` | admin | Предмет класса |
 | GET | `/api/school/classes/<pk>/schedule-subjects/` | teacher | Предметы для расписания |
+| GET | `/api/school/class-group-search/` | admin/teacher | Поиск класса/подгруппы по имени (?q=..., мин. 2 символа) → `[{type, id, label, user_ids}]` |
 
 ### Расписание
 
@@ -226,6 +229,7 @@ WS-события сессии: `quiz_start`, `quiz_answer`, `quiz_show_results`
 | GET | `/api/chat/rooms/<pk>/` | member | Чат |
 | PATCH | `/api/chat/rooms/<pk>/` | admin | Обновить чат |
 | GET | `/api/chat/rooms/<pk>/messages/` | member | Сообщения (?limit=20&before=<id>) |
+| PUT | `/api/chat/rooms/<pk>/members/` | admin | Bulk-добавить участников `{user_ids: [...]}` → обновлённый ChatRoom |
 | POST | `/api/chat/rooms/<pk>/messages/` | member | Отправить сообщение |
 | GET | `/api/chat/restrictions/<student_id>/` | admin/teacher/parent | Ограничения ученика |
 | PUT | `/api/chat/restrictions/<student_id>/` | admin/teacher/parent | Установить ограничения |
@@ -251,6 +255,7 @@ WS-события сессии: `quiz_start`, `quiz_answer`, `quiz_show_results`
 | GET | `/api/projects/<pk>/` | member | Проект |
 | PUT | `/api/projects/<pk>/` | owner/teacher | Обновить название/описание/цвет проекта |
 | POST | `/api/projects/<pk>/members/` | owner | Добавить участника (возможно добавить нескольких подряд без закрытия модала) |
+| POST | `/api/projects/<pk>/members/bulk/` | owner | Добавить сразу несколько участников `{user_ids: [...]}` → `{added: [...]}` |
 | DELETE | `/api/projects/<pk>/members/<user_id>/` | owner | Удалить участника |
 | GET/POST | `/api/projects/<pk>/assignments/` | member | Задания |
 | GET | `/api/projects/assignments/<pk>/` | member | Задание |

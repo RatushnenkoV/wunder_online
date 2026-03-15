@@ -898,6 +898,61 @@ def lesson_time_detail(request, pk):
     return Response(LessonTimeSlotSerializer(slot).data)
 
 
+# --- Class/Group search (для добавления в чат/проект) ---
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, PasswordChanged])
+def class_group_search(request):
+    """
+    Поиск классов и подгрупп по запросу.
+    Возвращает список {type, id, label, user_ids}.
+    Используется при добавлении участников в чат/проект.
+    """
+    from accounts.models import User as UserModel
+    q = request.query_params.get('q', '').strip()
+    if len(q) < 2:
+        return Response([])
+
+    # Нормализуем запрос: убираем дефисы и пробелы для сравнения "5а" с "5-А"
+    def _norm(s):
+        return s.replace('-', '').replace(' ', '').lower()
+
+    q_norm = _norm(q)
+
+    results = []
+
+    all_classes = SchoolClass.objects.select_related('grade_level').all()
+    matched_classes = [c for c in all_classes if q_norm in _norm(str(c))]
+
+    for sc in matched_classes:
+        user_ids = list(
+            UserModel.objects.filter(
+                student_profile__school_class=sc
+            ).values_list('id', flat=True)
+        )
+        results.append({
+            'type': 'class',
+            'id': sc.id,
+            'label': str(sc),
+            'user_ids': user_ids,
+        })
+
+    # Поиск подгрупп — по имени или по названию класса
+    all_groups = ClassGroup.objects.select_related('school_class', 'school_class__grade_level').all()
+    matched_groups = [g for g in all_groups if q_norm in _norm(str(g.school_class)) or q.lower() in g.name.lower()]
+
+    for grp in matched_groups:
+        user_ids = list(grp.students.values_list('id', flat=True))
+        results.append({
+            'type': 'group',
+            'id': grp.id,
+            'label': f'{grp.school_class} {grp.name}',
+            'user_ids': user_ids,
+        })
+
+    return Response(results)
+
+
 # --- АХО ---
 
 @api_view(['POST'])

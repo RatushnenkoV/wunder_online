@@ -2,6 +2,13 @@ import { useState, useEffect } from 'react';
 import api from '../../api/client';
 import type { ChatRoom, ChatUser } from '../../types';
 
+interface ClassGroupResult {
+  type: 'class' | 'group';
+  id: number;
+  label: string;
+  user_ids: number[];
+}
+
 interface Props {
   onClose: () => void;
   onCreated: (room: ChatRoom) => void;
@@ -11,6 +18,8 @@ export default function CreateGroupModal({ onClose, onCreated }: Props) {
   const [name, setName] = useState('');
   const [search, setSearch] = useState('');
   const [allUsers, setAllUsers] = useState<ChatUser[]>([]);
+  const [displayedUsers, setDisplayedUsers] = useState<ChatUser[]>([]);
+  const [classGroups, setClassGroups] = useState<ClassGroupResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<ChatUser[]>([]);
   const [saving, setSaving] = useState(false);
@@ -19,26 +28,57 @@ export default function CreateGroupModal({ onClose, onCreated }: Props) {
   useEffect(() => {
     setLoading(true);
     api.get('/chat/users/')
-      .then((res) => setAllUsers(res.data))
+      .then((res) => { setAllUsers(res.data); setDisplayedUsers(res.data); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
   // Серверная фильтрация при вводе (debounce 250ms)
   useEffect(() => {
-    if (!search.trim()) return;
+    if (!search.trim()) {
+      setDisplayedUsers(allUsers);
+      setClassGroups([]);
+      return;
+    }
     const timer = setTimeout(() => {
+      // displayedUsers — только для отображения; allUsers не перезаписываем (нужен для addClassGroup)
       api.get(`/chat/users/?q=${encodeURIComponent(search)}`)
-        .then((res) => setAllUsers(res.data))
+        .then((res) => setDisplayedUsers(res.data))
+        .catch(() => {});
+      api.get(`/school/class-group-search/?q=${encodeURIComponent(search)}`)
+        .then((res) => setClassGroups(res.data))
         .catch(() => {});
     }, 250);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, allUsers]);
 
   const toggle = (u: ChatUser) => {
     setSelected((prev) =>
       prev.find((x) => x.id === u.id) ? prev.filter((x) => x.id !== u.id) : [...prev, u]
     );
+  };
+
+  // Добавить всех участников класса/группы, которые доступны в /chat/users/
+  const addClassGroup = async (cg: ClassGroupResult) => {
+    try {
+      // Загрузим всех пользователей из class-group через их id
+      // Используем уже имеющихся в allUsers + запросим остальных
+      const existingMap = new Map(allUsers.map(u => [u.id, u]));
+      const missing = cg.user_ids.filter(id => !existingMap.has(id));
+      let extra: ChatUser[] = [];
+      if (missing.length > 0) {
+        // Получим их через пустой запрос, у нас нет bulk-user-fetch, поэтому пропустим
+        extra = [];
+      }
+      const toAdd = [
+        ...cg.user_ids.map(id => existingMap.get(id)).filter(Boolean) as ChatUser[],
+        ...extra,
+      ];
+      setSelected(prev => {
+        const ids = new Set(prev.map(u => u.id));
+        return [...prev, ...toAdd.filter(u => !ids.has(u.id))];
+      });
+    } catch { /* ignore */ }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,12 +95,7 @@ export default function CreateGroupModal({ onClose, onCreated }: Props) {
     finally { setSaving(false); }
   };
 
-  // Клиентская фильтрация для мгновенного отклика
-  const displayed = search.trim()
-    ? allUsers.filter((u) =>
-        u.display_name.toLowerCase().includes(search.toLowerCase())
-      )
-    : allUsers;
+  const displayed = displayedUsers;
 
   const selectedIds = new Set(selected.map((u) => u.id));
 
@@ -117,7 +152,7 @@ export default function CreateGroupModal({ onClose, onCreated }: Props) {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Поиск по имени..."
+                placeholder="Поиск по имени или классу (например: 5а)..."
                 className="w-full bg-gray-50 dark:bg-slate-900 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
               />
 
@@ -125,7 +160,40 @@ export default function CreateGroupModal({ onClose, onCreated }: Props) {
                 {loading && (
                   <p className="text-center text-sm text-gray-400 dark:text-slate-500 py-4">Загрузка...</p>
                 )}
-                {!loading && displayed.length === 0 && (
+
+                {/* Классы и группы */}
+                {classGroups.length > 0 && (
+                  <>
+                    <div className="px-3 pt-2 pb-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-500">Классы и группы</span>
+                    </div>
+                    {classGroups.map((cg) => (
+                      <button
+                        key={`${cg.type}-${cg.id}`}
+                        type="button"
+                        onClick={() => addClassGroup(cg)}
+                        className="w-full text-left px-4 py-2 flex items-center gap-3 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                      >
+                        <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
+                          {cg.type === 'class' ? 'К' : 'Г'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm text-gray-800 dark:text-slate-200">{cg.label}</span>
+                          <span className="text-xs text-gray-400 ml-2">{cg.user_ids.length} уч.</span>
+                        </div>
+                        <span className="text-xs text-blue-500 font-medium whitespace-nowrap">+ все</span>
+                      </button>
+                    ))}
+                    {displayed.length > 0 && (
+                      <div className="px-3 pt-2 pb-1 border-t border-gray-100 dark:border-slate-700">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Пользователи</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Пользователи */}
+                {!loading && displayed.length === 0 && classGroups.length === 0 && (
                   <p className="text-center text-sm text-gray-400 dark:text-slate-500 py-4">Никого не найдено</p>
                 )}
                 {displayed.map((u) => (

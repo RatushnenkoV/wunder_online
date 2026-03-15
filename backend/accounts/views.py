@@ -91,9 +91,14 @@ def me_view(request):
                 sp = request.user.student_profile
                 data['school_class_id'] = sp.school_class_id
                 data['school_class_name'] = str(sp.school_class) if sp.school_class else ''
+                from school.models import ClassGroup
+                data['class_group_ids'] = list(
+                    ClassGroup.objects.filter(students=request.user).values_list('id', flat=True)
+                )
             except AttributeError:
                 data['school_class_id'] = None
                 data['school_class_name'] = ''
+                data['class_group_ids'] = []
         if request.user.is_parent:
             try:
                 children_qs = request.user.parent_profile.children.select_related(

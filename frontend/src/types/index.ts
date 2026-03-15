@@ -26,6 +26,7 @@ export interface User {
   children?: ParentChild[];    // только для родителей (из /auth/me/)
   school_class_id?: number | null;   // только для студентов (из /auth/me/)
   school_class_name?: string;        // только для студентов (из /auth/me/)
+  class_group_ids?: number[];        // IDs подгрупп, в которых состоит студент
 }
 
 export interface Parent {

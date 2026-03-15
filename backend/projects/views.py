@@ -235,6 +235,35 @@ class ProjectMembersView(APIView):
         return Response(serializer.data, status=201 if created else 200)
 
 
+class ProjectMembersBulkView(APIView):
+    """Добавить сразу нескольких участников (класс или подгруппа)."""
+    permission_classes = [PasswordChanged]
+
+    def post(self, request, pk):
+        project, err = _get_project(pk, request.user, require_teacher=True)
+        if err:
+            return err
+        user_ids = request.data.get('user_ids', [])
+        added = []
+        for uid in user_ids:
+            try:
+                user = User.objects.get(pk=uid)
+            except User.DoesNotExist:
+                continue
+            role = ProjectMember.ROLE_TEACHER if (user.is_teacher or user.is_admin) else ProjectMember.ROLE_STUDENT
+            member, created = ProjectMember.objects.get_or_create(
+                project=project, user=user,
+                defaults={'role': role},
+            )
+            if created:
+                if role == ProjectMember.ROLE_STUDENT:
+                    teacher = project.created_by or request.user
+                    for assignment in project.assignments.all():
+                        _create_task_for_student(assignment, user, teacher)
+                added.append(ProjectMemberSerializer(member).data)
+        return Response({'added': added}, status=201)
+
+
 class ProjectMemberDetailView(APIView):
     permission_classes = [PasswordChanged]
 

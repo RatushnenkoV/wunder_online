@@ -235,6 +235,13 @@ function EditProjectModal({
 
 // ─── Invite Modal ─────────────────────────────────────────────────────────────
 
+interface ClassGroupResult {
+  type: 'class' | 'group';
+  id: number;
+  label: string;
+  user_ids: number[];
+}
+
 function InviteMembersModal({
   projectId,
   existingMembers,
@@ -248,18 +255,24 @@ function InviteMembersModal({
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ProjectUser[]>([]);
+  const [classGroups, setClassGroups] = useState<ClassGroupResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState<number | null>(null);
+  const [addingBulk, setAddingBulk] = useState(false);
   // Отслеживаем добавленных в этой сессии модала
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set(existingMembers.map(m => m.user.id)));
 
   useEffect(() => {
-    if (query.trim().length < 2) { setResults([]); return; }
+    if (query.trim().length < 2) { setResults([]); setClassGroups([]); return; }
     const t = setTimeout(() => {
       setLoading(true);
-      api.get(`/projects/users/?q=${encodeURIComponent(query)}&project_id=${projectId}`)
-        .then(res => setResults(res.data))
-        .finally(() => setLoading(false));
+      Promise.all([
+        api.get(`/projects/users/?q=${encodeURIComponent(query)}&project_id=${projectId}`),
+        api.get(`/school/class-group-search/?q=${encodeURIComponent(query)}`),
+      ]).then(([usersRes, cgRes]) => {
+        setResults(usersRes.data);
+        setClassGroups(cgRes.data);
+      }).finally(() => setLoading(false));
     }, 300);
     return () => clearTimeout(t);
   }, [query, projectId]);
@@ -271,9 +284,23 @@ function InviteMembersModal({
       const res = await api.post(`/projects/${projectId}/members/`, { user_id: user.id, role });
       onAdded(res.data);
       setAddedIds(prev => new Set(prev).add(user.id));
-      // Убираем из результатов поиска
       setResults(prev => prev.filter(u => u.id !== user.id));
     } catch { /* ignore */ } finally { setAdding(null); }
+  };
+
+  const handleAddClassGroup = async (cg: ClassGroupResult) => {
+    setAddingBulk(true);
+    try {
+      const res = await api.post(`/projects/${projectId}/members/bulk/`, { user_ids: cg.user_ids });
+      const added: ProjectMember[] = res.data.added ?? [];
+      added.forEach(m => onAdded(m));
+      setAddedIds(prev => {
+        const next = new Set(prev);
+        cg.user_ids.forEach(id => next.add(id));
+        return next;
+      });
+      setClassGroups(prev => prev.filter(g => !(g.type === cg.type && g.id === cg.id)));
+    } catch { /* ignore */ } finally { setAddingBulk(false); }
   };
 
   return (
@@ -292,11 +319,40 @@ function InviteMembersModal({
             autoFocus
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Введите фамилию или имя..."
+            placeholder="Введите имя или класс (например: 5а)..."
             className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
           {loading && <p className="text-xs text-gray-400 dark:text-slate-500 text-center">Поиск...</p>}
-          <div className="space-y-2 max-h-60 overflow-y-auto">
+          <div className="space-y-1 max-h-60 overflow-y-auto">
+            {/* Классы и группы */}
+            {classGroups.length > 0 && (
+              <>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-500 px-1 pt-1">Классы и группы</p>
+                {classGroups.map(cg => (
+                  <div key={`${cg.type}-${cg.id}`} className="flex items-center justify-between gap-2 py-1.5 px-1 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/20">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
+                        {cg.type === 'class' ? 'К' : 'Г'}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{cg.label}</p>
+                        <p className="text-xs text-gray-400">{cg.user_ids.length} учеников</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleAddClassGroup(cg)}
+                      disabled={addingBulk}
+                      className="text-sm text-blue-600 hover:bg-blue-100 px-3 py-1 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {addingBulk ? '...' : 'Добавить всех'}
+                    </button>
+                  </div>
+                ))}
+                {results.length > 0 && (
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 px-1 pt-2">Пользователи</p>
+                )}
+              </>
+            )}
             {results.map(u => {
               const isAlready = addedIds.has(u.id);
               return (
@@ -321,7 +377,7 @@ function InviteMembersModal({
                 </div>
               );
             })}
-            {!loading && query.trim().length >= 2 && results.length === 0 && (
+            {!loading && query.trim().length >= 2 && results.length === 0 && classGroups.length === 0 && (
               <p className="text-sm text-gray-400 dark:text-slate-500 text-center py-2">Не найдено</p>
             )}
           </div>

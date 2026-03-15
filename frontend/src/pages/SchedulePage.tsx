@@ -415,7 +415,7 @@ export default function SchedulePage() {
       {selectedId && lessons.length > 0 && (viewMode === 'class' || viewMode === 'teacher') && (
         <div className="mt-6">
           <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3">
-            {viewMode === 'class' ? 'Часы по предметам' : 'Часы по предметам'}
+            Часы по предметам
           </h2>
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
             <table className="w-full text-sm">
@@ -426,24 +426,42 @@ export default function SchedulePage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {Object.entries(
-                  lessons.reduce<Record<string, number>>((acc, l) => {
+                {(() => {
+                  // В режиме "По классу" дедуплицируем групповые уроки:
+                  // каждый уникальный слот (weekday, lesson_number) считается один раз
+                  const countLessons = viewMode === 'class'
+                    ? Object.values(
+                        lessons.reduce<Record<string, ScheduleLesson>>((acc, l) => {
+                          const key = `${l.weekday}_${l.lesson_number}`;
+                          if (!acc[key]) acc[key] = l;
+                          return acc;
+                        }, {})
+                      )
+                    : lessons;
+
+                  const subjectCounts = countLessons.reduce<Record<string, number>>((acc, l) => {
                     acc[l.subject_name] = (acc[l.subject_name] || 0) + 1;
                     return acc;
-                  }, {})
-                )
-                  .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-                  .map(([name, count]) => (
-                    <tr key={name} className="hover:bg-gray-50 dark:hover:bg-slate-800">
-                      <td className="px-4 py-1.5">{name}</td>
-                      <td className="px-4 py-1.5 text-right text-gray-500 dark:text-slate-400">{count}</td>
-                    </tr>
-                  ))
-                }
-                <tr className="bg-gray-50 dark:bg-slate-900 font-medium">
-                  <td className="px-4 py-1.5">Итого</td>
-                  <td className="px-4 py-1.5 text-right">{lessons.length}</td>
-                </tr>
+                  }, {});
+
+                  const entries = Object.entries(subjectCounts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+                  const total = countLessons.length;
+
+                  return (
+                    <>
+                      {entries.map(([name, count]) => (
+                        <tr key={name} className="hover:bg-gray-50 dark:hover:bg-slate-800">
+                          <td className="px-4 py-1.5">{name}</td>
+                          <td className="px-4 py-1.5 text-right text-gray-500 dark:text-slate-400">{count}</td>
+                        </tr>
+                      ))}
+                      <tr className="bg-gray-50 dark:bg-slate-900 font-medium">
+                        <td className="px-4 py-1.5">Итого</td>
+                        <td className="px-4 py-1.5 text-right">{total}</td>
+                      </tr>
+                    </>
+                  );
+                })()}
               </tbody>
             </table>
           </div>

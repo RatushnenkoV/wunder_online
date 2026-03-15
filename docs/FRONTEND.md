@@ -55,13 +55,13 @@
 | Файл | Размер | Описание |
 |------|--------|---------|
 | `KTPListPage.tsx` | 11KB | Список КТП, фильтры по классу/предмету |
-| `SchedulePage.tsx` | ~19KB | Расписание неделя/день + замены + мероприятия |
+| `SchedulePage.tsx` | ~19KB | Расписание неделя/день + замены + мероприятия; в режиме «По классу» таблица кол-ва уроков дедуплицирует групповые уроки (считает каждый временной слот один раз) |
 | `ProjectsPage.tsx` | 7.9KB | Список проектов (карточки) |
-| `ProjectDetailPage.tsx` | ~18KB | Детали проекта: лента + задания + участники. Включает: редактирование названия/цвета (кнопка ✏ в хедере для педагогов), InviteMembersModal с мультидобавлением (не закрывается), ограничения ученика из MembersModal (🚫). WS real-time обновления заданий/сдач |
+| `ProjectDetailPage.tsx` | ~18KB | Детали проекта: лента + задания + участники. Включает: редактирование названия/цвета (кнопка ✏ в хедере для педагогов), InviteMembersModal с мультидобавлением (не закрывается) + поиском класса/подгруппы (POST /projects/{pk}/members/bulk/), ограничения ученика из MembersModal (🚫). WS real-time обновления заданий/сдач |
 | `SelfPacedLessonPage.tsx` | 25KB | Самостоятельный режим урока |
 | `YellowListPage.tsx` | 23KB | Жёлтый список (двухпанельный layout) |
 | `ChatsPage.tsx` | 25KB | Мессенджер + WebSocket |
-| `DashboardPage.tsx` | 30KB | Дашборд; для не-учителей — конфигурируемый быстрый доступ (до 5 пунктов, localStorage per user) |
+| `DashboardPage.tsx` | 30KB | Дашборд; для не-учителей — конфигурируемый быстрый доступ (до 5 пунктов, localStorage per user); для студентов: уроки дня фильтруются по подгруппе ученика (class_group_ids) |
 | `NewsPage.tsx` | 32KB | Лента новостей + Tiptap-редактор + emoji-реакции (👍❤️😂😮😢👏) |
 | `KTPDetailPage.tsx` | 33KB | Редактор КТП; мобильная таблица (hidden md:table-cell), multi-link поля self_study_links/additional_resources/individual_folder, lesson picker с optgroup (Мои уроки / Уроки школы) |
 
@@ -91,7 +91,9 @@ frontend/src/components/
 ├── chat/
 │   ├── MessageBubble.tsx
 │   ├── PollDisplay.tsx
-│   └── TaskTakeButton.tsx
+│   ├── TaskTakeButton.tsx
+│   ├── CreateGroupModal.tsx     # Создание группового чата; поддерживает поиск класса/подгруппы (/school/class-group-search/) и добавление всех участников
+│   └── ChatMembersPanel.tsx    # Панель участников чата; поиск класса/подгруппы + bulk-добавление (PUT /chat/rooms/{pk}/members/)
 ├── curator/
 │   └── CuratorTable.tsx
 ├── groups/
@@ -208,6 +210,9 @@ interface User {
   must_change_password: boolean
   student_profile?: StudentProfile
   parent_profile?: ParentProfile
+  school_class_id?: number | null    // только для студентов (из /auth/me/)
+  school_class_name?: string         // только для студентов (из /auth/me/)
+  class_group_ids?: number[]         // IDs подгрупп ученика (из /auth/me/)
 }
 
 interface Lesson {

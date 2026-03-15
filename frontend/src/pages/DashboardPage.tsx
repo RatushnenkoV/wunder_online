@@ -510,7 +510,14 @@ function StudentScheduleDashboard() {
       const allTopics: TopicByDate[]     = topicsRes.data;
 
       const weekday    = new Date(date + 'T00:00:00').getDay();
-      const dayLessons = allLessons.filter(l => l.weekday === weekday);
+      const allDayLessons = allLessons.filter(l => l.weekday === weekday);
+
+      // Фильтр по группе: если ученик состоит в группах, показывать только его группу
+      const studentGroupIds: number[] = user?.class_group_ids ?? [];
+      const dayLessons = studentGroupIds.length > 0
+        ? allDayLessons.filter(l => l.group === null || studentGroupIds.includes(l.group!))
+        : allDayLessons;
+
       const classSubs  = allSubs.filter(s => s.school_class === classId);
 
       const findTopic = (subjectName: string): TopicByDate | null =>
