@@ -117,9 +117,49 @@ function ItTab() {
   );
 }
 
+// ─── Канц. товары (Google Forms) ──────────────────────────────────────────────
+
+function StationeryTab() {
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+      <iframe
+        src="https://docs.google.com/forms/d/e/1FAIpQLSeMoyXIJwax9sjktfXU3pHY5NK0XNEV20JzE9DNej8NjZEfJg/viewform?embedded=true"
+        width="100%"
+        height="800"
+        frameBorder="0"
+        marginHeight={0}
+        marginWidth={0}
+        title="Заявка на канцелярские товары"
+      >
+        Загрузка…
+      </iframe>
+    </div>
+  );
+}
+
+// ─── Мероприятия (Google Forms) ───────────────────────────────────────────────
+
+function EventsRequestTab() {
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
+      <iframe
+        src="https://docs.google.com/forms/d/e/1FAIpQLScc9tOg0LJ0fUchiicWp5XIY8Msjwh6YVd6fi7q5CR28ChpKg/viewform?embedded=true"
+        width="100%"
+        height="800"
+        frameBorder="0"
+        marginHeight={0}
+        marginWidth={0}
+        title="Заявка на мероприятие"
+      >
+        Загрузка…
+      </iframe>
+    </div>
+  );
+}
+
 // ─── Главная страница ─────────────────────────────────────────────────────────
 
-type Tab = 'aho' | 'it';
+type Tab = 'aho' | 'it' | 'stationery' | 'events_request';
 
 export default function RequestsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('aho');
@@ -127,6 +167,8 @@ export default function RequestsPage() {
   const tabs: { id: Tab; label: string }[] = [
     { id: 'aho', label: 'Заявки в АХО' },
     { id: 'it', label: 'Заявки в ИТ' },
+    { id: 'stationery', label: 'Канц. товары' },
+    { id: 'events_request', label: 'Мероприятия' },
   ];
 
   return (
@@ -153,6 +195,8 @@ export default function RequestsPage() {
 
       {activeTab === 'aho' && <AhoTab />}
       {activeTab === 'it' && <ItTab />}
+      {activeTab === 'stationery' && <StationeryTab />}
+      {activeTab === 'events_request' && <EventsRequestTab />}
     </div>
   );
 }
