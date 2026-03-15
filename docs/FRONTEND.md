@@ -12,7 +12,7 @@
 | `/login` | `LoginPage` | anon | Вход |
 | `/change-password` | `ChangePasswordPage` | must_change | Принудительная смена пароля |
 | `/account` | `AccountPage` | all | Настройки аккаунта |
-| `/schedule` | `SchedulePage` | all | Расписание |
+| `/schedule` | `SchedulePage` | all | Расписание (вкладки: Расписание / Замены / Мероприятия) |
 | `/ktp` | `KTPListPage` | teacher | Список КТП |
 | `/ktp/:id` | `KTPDetailPage` | teacher | Редактор КТП |
 | `/people` → `/school` | Redirect | admin | Перенаправление |
@@ -55,7 +55,7 @@
 | Файл | Размер | Описание |
 |------|--------|---------|
 | `KTPListPage.tsx` | 11KB | Список КТП, фильтры по классу/предмету |
-| `SchedulePage.tsx` | 18KB | Расписание неделя/день + замены |
+| `SchedulePage.tsx` | ~19KB | Расписание неделя/день + замены + мероприятия |
 | `ProjectsPage.tsx` | 7.9KB | Список проектов (карточки) |
 | `ProjectDetailPage.tsx` | ~18KB | Детали проекта: лента + задания + участники. Включает: редактирование названия/цвета (кнопка ✏ в хедере для педагогов), InviteMembersModal с мультидобавлением (не закрывается), ограничения ученика из MembersModal (🚫). WS real-time обновления заданий/сдач |
 | `SelfPacedLessonPage.tsx` | 25KB | Самостоятельный режим урока |
@@ -128,7 +128,9 @@ frontend/src/components/
 │   └── ProjectAssignments.tsx  # Задания: создание, просмотр сдач, редактирование задания (кнопка ✏ для педагогов)
 ├── schedule/
 │   ├── WeekView.tsx
-│   └── DayView.tsx
+│   ├── DayView.tsx
+│   ├── EventsCalendarTab.tsx   # Двухуровневый календарь мероприятий (год/месяц/список)
+│   └── EventFormModal.tsx      # Форма создания/редактирования мероприятия
 └── school/
     ├── StaffTab.tsx
     └── StudentsTab.tsx

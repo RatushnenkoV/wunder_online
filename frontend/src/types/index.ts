@@ -943,3 +943,21 @@ export interface YellowListEntry {
   comments: YellowListComment[];
   comments_count?: number;
 }
+
+
+export interface SchoolEvent {
+  id: number;
+  date_start: string;
+  date_end: string | null;
+  time_note: string;
+  target_classes: string;
+  organizers: string;
+  description: string;
+  responsible: string;
+  helper: string;
+  event_type: string;
+  approved: string;
+  cost: string;
+  status: string;
+  created_by: number | null;
+}

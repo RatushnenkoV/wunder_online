@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'curator',
     'yellow_list',
     'news',
+    'events',
 ]
 
 MIDDLEWARE = [
@@ -202,6 +203,11 @@ LOGGING = {
         'school': {
             'handlers': ['console', 'file'],
             'level': 'WARNING',
+            'propagate': False,
+        },
+        'events': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
             'propagate': False,
         },
         'django.request': {
